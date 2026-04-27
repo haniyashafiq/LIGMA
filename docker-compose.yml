@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ligma-postgres
+    environment:
+      POSTGRES_DB: ligma
+      POSTGRES_USER: ligma
+      POSTGRES_PASSWORD: ligma_dev_2024
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:8.11
+    container_name: ligma-pgadmin
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@ligma.local
+      PGADMIN_DEFAULT_PASSWORD: ligma_admin_2024
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '5050:80'
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  pgdata:
+  pgadmin-data:
