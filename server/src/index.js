@@ -2,10 +2,10 @@ const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const { Server } = require('socket.io');
 const config = require('./config');
 const authRoutes = require('./routes/auth.routes');
 const workspaceRoutes = require('./routes/workspace.routes');
+const { attachGateway } = require('./ws/gateway');
 const {
   checkDatabaseConnection,
   closePool,
@@ -37,20 +37,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: {
-    origin: config.CLIENT_URL,
-    credentials: true,
-  },
-});
-
-io.on('connection', (socket) => {
-  socket.emit('server:ready', {
-    message: 'Socket connected',
-    socketId: socket.id,
-  });
-});
+attachGateway(server);
 
 function getSanitizedDatabaseTarget(connectionString) {
   try {

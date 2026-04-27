@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "socket.io-client": "^4.8.0",
+    "y-protocols": "^1.0.7",
     "yjs": "^13.6.18"
   },
   "devDependencies": {

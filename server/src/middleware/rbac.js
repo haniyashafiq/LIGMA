@@ -10,7 +10,7 @@ const ACTION_MIN_ROLE = {
   create: 'contributor',
   edit: 'contributor',
   move: 'contributor',
-  delete: 'lead',
+  delete: 'contributor',
 };
 
 function createHttpError(message, statusCode) {

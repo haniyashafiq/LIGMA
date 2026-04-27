@@ -211,7 +211,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 > **Goal**: WebSocket connections established. Canvas mutations persisted as events. Real-time broadcasting to room members. Reconnection replays missed events.
 
 ### Task 4.1 — Event Store Service
-- [ ] Create `server/src/services/event.service.js`:
+- [x] Create `server/src/services/event.service.js`:
   - `appendEvent(workspaceId, userId, eventType, nodeId, payload, yjsUpdate)` — Insert event, return `{ id, sequence_num }`
   - `getEventsSince(workspaceId, sinceSequence)` — For reconnection replay
   - `getAllEvents(workspaceId)` — For time-travel
@@ -221,7 +221,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [server/src/services/event.service.js](file:///d:/Projects/LIGMA/server/src/services/event.service.js)
 
 ### Task 4.2 — WebSocket Gateway
-- [ ] Create `server/src/ws/gateway.js`:
+- [x] Create `server/src/ws/gateway.js`:
   - Attach Socket.IO to HTTP server
   - Auth handshake: verify `socket.handshake.auth.token` via auth middleware
   - On connect: join `room:${workspaceId}`, broadcast `presence:join`
@@ -231,7 +231,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [server/src/ws/gateway.js](file:///d:/Projects/LIGMA/server/src/ws/gateway.js)
 
 ### Task 4.3 — WebSocket Message Handlers
-- [ ] Create `server/src/ws/handlers.js`:
+- [x] Create `server/src/ws/handlers.js`:
   - Route all `canvas:*` events through RBAC check
   - `canvas:node:create` → validate → append event → broadcast `canvas:delta`
   - `canvas:node:update` → validate ownership → append → broadcast
@@ -245,7 +245,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [server/src/ws/handlers.js](file:///d:/Projects/LIGMA/server/src/ws/handlers.js)
 
 ### Task 4.4 — Yjs Server Sync
-- [ ] Create `server/src/ws/yjs-sync.js`:
+- [x] Create `server/src/ws/yjs-sync.js`:
   - In-memory `Map<workspaceId, Y.Doc>`
   - On first connection: hydrate from latest snapshot + replay subsequent events
   - On `yjs:update`: apply to server Y.Doc → append event → broadcast
@@ -255,7 +255,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [server/src/ws/yjs-sync.js](file:///d:/Projects/LIGMA/server/src/ws/yjs-sync.js)
 
 ### Task 4.5 — Socket.IO Client Setup
-- [ ] Create `client/src/net/socket.js`:
+- [x] Create `client/src/net/socket.js`:
   - Connect to server with `auth: { token }` handshake
   - Auto-reconnect with exponential backoff (Socket.IO built-in)
   - On reconnect: send `lastSequenceNum` from `sessionStorage`
@@ -265,7 +265,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [client/src/net/socket.js](file:///d:/Projects/LIGMA/client/src/net/socket.js)
 
 ### Task 4.6 — Yjs Client Provider
-- [ ] Create `client/src/net/yjs-provider.js`:
+- [x] Create `client/src/net/yjs-provider.js`:
   - Bridge between local `Y.Doc` and Socket.IO transport
   - Send Y.Doc updates as `yjs:update` events
   - Apply incoming updates to local doc
