@@ -7,13 +7,15 @@ services:
       POSTGRES_USER: ligma
       POSTGRES_PASSWORD: ligma_dev_2024
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   pgadmin:
     image: dpage/pgadmin4:8.11
     container_name: ligma-pgadmin
+    profiles:
+      - tools
     depends_on:
       - postgres
     environment:

@@ -161,7 +161,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [server/src/routes/auth.routes.js](file:///d:/Projects/LIGMA/server/src/routes/auth.routes.js)
 
 ### Task 3.4 — RBAC Middleware
-- [ ] Create `server/src/middleware/rbac.js`:
+- [x] Create `server/src/middleware/rbac.js`:
   - `requireRole(...roles)` — Express middleware factory, checks `workspace_roles` for user
   - `checkNodePermission(action, nodeId, userId, workspaceId)` — Node-level permission check for WebSocket mutations
   - Permission matrix as defined in architecture (lead/contributor/viewer × create/edit/delete/move)
@@ -169,8 +169,8 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [server/src/middleware/rbac.js](file:///d:/Projects/LIGMA/server/src/middleware/rbac.js)
 
 ### Task 3.5 — Workspace Routes
-- [ ] Create `server/src/services/workspace.service.js` — CRUD for workspaces, role management
-- [ ] Create `server/src/routes/workspace.routes.js`:
+- [x] Create `server/src/services/workspace.service.js` — CRUD for workspaces, role management
+- [x] Create `server/src/routes/workspace.routes.js`:
   - `POST /api/workspaces` — Create workspace (creator becomes 'lead')
   - `GET /api/workspaces` — List user's workspaces
   - `GET /api/workspaces/:id` — Get workspace details + members
@@ -182,14 +182,14 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 - [server/src/routes/workspace.routes.js](file:///d:/Projects/LIGMA/server/src/routes/workspace.routes.js)
 
 ### Task 3.6 — Auth UI (Frontend)
-- [ ] Create `client/src/auth/AuthUI.js` — Login/Register forms
+- [x] Create `client/src/auth/AuthUI.js` — Login/Register forms
   - Glassmorphism card design on dark background
   - Form validation (username 3-50 chars, password 6+ chars)
   - Store access token in JS closure (not localStorage)
   - `setTimeout` auto-refresh at 14min mark
   - Redirect to workspace list on success
-- [ ] Create `client/src/styles/auth.css`
-- [ ] Create `client/src/net/api.js` — Fetch wrapper with auto `Authorization` header, auto-refresh on 401
+- [x] Create `client/src/styles/auth.css`
+- [x] Create `client/src/net/api.js` — Fetch wrapper with auto `Authorization` header, auto-refresh on 401
 
 **Files**:
 - [client/src/auth/AuthUI.js](file:///d:/Projects/LIGMA/client/src/auth/AuthUI.js)
