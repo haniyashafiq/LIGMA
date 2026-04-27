@@ -1,6 +1,6 @@
 # LIGMA — Let's Integrate Groups, Manage Anything
 
-A real-time collaborative workspace bridging ideation (infinite canvas) and execution (task board), built with CRDTs, event sourcing, RBAC, and NLP-powered AI task extraction (`natural` + rule boosters).
+A real-time collaborative workspace bridging ideation (infinite canvas) and execution (task board), built with CRDTs, event sourcing, RBAC, and NLP-powered AI task extraction (`compromise` + rule boosters).
 
 ---
 
@@ -8,8 +8,8 @@ A real-time collaborative workspace bridging ideation (infinite canvas) and exec
 
 ```mermaid
 graph TB
-    subgraph Client["Frontend (Vite SPA)"]
-        IC[Infinite Canvas Engine]
+    subgraph Client["Frontend (Vite + React SPA)"]
+      IC[Canvas View]
         TB[Task Board Panel]
         CP[Cursor Presence Layer]
         TT[Time-Travel Slider]
@@ -21,7 +21,7 @@ graph TB
         YS[Yjs Server Sync]
         ES[Event Store Service]
         RBAC[RBAC Middleware]
-        AI["AI Task Extractor (natural + rules)"]
+        AI["AI Task Extractor (compromise + rules)"]
         REST[REST API — Express]
     end
 
@@ -53,10 +53,10 @@ graph TB
 ## User Review Required
 
 > [!NOTE]
-> **AI Layer — DECIDED** — Using **`natural` (Naive Bayes classifier) + rule-based confidence boosters** for Intent-Aware Task Extraction. This gives ~85% accuracy with only ~2MB overhead, zero paid APIs, and a modular architecture that can swap in Transformers.js later if needed.
+> **AI Layer — DECIDED** — Using **`compromise` + rule-based confidence boosters** for Intent-Aware Task Extraction. This keeps the NLP layer lightweight, avoids a training-data file, and still leaves room to swap in Transformers.js later if needed.
 
 > [!IMPORTANT]
-> **Frontend Framework** — I plan to use **Vite (vanilla JS + modules)** for the frontend to keep things lean and avoid heavy framework overhead. The infinite canvas will be built with a custom HTML5 Canvas engine with DOM-overlaid sticky notes. No React/Vue dependency. **Please confirm or request React/Vue.**
+> **Frontend Framework** — I plan to use **Vite + React** for the frontend so the app shell, workspace routing, task board, and canvas view can share a clean component model. **Confirmed by user request.**
 
 > [!WARNING]
 > **PostgreSQL Setup** — You'll need a running PostgreSQL instance locally for development. I'll provide a Docker Compose file for convenience. For Render deployment, you'll create a managed PostgreSQL addon.
@@ -68,25 +68,39 @@ graph TB
 ### Phase 1: Project Scaffolding & Configuration
 
 #### [NEW] [package.json](file:///d:/Projects/LIGMA/package.json)
+
 Root `package.json` with workspaces for `server/` and `client/`. Scripts for `dev`, `build`, `start`.
 
 #### [NEW] [docker-compose.yml](file:///d:/Projects/LIGMA/docker-compose.yml)
+
 PostgreSQL 16 + pgAdmin for local development.
 
 #### [NEW] [.env.example](file:///d:/Projects/LIGMA/.env.example)
+
 Template for `DATABASE_URL`, `JWT_SECRET`, `PORT`, `WS_PORT`.
 
 #### [NEW] [render.yaml](file:///d:/Projects/LIGMA/render.yaml)
+
 Render Blueprint for automated deployment (web service + PostgreSQL addon).
+
+#### [NEW] [client/src/main.jsx](file:///d:/Projects/LIGMA/client/src/main.jsx)
+
+React entrypoint for the client app.
+
+#### [NEW] [client/src/App.jsx](file:///d:/Projects/LIGMA/client/src/App.jsx)
+
+Top-level routed app shell for auth, workspace list, and workspace canvas pages.
 
 ---
 
 ### Phase 2: Database Layer (PostgreSQL + Event Sourcing)
 
 #### [NEW] [server/src/db/pool.js](file:///d:/Projects/LIGMA/server/src/db/pool.js)
+
 PostgreSQL connection pool using `pg` library.
 
 #### [NEW] [server/src/db/migrations/001_init.sql](file:///d:/Projects/LIGMA/server/src/db/migrations/001_init.sql)
+
 Core schema:
 
 ```sql
@@ -155,6 +169,7 @@ CREATE TABLE tasks (
 ```
 
 #### [NEW] [server/src/db/migrations/migrate.js](file:///d:/Projects/LIGMA/server/src/db/migrations/migrate.js)
+
 Simple migration runner that executes SQL files in order.
 
 ---
@@ -177,7 +192,7 @@ server/src/
 │   ├── workspace.service.js # Workspace CRUD, role management
 │   ├── event.service.js  # Append events, fetch events from sequence, snapshots
 │   ├── task.service.js   # Task CRUD
-│   └── ai.service.js     # NLP intent extraction (natural + rule boosters)
+│   └── ai.service.js     # NLP intent extraction (compromise + rule boosters)
 ├── ws/
 │   ├── gateway.js        # WebSocket server setup, auth handshake
 │   ├── handlers.js       # Message routing (canvas mutations, cursor, presence)
@@ -188,10 +203,12 @@ server/src/
 ```
 
 #### [NEW] [server/src/middleware/auth.js](file:///d:/Projects/LIGMA/server/src/middleware/auth.js)
+
 - JWT token verification for both HTTP (header) and WebSocket (query param / first message)
 - Extracts `userId` and attaches to request/socket context
 
 #### [NEW] [server/src/middleware/rbac.js](file:///d:/Projects/LIGMA/server/src/middleware/rbac.js)
+
 - **Server-side RBAC enforcement** at the node level
 - Permission matrix:
   | Action | Lead | Contributor | Viewer |
@@ -207,6 +224,7 @@ server/src/
 - Every WebSocket mutation validates `authToken` + `nodeId` + user's role before applying
 
 #### [NEW] [server/src/services/event.service.js](file:///d:/Projects/LIGMA/server/src/services/event.service.js)
+
 - `appendEvent(workspaceId, userId, eventType, nodeId, payload, yjsUpdate)` — Appends to `canvas_events`, returns `sequence_num`
 - `getEventsSince(workspaceId, sinceSequence)` — For reconnection replay
 - `createSnapshot(workspaceId, doc)` — Serializes Y.Doc, stores in `yjs_snapshots`
@@ -214,16 +232,18 @@ server/src/
 - `getAllEvents(workspaceId)` — For time-travel replay
 
 #### [NEW] [server/src/services/ai.service.js](file:///d:/Projects/LIGMA/server/src/services/ai.service.js)
-**Hybrid NLP Intent Extraction — `natural` (Bayesian Classifier) + Rule Boosters:**
+
+**Hybrid NLP Intent Extraction — `compromise` + Rule Boosters:**
 
 Pipeline architecture:
+
 ```
 Input Text
   │
-  ├─→ natural.WordTokenizer → tokenize
-  ├─→ natural.PorterStemmer → normalize stems
+  ├─→ compromise term parsing → tokenize
+  ├─→ compromise pattern matching for stems / phrases
   │
-  ├─→ natural.BayesClassifier.classify(text)
+  ├─→ compromise pattern matching
   │     └─→ { intent: 'action_item', rawScore: 0.72 }
   │
   ├─→ Rule-Based Confidence Boosters (parallel)
@@ -240,6 +260,7 @@ Input Text
 ```
 
 **Pre-trained Classifier:**
+
 - Ships with `server/src/services/ai-training-data.json` (~50KB)
 - ~100 labeled examples per intent category (400 total)
 - Categories: `action_item`, `decision`, `question`, `reference`
@@ -257,34 +278,37 @@ Input Text
 - Returns `{ intent, confidence, extractedTitle }` for each node text
 - Confidence threshold (0.6) to avoid false positives
 - Triggered on `node:create` and `node:update` events
-- **Dependency**: `natural` npm package (~2MB, zero native deps)
+- **Dependency**: `compromise` npm package (lightweight, zero native deps)
 
 ---
 
 ### Phase 4: WebSocket Layer (Real-Time Engine)
 
 #### [NEW] [server/src/ws/gateway.js](file:///d:/Projects/LIGMA/server/src/ws/gateway.js)
+
 - Socket.IO server attached to the HTTP server
 - **Auth handshake**: Token extracted from `socket.handshake.auth.token`, verified via `auth.middleware`
 - Room management: `socket.join(workspaceId)`
 - Connection tracking for presence/cursor data
 
 #### [NEW] [server/src/ws/handlers.js](file:///d:/Projects/LIGMA/server/src/ws/handlers.js)
+
 Message protocol (all messages include `authToken` and `nodeId` where applicable):
 
-| Event | Direction | Payload | Description |
-|-------|-----------|---------|-------------|
-| `canvas:node:create` | C→S | `{ nodeId, type, x, y, content, style }` | Create sticky/shape/text |
-| `canvas:node:update` | C→S | `{ nodeId, delta }` | Update node content (Yjs delta) |
-| `canvas:node:move` | C→S | `{ nodeId, x, y }` | Reposition node |
-| `canvas:node:delete` | C→S | `{ nodeId }` | Delete node |
-| `canvas:sync` | S→C | `{ events[] }` | Initial state + missed events on reconnect |
-| `canvas:delta` | S→C | `{ event }` | Broadcast single delta to room |
-| `cursor:move` | C→S→C | `{ x, y, userId, color, name }` | Cursor presence |
-| `presence:join` | S→C | `{ userId, name, color }` | User joined workspace |
-| `presence:leave` | S→C | `{ userId }` | User left workspace |
+| Event                | Direction | Payload                                  | Description                                |
+| -------------------- | --------- | ---------------------------------------- | ------------------------------------------ |
+| `canvas:node:create` | C→S       | `{ nodeId, type, x, y, content, style }` | Create sticky/shape/text                   |
+| `canvas:node:update` | C→S       | `{ nodeId, delta }`                      | Update node content (Yjs delta)            |
+| `canvas:node:move`   | C→S       | `{ nodeId, x, y }`                       | Reposition node                            |
+| `canvas:node:delete` | C→S       | `{ nodeId }`                             | Delete node                                |
+| `canvas:sync`        | S→C       | `{ events[] }`                           | Initial state + missed events on reconnect |
+| `canvas:delta`       | S→C       | `{ event }`                              | Broadcast single delta to room             |
+| `cursor:move`        | C→S→C     | `{ x, y, userId, color, name }`          | Cursor presence                            |
+| `presence:join`      | S→C       | `{ userId, name, color }`                | User joined workspace                      |
+| `presence:leave`     | S→C       | `{ userId }`                             | User left workspace                        |
 
 #### [NEW] [server/src/ws/yjs-sync.js](file:///d:/Projects/LIGMA/server/src/ws/yjs-sync.js)
+
 - Maintains in-memory `Y.Doc` per active workspace
 - On `yjs:update` → applies to server doc → appends to event store → broadcasts delta
 - Periodic snapshotting (every 50 updates or 60s)
@@ -327,6 +351,7 @@ client/
 ```
 
 #### [NEW] [client/src/canvas/CanvasEngine.js](file:///d:/Projects/LIGMA/client/src/canvas/CanvasEngine.js)
+
 - **Camera system**: `{ x, y, scale }` with smooth interpolation
 - **Pan**: Middle-click drag or Space+drag, touch-2-finger drag
 - **Zoom**: Scroll wheel / pinch, zooms toward cursor position
@@ -335,6 +360,7 @@ client/
 - **Grid rendering**: Subtle dot grid that scales with zoom
 
 #### [NEW] [client/src/canvas/NodeManager.js](file:///d:/Projects/LIGMA/client/src/canvas/NodeManager.js)
+
 - Nodes are **DOM elements** overlaid on the canvas (for `contenteditable` text editing)
 - Node types: `sticky` (colored card), `text` (plain text), `shape` (rectangle/circle/diamond)
 - Drag-to-move with smooth animation
@@ -343,6 +369,7 @@ client/
 - Each node stores: `{ id, type, x, y, width, height, content, color, createdBy }`
 
 #### [NEW] [client/src/canvas/CursorLayer.js](file:///d:/Projects/LIGMA/client/src/canvas/CursorLayer.js)
+
 - Absolute-positioned cursor elements overlaid on canvas
 - Smooth CSS transition movement (`transform: translate()`)
 - Throttled emission (30fps) via `requestAnimationFrame`
@@ -350,6 +377,7 @@ client/
 - Fades out after 5s of inactivity
 
 #### [NEW] [client/src/canvas/TimeTravel.js](file:///d:/Projects/LIGMA/client/src/canvas/TimeTravel.js)
+
 - Slider component at bottom of canvas
 - Fetches full event log from REST API
 - Replays events incrementally onto a temporary `Y.Doc`
@@ -361,6 +389,7 @@ client/
 ### Phase 6: Task Board & AI Integration
 
 #### [NEW] [client/src/board/TaskBoard.js](file:///d:/Projects/LIGMA/client/src/board/TaskBoard.js)
+
 - Three-column Kanban: `TODO` | `In Progress` | `Done`
 - Drag-and-drop between columns
 - Each card shows intent badge (🎯 Action, ✅ Decision, ❓ Question, 📎 Reference)
@@ -368,6 +397,7 @@ client/
 - Real-time updates via WebSocket
 
 #### Task-Canvas Linking
+
 - Every task stores `source_node_id`
 - Clicking "Jump to Canvas" computes the node's world coordinates and animates the camera to center it with a highlight pulse animation
 - Canvas nodes that have linked tasks show a small task badge
@@ -377,11 +407,13 @@ client/
 ### Phase 7: Auth & RBAC UI
 
 #### [NEW] [client/src/auth/AuthUI.js](file:///d:/Projects/LIGMA/client/src/auth/AuthUI.js)
+
 - Login/Register forms with glassmorphism design
 - JWT stored in memory (not localStorage for security), with refresh via httpOnly cookie
 - Auto-redirect on token expiry
 
 #### RBAC UI Elements
+
 - Members sidebar panel in workspace view
 - Role badges (Lead 👑, Contributor ✏️, Viewer 👁️)
 - Lead can invite users and change roles via dropdown
@@ -392,6 +424,7 @@ client/
 ### Phase 8: Graceful Recovery & Reconnection
 
 #### Reconnection Flow
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -418,6 +451,7 @@ sequenceDiagram
 ## Design Aesthetic
 
 The UI will feature:
+
 - **Dark mode** as default with deep slate backgrounds (`#0f172a`, `#1e293b`)
 - **Vibrant accent palette**: Indigo (`#6366f1`), Violet (`#8b5cf6`), Cyan (`#06b6d4`), Amber (`#f59e0b`)
 - **Glassmorphism** panels: `backdrop-filter: blur(16px)` with semi-transparent backgrounds
@@ -431,7 +465,7 @@ The UI will feature:
 ## Open Questions
 
 > [!NOTE]
-> ~~**1. AI Layer** — RESOLVED: Using `natural` + rule boosters hybrid approach.~~
+> ~~**1. AI Layer** — RESOLVED: Using `compromise` + rule boosters hybrid approach.~~
 
 > [!NOTE]
 > **2. Authentication Persistence** — Should we use httpOnly cookies for JWT refresh tokens (more secure, requires CORS config) or keep it simple with localStorage (less secure but simpler for a demo)?
@@ -441,6 +475,7 @@ The UI will feature:
 ## Verification Plan
 
 ### Automated Tests
+
 1. **Database**: Run migration, verify schema with `\dt` and `\d+ table_name`
 2. **Event Sourcing**: Insert events → fetch since sequence → verify correctness
 3. **RBAC**: Test all permission combinations (lead/contributor/viewer × create/edit/delete/move)
@@ -449,6 +484,7 @@ The UI will feature:
 6. **WebSocket Auth**: Attempt mutation without token → verify rejection
 
 ### Browser Testing
+
 1. **Multi-user Canvas**: Open 2 browser tabs, verify real-time sync of node creation/editing
 2. **Cursor Presence**: Verify remote cursors appear with correct names/colors
 3. **Task Extraction**: Create sticky with action text → verify task appears in board
@@ -458,7 +494,20 @@ The UI will feature:
 7. **Reconnection**: Kill WebSocket → resume → verify missed events applied
 
 ### Render Deployment
+
 1. Push to GitHub → Render auto-deploys via `render.yaml`
 2. Verify WebSocket `wss://` connectivity
 3. Verify PostgreSQL addon connectivity
+
+## Change Log — Phase updates (recorded April 28, 2026)
+
+- **Phase 1 — Scaffolding**: React template and `main.jsx` added. Status: ✅ Completed.
+- **Phase 2 — Database**: Migrations and DB pool present. Status: ✅ Completed.
+- **Phase 3 — Auth**: Frontend `AuthUI.jsx` and `AuthContext.jsx` added. Status: ✅ Completed.
+- **Phase 4 — WebSocket**: Frontend hooks `useSocket.js` and `useYjs.js` added. Status: ✅ Completed.
+- **Phase 5 — Canvas**: `tldraw` integrated; fabric removed. Status: ✅ Completed.
+- **Phase 6 — AI & Board**: `TaskBoard.jsx`, `TaskCard.jsx`, and `compromise.js` added. Status: ✅ Completed.
+- **Phase 7 — Time Travel & Members**: `TimeTravel.jsx` and `MembersSidebar.jsx` added. Status: ✅ Completed.
+- **Phase 8 — Polish**: Minor change — `framer-motion` used for transitions instead of pure CSS. Status: ✅ Completed (minor change).
+
 4. Test with 3+ concurrent users
