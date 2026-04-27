@@ -13,7 +13,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Vite (vanilla JS + ES modules), HTML5 Canvas, Yjs |
+| Frontend | Vite (vanilla JS + ES modules), **fabric.js v6** (open-source canvas), Yjs |
 | Backend | Node.js, Express, Socket.IO, Yjs server |
 | Database | PostgreSQL 16 (Docker for dev, Render addon for prod) |
 | AI/NLP | `natural` (Naive Bayes) + rule-based boosters |
@@ -282,87 +282,127 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 
 ---
 
-## Phase 5 — Infinite Canvas (Core Frontend)
+## Phase 5 — Infinite Canvas (Core Frontend — fabric.js)
 
 > [!NOTE]
-> **Goal**: Working infinite canvas with pan, zoom, node CRUD, drawing, and real-time sync. This is the **largest phase**.
+> **Goal**: Working infinite canvas with pan, zoom, node CRUD, drawing, and **real-time multi-user collaboration via WebSockets**. This phase uses [**fabric.js v6**](https://github.com/fabricjs/fabric.js) (MIT-licensed, framework-agnostic) as the open-source canvas engine, modified to integrate with our Socket.IO + Yjs distributed backend.
 
-### Task 5.1 — Canvas Engine (Camera & Grid)
-- [ ] Create `client/src/canvas/CanvasEngine.js`:
-  - Camera state: `{ x, y, scale }` with smooth lerp interpolation
-  - Pan: middle-click drag OR Space+left-drag, touch 2-finger drag
-  - Zoom: scroll wheel / pinch, zooms toward cursor position (not center)
-  - Coordinate transforms: `screenToWorld(sx, sy)` / `worldToScreen(wx, wy)`
-  - Viewport bounds calculation for culling
-  - Render loop: `requestAnimationFrame` driving grid + state updates
-  - Grid: subtle dot pattern, spacing scales with zoom (e.g. 20px at 1x, 40px at 2x)
-- [ ] Create `client/src/styles/canvas.css` — Canvas container, layers, toolbar
+> [!IMPORTANT]
+> **Why fabric.js**: The instructor requires using an open-source canvas project adapted for distributed collaboration. Fabric.js is framework-agnostic (works with our vanilla JS + Vite stack), provides built-in object management (Rect, Circle, IText, Path), freehand drawing (PencilBrush), selection, drag-to-move, serialization (`toJSON()`/`loadFromJSON()`), and a viewport transform system for pan/zoom — eliminating the need to build a canvas engine from scratch. We modify it to emit all mutations over WebSocket and sync state via Yjs CRDTs.
+
+### Task 5.1 — Fabric.js Setup & Infinite Viewport
+- [ ] Install `fabric` (v6) in client: `npm install fabric`
+- [ ] Create `client/src/canvas/CanvasEngine.js` — Wrapper around `fabric.Canvas`:
+  - Initialize `fabric.Canvas` on a full-viewport `<canvas>` element
+  - **Infinite pan**: `mouse:down` + `mouse:move` with Alt-key or middle-button drag — updates `canvas.viewportTransform` translation values
+  - **Zoom to cursor**: `mouse:wheel` → `canvas.zoomToPoint(pointer, newZoom)`, clamp zoom between 0.1× and 5×
+  - **Touch support**: 2-finger pinch zoom + drag pan via touch events
+  - **Coordinate helpers**: `screenToWorld(sx, sy)` via `fabric.util.invertTransform()` + `fabric.util.transformPoint()`, and `worldToScreen(wx, wy)` via `canvas.viewportTransform`
+  - **Animated navigation**: `animateTo(x, y, zoom)` — smoothly transitions `viewportTransform` using `fabric.util.animate()` with easeInOutCubic (used by "Jump to Canvas" from task board)
+  - **Grid background**: Separate static `<canvas>` layer behind the fabric canvas, renders dot-grid pattern that updates on viewport change — spacing scales with zoom (20px at 1×, 40px at 2×)
+  - **Viewport change event**: Emits custom `viewport:changed` event (used by grid, cursor layer, and culling logic)
+- [ ] Create `client/src/styles/canvas.css` — Canvas container, layer stacking (grid → fabric → cursor overlay), toolbar positioning
 
 **Files**:
 - [client/src/canvas/CanvasEngine.js](file:///d:/Projects/LIGMA/client/src/canvas/CanvasEngine.js)
 - [client/src/styles/canvas.css](file:///d:/Projects/LIGMA/client/src/styles/canvas.css)
 
-### Task 5.2 — Node Manager (Sticky Notes, Text, Shapes)
-- [ ] Create `client/src/canvas/NodeManager.js`:
-  - Node types: `sticky` (colored card), `text` (bare text block), `shape` (rect/circle/diamond)
-  - Nodes rendered as DOM elements positioned via `transform: translate()` in world coords
-  - Double-click to create node at cursor position (opens inline editor)
-  - `contenteditable` text editing with Yjs binding per node
-  - Drag-to-move with smooth animation (pointer events)
-  - Selection: click to select, multi-select with Shift+click
-  - Color picker for sticky notes (palette popup)
-  - Node data model: `{ id, type, x, y, width, height, content, color, createdBy }`
-  - Visual styles: rounded corners, drop shadows, subtle scale on hover
+### Task 5.2 — Node Manager (Sticky Notes, Text, Shapes) + WebSocket Sync
+- [ ] Create `client/src/canvas/NodeManager.js` — Uses native fabric.js object types:
+  - **Sticky note** → `fabric.Group` containing a `fabric.Rect` (colored background, rounded corners, drop shadow) + `fabric.IText` (editable label)
+  - **Text block** → `fabric.IText` (bare editable text, no background)
+  - **Shape** → `fabric.Rect`, `fabric.Circle`, or `fabric.Polygon` (diamond) with configurable fill/stroke
+  - All objects assigned a unique `id` property (UUID v4) on creation + `createdBy` (current user ID)
+  - Node data model: `{ id, type, x, y, width, height, content, color, createdBy }` — serialized via `obj.toJSON(['id', 'createdBy', 'nodeType'])`
+  - **Double-click to create**: Fabric's `mouse:dblclick` event → create node at world-space cursor position
+  - **Inline text editing**: Fabric's built-in `IText` editing mode; for rich/collaborative text, a DOM `<div contenteditable>` overlay is positioned over the node, bound to a per-node Yjs `Y.Text` — this enables CRDT-based concurrent text editing
+  - **Drag-to-move**: Built-in fabric.js object dragging (no custom code needed)
+  - **Selection**: Click to select, Shift+click for multi-select (fabric.js `ActiveSelection`)
+  - **Color picker**: Palette popup on right-click or toolbar; sets `fill` on the sticky's background `Rect`
+  - **Visual styles**: `rx/ry` for rounded corners, `shadow` for drop shadows, `scaleX/scaleY` animation on hover via `mouse:over`/`mouse:out`
+  - **WebSocket integration** (distributed sync):
+    - On `object:added` → emit `canvas:node:create` with `obj.toJSON(['id', 'createdBy', 'nodeType'])` via Socket.IO
+    - On `object:modified` → emit `canvas:node:update` with `{ id, ...changedProps }`
+    - On `object:removed` → emit `canvas:node:delete` with `{ id }`
+    - **Incoming remote events** → find object by `id`, set `obj.__remoteUpdate = true`, apply properties via `obj.set(props)` + `obj.setCoords()` + `canvas.renderAll()`, then reset flag
+    - **Loop prevention**: All event listeners check `if (e.target.__remoteUpdate) return` to avoid re-broadcasting remote changes
+  - **Yjs backing**: All node metadata stored in `Y.Map('nodes')` keyed by node ID — position, color, type, content synced via Yjs; structural changes (add/remove) emit through Socket.IO event pipeline for RBAC validation
 
 **File**: [client/src/canvas/NodeManager.js](file:///d:/Projects/LIGMA/client/src/canvas/NodeManager.js)
 
-### Task 5.3 — Drawing Layer
-- [ ] Create `client/src/canvas/DrawingLayer.js`:
-  - Dedicated `<canvas>` element below DOM nodes, above grid
-  - Pen tool: smooth freehand with `quadraticCurveTo()`, 2px width, user color
-  - Marker tool: thick semi-transparent strokes, 8px, 50% opacity
-  - Eraser: detect stroke bbox intersection, emit erase event
-  - Point simplification: Ramer-Douglas-Peucker on `pointerup` (reduce 500+ → ~50 points)
-  - Stroke storage synced via Yjs `Y.Array`
-  - Zoom-aware rendering: all points in world coordinates, transformed by camera matrix
-  - Performance: `requestAnimationFrame` batching, dirty-region clip-rect optimization
+### Task 5.3 — Drawing Layer (Fabric.js Brushes + WebSocket Sync)
+- [ ] Create `client/src/canvas/DrawingLayer.js` — Uses fabric.js built-in drawing system:
+  - **Pen tool**: `canvas.isDrawingMode = true` with `fabric.PencilBrush`, width 2px, color = user's assigned color
+  - **Marker tool**: `fabric.PencilBrush` with width 8px, color at 50% opacity (`rgba()`)
+  - **Eraser**: Custom eraser mode — on click/drag, detect intersection with existing `fabric.Path` objects via bounding-box check, collect intersecting stroke IDs, emit `canvas:draw:erase`
+  - **Tool switching**: Toggling `canvas.isDrawingMode` and swapping `canvas.freeDrawingBrush` instance
+  - **Stroke event flow** (distributed):
+    1. Fabric fires `path:created` with the new `fabric.Path` object
+    2. Assign UUID `id` to the path, simplify points via Ramer-Douglas-Peucker (reduce 500+ → ~50 points)
+    3. Serialize via `path.toJSON(['id', 'createdBy'])` → emit `canvas:draw:stroke` via Socket.IO
+    4. Server validates via RBAC → appends to event store → broadcasts to room
+    5. Remote clients receive → `fabric.Path.fromObject(data)` → add to canvas with `__remoteUpdate = true`
+  - **Yjs storage**: All stroke paths stored in `Y.Array('strokes')` as serialized JSON; on reconnect, hydrate from Yjs doc
+  - **Zoom-aware**: Fabric.js handles viewport transforms automatically — all paths are in world coordinates
 
 **File**: [client/src/canvas/DrawingLayer.js](file:///d:/Projects/LIGMA/client/src/canvas/DrawingLayer.js)
 
-### Task 5.4 — Canvas Toolbar
+### Task 5.4 — WebSocket ↔ Fabric.js Sync Bridge
+- [ ] Create `client/src/canvas/SyncBridge.js` — Central module wiring fabric.js events to WebSocket transport:
+  - **Outbound** (local → server):
+    - Listens to fabric canvas events: `object:added`, `object:modified`, `object:removed`, `path:created`
+    - Filters out remote updates (`__remoteUpdate` flag)
+    - Serializes changed object via `toJSON(['id', 'createdBy', 'nodeType'])`
+    - Emits appropriate `canvas:node:*` or `canvas:draw:*` event via Socket.IO (from Phase 4's `socket.js`)
+    - Throttles `object:moving` to 15fps to avoid flooding (only final `object:modified` is authoritative)
+  - **Inbound** (server → local):
+    - Listens to Socket.IO events: `canvas:delta`, `canvas:sync`
+    - For each delta: find existing object by `id`, or create new via `fabric.util.enlivenObjects()`
+    - Apply property changes with `__remoteUpdate = true` flag → `obj.set()` → `obj.setCoords()` → `canvas.renderAll()`
+    - For deletes: find by `id` → `canvas.remove(obj)`
+  - **Initial hydration**: On workspace join, server sends `canvas:sync` with full state → `canvas.loadFromJSON()` to restore all objects
+  - **Reconnection**: On reconnect, send `lastSequenceNum` → server replays missed events → SyncBridge applies them sequentially
+  - **Conflict resolution**: Yjs CRDTs handle concurrent text edits; for positional conflicts (two users dragging same node), last-write-wins with server timestamp ordering
+
+**File**: [client/src/canvas/SyncBridge.js](file:///d:/Projects/LIGMA/client/src/canvas/SyncBridge.js)
+
+### Task 5.5 — Canvas Toolbar
 - [ ] Add toolbar to canvas view:
   - **Tools**: Select (arrow), Sticky Note, Text, Shape (dropdown: rect/circle/diamond), Pen, Marker, Eraser
   - **Actions**: Undo, Redo, Zoom In, Zoom Out, Fit to Screen, Reset View
   - Glassmorphism floating toolbar, centered horizontally at top
   - Active tool highlighted with accent color
+  - Tool switching: sets `canvas.isDrawingMode` and swaps `freeDrawingBrush` for draw tools, disables drawing mode for object tools
   - Keyboard shortcuts: `V` select, `S` sticky, `T` text, `P` pen, `E` eraser, `Ctrl+Z` undo, `Ctrl+Shift+Z` redo
 
 *Implemented within*: [CanvasEngine.js](file:///d:/Projects/LIGMA/client/src/canvas/CanvasEngine.js) and [canvas.css](file:///d:/Projects/LIGMA/client/src/styles/canvas.css)
 
-### Task 5.5 — Cursor Presence Layer
+### Task 5.6 — Cursor Presence Layer
 - [ ] Create `client/src/canvas/CursorLayer.js`:
-  - Absolute-position cursor elements (colored dot + name label)
+  - HTML overlay `<div>` positioned above the fabric canvas (via CSS `z-index`)
+  - Each remote cursor: absolute-positioned element (colored dot + name label)
   - Smooth CSS transition movement (`transform: translate()`)
-  - Throttled emission at 30fps via `requestAnimationFrame`
+  - **Coordinate conversion**: Incoming world-space cursor positions transformed via `CanvasEngine.worldToScreen()` before positioning the DOM element
+  - Throttled emission at 30fps via `requestAnimationFrame` — emits `cursor:move` with world-space coords via Socket.IO
   - Fade out after 5s inactivity (CSS opacity transition)
   - Removed on `presence:leave` event
 
 **File**: [client/src/canvas/CursorLayer.js](file:///d:/Projects/LIGMA/client/src/canvas/CursorLayer.js)
 
-### Task 5.6 — State Management & Utilities
+### Task 5.7 — State Management & Utilities
 - [ ] Create `client/src/utils/state.js` — Simple reactive store (pub/sub pattern)
   - `createStore(initialState)` → `{ getState, setState, subscribe }`
   - Used for: current tool, auth state, workspace data, connection status
 - [ ] Create `client/src/utils/helpers.js` — Utility functions:
   - `debounce()`, `throttle()`, `generateId()` (UUID v4)
-  - `clamp()`, `lerp()`, `distance()` — Math helpers for canvas
-  - Ramer-Douglas-Peucker point simplification algorithm
+  - `clamp()`, `lerp()`, `distance()` — Math helpers
+  - Ramer-Douglas-Peucker point simplification algorithm (for stroke optimization before sync)
 
 **Files**:
 - [client/src/utils/state.js](file:///d:/Projects/LIGMA/client/src/utils/state.js)
 - [client/src/utils/helpers.js](file:///d:/Projects/LIGMA/client/src/utils/helpers.js)
 
-### Task 5.7 — Client Routing & Page Assembly
+### Task 5.8 — Client Routing & Page Assembly
 - [ ] Update `client/src/main.js` — Simple hash-based router:
   - `#/login` → Auth UI
   - `#/workspaces` → Workspace list (create/join)
@@ -376,12 +416,13 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 *Updated file*: [client/src/main.js](file:///d:/Projects/LIGMA/client/src/main.js)
 
 ### ✅ Phase 5 Checkpoint
-- Can create, move, edit, and delete sticky notes on infinite canvas
-- Pan/zoom works via mouse and keyboard
-- Drawing with pen/marker works, strokes persist
-- Two browser tabs show real-time sync (node changes + drawings appear)
-- Remote cursors visible with names and colors
+- Can create, move, edit, and delete sticky notes on infinite canvas (fabric.js objects)
+- Pan/zoom works via mouse wheel, Alt+drag, and touch pinch
+- Drawing with pen/marker works using fabric.js PencilBrush, strokes persist
+- **Two browser tabs show real-time sync** — node creates/moves/edits + drawings appear in real-time via WebSocket
+- **Remote cursors visible** with names and colors on HTML overlay
 - Workspace list shows user's workspaces; click to enter canvas
+- All canvas mutations flow through: fabric.js event → SyncBridge → Socket.IO → Server RBAC → Event Store → Broadcast → Remote SyncBridge → Remote fabric.js canvas
 
 ---
 
@@ -549,7 +590,7 @@ graph LR
     P2 --> P3[Phase 3: Auth & RBAC]
     P2 --> P4[Phase 4: Events & WebSocket]
     P3 --> P4
-    P4 --> P5[Phase 5: Infinite Canvas]
+    P4 --> P5[Phase 5: Infinite Canvas — fabric.js]
     P3 --> P5
     P5 --> P6[Phase 6: AI & Task Board]
     P4 --> P6
@@ -577,11 +618,11 @@ graph LR
 | **2** | Database Layer | 2 | ~30 min |
 | **3** | Auth & RBAC | 6 | ~1.5 hr |
 | **4** | Events & WebSocket | 6 | ~2 hr |
-| **5** | Infinite Canvas | 7 | ~3 hr |
+| **5** | Infinite Canvas (fabric.js) | 8 | ~3 hr |
 | **6** | AI & Task Board | 4 | ~2 hr |
 | **7** | Time Travel & RBAC UI | 2 | ~1.5 hr |
 | **8** | Polish & Deploy | 4 | ~1.5 hr |
-| | **Total** | **35 tasks** | **~12 hr** |
+| | **Total** | **36 tasks** | **~12 hr** |
 
 > [!IMPORTANT]
 > Estimates assume AI-assisted development. Actual time may vary based on debugging, iteration, and your feedback cycles.
