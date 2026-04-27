@@ -38,7 +38,7 @@ export default function CanvasView({ workspaceId }) {
   return (
     <div className="canvas-root">
       <div className="canvas-toolbar-wrap">
-        <CustomToolbar />
+        <CustomToolbar store={store} />
       </div>
       <div className="canvas-container">
         {store ? <Tldraw store={store} /> : <div>Loading canvas…</div>}
