@@ -4,6 +4,7 @@ import { useSync } from "@tldraw/sync";
 import CustomToolbar from "../canvas/CustomToolbar";
 import useCanvasSync from "../canvas/useCanvasSync";
 import { AppContext } from "../utils/AppContext";
+import MembersPanel from "../canvas/MembersPanel";
 import "../styles/canvas.css";
 
 export default function CanvasView({ workspaceId }) {
@@ -43,6 +44,7 @@ export default function CanvasView({ workspaceId }) {
       <div className="canvas-container">
         {store ? <Tldraw store={store} /> : <div>Loading canvas…</div>}
       </div>
+      <MembersPanel />
     </div>
   );
 }

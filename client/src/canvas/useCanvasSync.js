@@ -1,49 +1,15 @@
-import { useEffect } from "react";
-
-// Hook that listens to the tldraw store and emits app-level events.
-// For now it uses store.listen() and logs user-originated entries.
-export default function useCanvasSync(store, workspaceId) {
-  useEffect(() => {
-    if (!store) return;
-
-    const onChange = (entry) => {
-      try {
-        // tldraw entries include .source === 'local' | 'remote'
-        if (entry.source === "remote") return;
-
-        // Simple handling: log create/update/delete for later wiring to Socket.IO
-        if (entry.type === "shape") {
-          // entry.subtype may indicate create/update/delete depending on API
-          console.log("[useCanvasSync] local shape entry", entry);
-        } else {
-          console.log("[useCanvasSync] entry", entry);
-        }
-        // TODO: emit via Socket.IO client to server for RBAC + event store
-      } catch (e) {
-        // swallow
-      }
-    };
-
-    const unlisten = store.listen(onChange);
-    return () => {
-      try {
-        unlisten();
-      } catch (e) {}
-    };
-  }, [store, workspaceId]);
-}
 import { useEffect } from 'react'
 import { createWorkspaceSocket } from '../net/socket'
+import { createYjsProvider } from '../net/yjs-provider'
 
 // Hook that listens to the tldraw store and forwards local changes to the server
 // via the existing Socket.IO `canvas:*` events. It also listens for server
-// `canvas:delta`/`canvas:sync` messages (currently logged; applying them to
-// the tldraw store is a follow-up task).
+// `canvas:delta`/`canvas:sync` messages and bridges awareness to a window event
+// the app can consume.
 export default function useCanvasSync(store, workspaceId) {
   useEffect(() => {
     if (!store || !workspaceId) return
 
-    // Token should be provided by your auth flow (stored in AppContext/session)
     const token = sessionStorage.getItem('ligma:token') || null
     if (!token) {
       console.warn('[useCanvasSync] No auth token found in sessionStorage')
@@ -51,8 +17,15 @@ export default function useCanvasSync(store, workspaceId) {
 
     const client = createWorkspaceSocket({ token, workspaceId })
 
+    // Set up Yjs provider + awareness
+    let yProvider = null
+    try {
+      yProvider = createYjsProvider({ socketClient: client, awarenessUser: { name: 'Anonymous' } })
+    } catch (e) {
+      console.warn('[useCanvasSync] failed to create Yjs provider', e)
+    }
+
     function handleServerDelta(delta) {
-      // Best-effort apply server delta to tldraw editor.
       try {
         const editor = store?.getEditor ? store.getEditor() : null
         if (!editor) {
@@ -94,7 +67,6 @@ export default function useCanvasSync(store, workspaceId) {
             console.debug('[useCanvasSync] deleteShapes not available', nodeId)
           }
         } else if (eventType === 'canvas:draw:stroke') {
-          // strokes are shapes in tldraw; try to create
           const stroke = payload.stroke || payload
           if (stroke) {
             if (typeof editor.createShapes === 'function') {
@@ -104,6 +76,83 @@ export default function useCanvasSync(store, workspaceId) {
             }
           }
         } else {
+          console.debug('[useCanvasSync] server delta unhandled', delta)
+        }
+      } catch (e) {
+        console.error('[useCanvasSync] failed to apply server delta', e)
+      }
+    }
+
+    function handleServerSync(payload) {
+      try {
+        const events = Array.isArray(payload?.events) ? payload.events : []
+        events.forEach((ev) => handleServerDelta(ev))
+      } catch (e) {
+        console.error('[useCanvasSync] failed to apply server sync', e)
+      }
+    }
+
+    const offDelta = client.on('canvas:delta', handleServerDelta)
+    const offSync = client.on('canvas:sync', handleServerSync)
+
+    const onChange = (entry) => {
+      try {
+        if (entry.source === 'remote') return
+
+        if (entry.type === 'shape') {
+          const payload = {
+            nodeId: entry.shape?.id || entry.id || null,
+            shape: entry.shape || entry,
+          }
+
+          if (entry.subtype === 'create') {
+            client.emit('canvas:node:create', payload)
+          } else if (entry.subtype === 'update') {
+            client.emit('canvas:node:update', payload)
+          } else if (entry.subtype === 'delete') {
+            client.emit('canvas:node:delete', payload)
+          } else {
+            client.emit('canvas:node:update', payload)
+          }
+        } else if (entry.type === 'draw') {
+          client.emit('canvas:draw:stroke', { stroke: entry.stroke || entry })
+        } else {
+          client.emit('canvas:node:update', { entry })
+        }
+      } catch (e) {
+        console.error('[useCanvasSync] failed to emit entry', e)
+      }
+    }
+
+    const unsubscribe = store.listen(onChange)
+
+    let awarenessHandler = null
+    try {
+      if (yProvider && yProvider.awareness && typeof yProvider.awareness.on === 'function') {
+        awarenessHandler = () => {
+          try {
+            const states = Array.from(yProvider.awareness.getStates().entries())
+            const members = states.map(([clientId, state]) => ({ clientId, user: state?.user || null }))
+            window.dispatchEvent(new CustomEvent('ligma:presence', { detail: { members } }))
+          } catch (e) {
+            console.error('[useCanvasSync] awareness handler error', e)
+          }
+        }
+        yProvider.awareness.on('update', awarenessHandler)
+      }
+    } catch (e) {
+      console.warn('[useCanvasSync] failed to attach awareness handler', e)
+    }
+
+    return () => {
+      try { unsubscribe() } catch (e) {}
+      try { offDelta() } catch (e) {}
+      try { offSync() } catch (e) {}
+      try { client.disconnect() } catch (e) {}
+      try { if (yProvider) { yProvider.awareness.off('update', awarenessHandler); yProvider.destroy() } } catch (e) {}
+    }
+  }, [store, workspaceId])
+}
           // generic: log
           console.debug('[useCanvasSync] server delta unhandled', delta)
         }
@@ -123,6 +172,25 @@ export default function useCanvasSync(store, workspaceId) {
 
     const offDelta = client.on('canvas:delta', handleServerDelta)
     const offSync = client.on('canvas:sync', handleServerSync)
+
+    let awarenessHandler = null
+    try {
+      if (yProvider && yProvider.awareness && typeof yProvider.awareness.on === 'function') {
+        awarenessHandler = (changes, origin) => {
+          try {
+            const states = Array.from(yProvider.awareness.getStates().entries())
+            const members = states.map(([clientId, state]) => ({ clientId, user: state?.user || null }))
+            // emit a custom window event for AppContext consumer to pick up
+            window.dispatchEvent(new CustomEvent('ligma:presence', { detail: { members } }))
+          } catch (e) {
+            console.error('[useCanvasSync] awareness handler error', e)
+          }
+        }
+        yProvider.awareness.on('update', awarenessHandler)
+      }
+    } catch (e) {
+      console.warn('[useCanvasSync] failed to attach awareness handler', e)
+    }
 
     const onChange = (entry) => {
       try {
@@ -167,6 +235,7 @@ export default function useCanvasSync(store, workspaceId) {
       try { offDelta() } catch (e) {}
       try { offSync() } catch (e) {}
       try { client.disconnect() } catch (e) {}
+      try { if (yProvider) { yProvider.awareness.off('update', awarenessHandler); yProvider.destroy() } } catch (e) {}
     }
   }, [store, workspaceId])
 }
