@@ -534,11 +534,11 @@ export function WorkspacePage() {
                       <FiMoreHorizontal size={12} />
                     </button>
                     {showActivityFilter && (
-                      <div className="ws-dropdown-menu" style={{ position: 'absolute', right: 0, top: '24px', background: 'var(--color-bg-raised)', border: '1px solid var(--color-border)', borderRadius: '4px', zIndex: 100, padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', width: '100px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                      <div className="ws-dropdown-menu">
                         {['all', 'mine', 'others'].map(filter => (
                           <button 
                             key={filter}
-                            style={{ background: activityFilter === filter ? 'var(--color-primary)' : 'transparent', color: activityFilter === filter ? '#fff' : 'var(--color-text)', border: 'none', padding: '4px 8px', textAlign: 'left', borderRadius: '2px', cursor: 'pointer', fontSize: '10px', textTransform: 'capitalize' }}
+                            className={`ws-dropdown-item ${activityFilter === filter ? 'active' : ''}`}
                             onClick={() => { setActivityFilter(filter); setShowActivityFilter(false); }}
                           >
                             {filter}
@@ -601,11 +601,11 @@ export function WorkspacePage() {
                   <FiMoreHorizontal size={12} />
                 </button>
                 {showTaskFilter && (
-                  <div className="ws-dropdown-menu" style={{ position: 'absolute', right: 0, top: '24px', background: 'var(--color-bg-raised)', border: '1px solid var(--color-border)', borderRadius: '4px', zIndex: 100, padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', width: '100px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                  <div className="ws-dropdown-menu">
                     {['all', 'todo', 'doing', 'done'].map(filter => (
                       <button 
                         key={filter}
-                        style={{ background: taskFilter === filter ? 'var(--color-primary)' : 'transparent', color: taskFilter === filter ? '#fff' : 'var(--color-text)', border: 'none', padding: '4px 8px', textAlign: 'left', borderRadius: '2px', cursor: 'pointer', fontSize: '10px', textTransform: 'capitalize' }}
+                        className={`ws-dropdown-item ${taskFilter === filter ? 'active' : ''}`}
                         onClick={() => { setTaskFilter(filter); setShowTaskFilter(false); }}
                       >
                         {filter}
