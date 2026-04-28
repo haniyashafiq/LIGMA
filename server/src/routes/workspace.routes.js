@@ -97,4 +97,19 @@ router.post('/:id/tasks', async (req, res) => {
   }
 });
 
+const eventService = require('../services/event.service');
+
+router.get('/:id/events', async (req, res) => {
+  try {
+    const events = await eventService.getAllEvents(req.params.id);
+    
+    // We can enrich events with user details if needed, but for now just returning them
+    return res.status(200).json({ events });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to list events.',
+    });
+  }
+});
+
 module.exports = router;

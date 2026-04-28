@@ -97,6 +97,9 @@ export function WorkspacePage() {
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
+  const [events, setEvents] = useState([]);
+  const [execTab, setExecTab] = useState("dashboard"); // "dashboard" | "timeline"
+
   // Load workspace metadata
   useEffect(() => {
     if (!getAccessToken()) {
@@ -140,9 +143,27 @@ export function WorkspacePage() {
       .catch(() => {});
   }, [workspaceId]);
 
+  const loadEvents = useCallback(() => {
+    apiFetch(`/api/workspaces/${workspaceId}/events`)
+      .then((res) => {
+        if (res.events) {
+          const sorted = [...res.events].sort((a, b) => b.sequenceNum - a.sequenceNum);
+          setEvents(sorted);
+        }
+      })
+      .catch(() => {});
+  }, [workspaceId]);
+
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]);
+    loadEvents();
+  }, [loadTasks, loadEvents]);
+
+  // Poll events every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(loadEvents, 5000);
+    return () => clearInterval(interval);
+  }, [loadEvents]);
   const reloadWorkspaceMembers = useCallback(async () => {
     const res = await apiFetch(`/api/workspaces/${workspaceId}`);
     if (res?.workspace?.role) setWorkspaceRole(res.workspace.role);
@@ -451,48 +472,90 @@ export function WorkspacePage() {
         {/* Execution Panel (Right Sidebar) */}
         {execOpen && (
           <aside className="ws-exec-panel">
-            <div className="ws-exec-header">
-              <h2>Execution Panel</h2>
-              <button
-                className="ws-exec-more-btn"
-                aria-label="Panel options"
-              >
-                <FiMoreHorizontal size={14} />
-              </button>
+            <div className="ws-exec-header" style={{ paddingBottom: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h2>Execution Panel</h2>
+                <button
+                  className="ws-exec-more-btn"
+                  aria-label="Panel options"
+                >
+                  <FiMoreHorizontal size={14} />
+                </button>
+              </div>
+              <div className="ws-exec-tabs" style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--color-border)' }}>
+                <button 
+                  style={{ 
+                    background: 'none', border: 'none', padding: '8px 0', cursor: 'pointer',
+                    color: execTab === 'dashboard' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    borderBottom: execTab === 'dashboard' ? '2px solid var(--color-primary)' : '2px solid transparent',
+                    fontWeight: execTab === 'dashboard' ? 600 : 400,
+                    fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em'
+                  }}
+                  onClick={() => setExecTab("dashboard")}
+                >
+                  Dashboard
+                </button>
+                <button 
+                  style={{ 
+                    background: 'none', border: 'none', padding: '8px 0', cursor: 'pointer',
+                    color: execTab === 'timeline' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    borderBottom: execTab === 'timeline' ? '2px solid var(--color-primary)' : '2px solid transparent',
+                    fontWeight: execTab === 'timeline' ? 600 : 400,
+                    fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em'
+                  }}
+                  onClick={() => setExecTab("timeline")}
+                >
+                  Timeline
+                </button>
+              </div>
             </div>
 
             <div className="ws-exec-scroll">
-              {/* Activity Log Section */}
-              <div className="ws-section-toggle">
-                <h3>
-                  <FiActivity size={12} />
-                  Activity Log
-                </h3>
-                <button className="ws-section-add-btn" aria-label="Add entry">
-                  <FiPlus size={12} />
-                </button>
-              </div>
+              {execTab === "dashboard" ? (
+                <>
+                  {/* Activity Log Section (Recent) */}
+                  <div className="ws-section-toggle">
+                    <h3>
+                      <FiActivity size={12} />
+                      Recent Activity
+                    </h3>
+                  </div>
 
-              <ul className="ws-activity-list">
-                {MOCK_ACTIVITY.map((item) => (
-                  <li key={item.id} className="ws-activity-item">
-                    <div
-                      className="ws-activity-avatar"
-                      style={{ background: item.color }}
-                    >
-                      {item.user[0]}
-                    </div>
-                    <div className="ws-activity-body">
-                      <p>
-                        <strong>{item.user}</strong> {item.action}
-                      </p>
-                      <div className="ws-activity-time">{item.time}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                  <ul className="ws-activity-list">
+                    {events.slice(0, 3).map((event) => {
+                      let action = "modified the canvas";
+                      if (event.eventType === "tldraw_update" && event.payload?.updates?.[0]) {
+                        const u = event.payload.updates[0];
+                        if (u.added && Object.keys(u.added).length > 0) action = "added elements";
+                        else if (u.removed && Object.keys(u.removed).length > 0) action = "removed elements";
+                      }
+                      return (
+                        <li key={event.id} className="ws-activity-item">
+                          <div
+                            className="ws-activity-avatar"
+                            style={{ background: "#A259FF" }}
+                          >
+                            U
+                          </div>
+                          <div className="ws-activity-body">
+                            <p>
+                              <strong>User</strong> {action}
+                            </p>
+                            <div className="ws-activity-time">{new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                    {events.length === 0 && (
+                      <li className="ws-activity-item">
+                        <div className="ws-activity-body">
+                          <p style={{ color: 'var(--color-text-subtle)' }}>No activity yet.</p>
+                        </div>
+                      </li>
+                    )}
+                  </ul>
 
-              {/* Task Board Section */}
+                  {/* Task Board Section */}
               <div className="ws-section-toggle">
                 <h3>
                   <FiFileText size={12} />
@@ -549,6 +612,54 @@ export function WorkspacePage() {
                   </div>
                 ))}
               </div>
+            </>
+            ) : (
+              /* Timeline View */
+              <div className="ws-timeline-view" style={{ padding: 'var(--space-4)' }}>
+                <div className="ws-timeline-header" style={{ marginBottom: 'var(--space-4)' }}>
+                  <h3 style={{ fontSize: '12px', color: 'var(--color-text)', margin: 0 }}>Full Event Log</h3>
+                  <p style={{ fontSize: '10px', color: 'var(--color-text-subtle)', margin: '4px 0 0 0' }}>Append-only history of all canvas mutations.</p>
+                </div>
+                
+                <div className="ws-timeline-track" style={{ position: 'relative', borderLeft: '1px solid var(--color-border)', marginLeft: '14px', paddingLeft: '20px' }}>
+                  {events.map((event) => {
+                    let action = "modified the canvas";
+                    let details = "";
+                    if (event.eventType === "tldraw_update" && event.payload?.updates?.[0]) {
+                      const u = event.payload.updates[0];
+                      if (u.added && Object.keys(u.added).length > 0) {
+                        action = "added elements";
+                        details = Object.keys(u.added).join(', ');
+                      }
+                      else if (u.removed && Object.keys(u.removed).length > 0) {
+                        action = "removed elements";
+                        details = Object.keys(u.removed).join(', ');
+                      }
+                    }
+
+                    return (
+                      <div key={event.id} className="ws-timeline-item" style={{ position: 'relative', marginBottom: '24px' }}>
+                        <div style={{ position: 'absolute', left: '-25px', top: '2px', width: '9px', height: '9px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid var(--color-bg-raised)' }} />
+                        <div style={{ fontSize: '10px', color: 'var(--color-text-subtle)', marginBottom: '2px' }}>
+                          Seq: {event.sequenceNum} • {new Date(event.createdAt).toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text)' }}>
+                          <strong>User</strong> {action}
+                        </div>
+                        {details && (
+                          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', background: 'var(--color-bg-deep)', padding: '4px 8px', borderRadius: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {details}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {events.length === 0 && (
+                    <div style={{ color: 'var(--color-text-subtle)', fontSize: '11px' }}>No events recorded.</div>
+                  )}
+                </div>
+              </div>
+            )}
             </div>
 
             {/* Add Task Overlay */}
