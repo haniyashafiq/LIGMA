@@ -25,6 +25,8 @@ import {
   FiLink,
   FiZap,
   FiFilter,
+  FiZoomIn,
+  FiZoomOut,
   FiShare2,
   FiMaximize,
   FiLogOut,
@@ -517,8 +519,19 @@ export function WorkspacePage() {
                 >
                   <FiMaximize size={14} />
                 </button>
-                <button className="ws-bottom-btn" title="History">
-                  <FiClock size={14} />
+                <button 
+                  className="ws-bottom-btn" 
+                  title="Zoom Out"
+                  onClick={() => editor?.zoomOut()}
+                >
+                  <FiZoomOut size={14} />
+                </button>
+                <button 
+                  className="ws-bottom-btn" 
+                  title="Zoom In"
+                  onClick={() => editor?.zoomIn()}
+                >
+                  <FiZoomIn size={14} />
                 </button>
               </div>
             </div>

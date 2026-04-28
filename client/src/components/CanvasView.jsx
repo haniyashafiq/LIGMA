@@ -311,6 +311,12 @@ export default function CanvasView({
   const handleMount = (editor) => {
     if (onMount) onMount(editor);
 
+    // Apply Figma Dark preferences
+    editor.user.updateUserPreferences({ colorScheme: 'dark' });
+    
+    // Ensure grid is visible (dotted grid pattern)
+    editor.updateInstanceState({ isGridMode: true });
+
     // expose jumpToNode via context for TaskBoard to call
     const jumpToNode = (nodeId) => {
       try {
