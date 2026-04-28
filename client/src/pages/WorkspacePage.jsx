@@ -100,6 +100,7 @@ export function WorkspacePage() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [inviteLinkError, setInviteLinkError] = useState("");
 
   const collabUser = useMemo(() => {
     if (!currentUser?.id) return null;
@@ -131,21 +132,30 @@ export function WorkspacePage() {
     const inviteToken = new URLSearchParams(location.search).get("invite");
 
     async function loadWorkspace() {
-      try {
-        if (inviteToken) {
+      if (inviteToken) {
+        try {
           await apiFetch("/api/workspaces/invite-links/accept", {
             method: "POST",
             body: JSON.stringify({ token: inviteToken }),
           });
+          setInviteLinkError("");
           navigate(`/workspace/${workspaceId}`, { replace: true });
+        } catch (error) {
+          setInviteLinkError(
+            error?.message || "Invite link is invalid or expired. Loading workspace anyway.",
+          );
         }
+      }
 
+      try {
         const res = await apiFetch(`/api/workspaces/${workspaceId}`);
         if (res?.workspace?.name) setWorkspaceName(res.workspace.name);
         if (res?.workspace?.role) setWorkspaceRole(res.workspace.role);
         setWorkspaceMembers(res?.members || []);
       } catch (_error) {
-        // handled by UI fallbacks
+        if (!inviteToken) {
+          setInviteLinkError("");
+        }
       }
     }
 
@@ -382,6 +392,11 @@ export function WorkspacePage() {
           </button>
         </div>
       </header>
+      {inviteLinkError && (
+        <div className="ws-toast ws-toast-error" role="alert">
+          {inviteLinkError}
+        </div>
+      )}
 
       {/* ── Workspace Body ──────────────────────────── */}
       <div className="workspace-body">
