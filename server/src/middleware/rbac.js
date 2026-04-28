@@ -132,7 +132,13 @@ async function checkNodePermission(action, nodeId, userId, workspaceId) {
     }
 
     const nodeCreatorId = await getNodeCreatorId(workspaceId, nodeId);
-    return Boolean(nodeCreatorId && nodeCreatorId === userId);
+    if (!nodeCreatorId) {
+      // Some transports (e.g. tldraw sync) maintain owner ACL directly in the
+      // document record. Callers should apply that stricter node ownership check.
+      return true;
+    }
+
+    return nodeCreatorId === userId;
   }
 
   return true;

@@ -27,7 +27,9 @@ import {
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
 import { AppContext } from "../utils/AppContext";
-import { apiFetch, getAccessToken } from "../net/api";
+import { apiFetch, getAccessToken, getMe } from "../net/api";
+import MembersSidebar from "../workspace/MembersSidebar";
+import RoleBadge from "../workspace/RoleBadge";
 import "../styles/workspace.css";
 
 const TOOLS = [
@@ -63,12 +65,18 @@ export function WorkspacePage() {
     setCurrentWorkspace,
     connectionStatus,
     setTaskPanelOpen,
+    membersOpen,
+    setMembersOpen,
+    members: presenceMembers,
   } = useContext(AppContext);
 
   const [editor, setEditor] = useState(null);
   const [activeTool, setActiveTool] = useState("select");
   const [activeTab, setActiveTab] = useState("workspace");
   const [workspaceName, setWorkspaceName] = useState("Workspace");
+  const [workspaceRole, setWorkspaceRole] = useState("viewer");
+  const [workspaceMembers, setWorkspaceMembers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [execOpen, setExecOpen] = useState(true);
 
@@ -83,14 +91,19 @@ export function WorkspacePage() {
       setCurrentWorkspace(workspaceId || null);
     }
 
-    apiFetch(`/api/workspaces`)
+    apiFetch(`/api/workspaces/${workspaceId}`)
       .then((res) => {
-        const ws = (res.workspaces || []).find(
-          (w) => String(w.id) === String(workspaceId)
-        );
-        if (ws) setWorkspaceName(ws.name);
+        if (res?.workspace?.name) setWorkspaceName(res.workspace.name);
+        if (res?.workspace?.role) setWorkspaceRole(res.workspace.role);
+        setWorkspaceMembers(res?.members || []);
       })
-      .catch(() => { });
+      .catch(() => {});
+
+    getMe()
+      .then((res) => {
+        setCurrentUser(res?.user || null);
+      })
+      .catch(() => {});
   }, [workspaceId, setCurrentWorkspace, navigate]);
 
   // Sync editor tool with activeTool state
@@ -108,12 +121,52 @@ export function WorkspacePage() {
   useEffect(() => {
     apiFetch(`/api/workspaces/${workspaceId}/tasks`)
       .then((res) => setTasks(res.tasks || []))
-      .catch(() => { });
+      .catch(() => {});
   }, [workspaceId]);
 
+  const reloadWorkspaceMembers = useCallback(async () => {
+    const res = await apiFetch(`/api/workspaces/${workspaceId}`);
+    if (res?.workspace?.role) setWorkspaceRole(res.workspace.role);
+    setWorkspaceMembers(res?.members || []);
+  }, [workspaceId]);
+
+  const handleInviteMember = useCallback(
+    async ({ username, role }) => {
+      await apiFetch(`/api/workspaces/${workspaceId}/invite`, {
+        method: "POST",
+        body: JSON.stringify({ username, role }),
+      });
+      await reloadWorkspaceMembers();
+    },
+    [workspaceId, reloadWorkspaceMembers],
+  );
+
+  const handleChangeMemberRole = useCallback(
+    async ({ userId, role }) => {
+      await apiFetch(`/api/workspaces/${workspaceId}/roles/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      });
+      await reloadWorkspaceMembers();
+    },
+    [workspaceId, reloadWorkspaceMembers],
+  );
+
+  const isViewer = workspaceRole === "viewer";
+  const canManageMembers = workspaceRole === "lead";
+
+  const onlineUsers = Array.isArray(presenceMembers) ? presenceMembers : [];
+  const onlineUserIds = onlineUsers
+    .map((entry) => entry?.userId || entry?.user?.id)
+    .filter(Boolean);
+  const onlineUsernames = onlineUsers
+    .map((entry) => entry?.username || entry?.user?.username || entry?.user?.name)
+    .filter(Boolean);
+
   const handleToolSelect = useCallback((toolId) => {
+    if (isViewer) return;
     setActiveTool(toolId);
-  }, []);
+  }, [isViewer]);
 
   const onCanvasMount = useCallback((editorInstance) => {
     console.log("[Workspace] Canvas mounted", editorInstance);
@@ -171,10 +224,11 @@ export function WorkspacePage() {
             <FiHelpCircle size={15} />
           </button>
 
-          <button className="ws-share-btn">
+          <button className="ws-share-btn" onClick={() => setMembersOpen((v) => !v)}>
             <FiShare2 size={12} style={{ marginRight: 4 }} />
             Share
           </button>
+          <RoleBadge role={workspaceRole} />
 
           <button
             className="ws-mode-badge"
@@ -207,6 +261,7 @@ export function WorkspacePage() {
               onClick={() => handleToolSelect(id)}
               title={label}
               aria-label={label}
+                disabled={isViewer}
             >
               <Icon size={16} />
               <span>{label}</span>
@@ -221,6 +276,7 @@ export function WorkspacePage() {
               className="ws-tool-btn"
               title={label}
               aria-label={label}
+              disabled={isViewer}
             >
               <Icon size={16} />
               <span>{label}</span>
@@ -230,7 +286,13 @@ export function WorkspacePage() {
 
         {/* Canvas Area */}
         <div className="ws-canvas-area">
-          <CanvasView workspaceId={workspaceId} onMount={onCanvasMount} />
+          <CanvasView
+            workspaceId={workspaceId}
+            onMount={onCanvasMount}
+            readOnly={isViewer}
+            currentUserId={currentUser?.id || null}
+            currentUserRole={workspaceRole}
+          />
 
           {/* Bottom Toolbar */}
           <div className="ws-bottom-bar">
@@ -381,6 +443,18 @@ export function WorkspacePage() {
           </aside>
         )}
       </div>
+      <MembersSidebar
+        open={membersOpen}
+        onClose={() => setMembersOpen(false)}
+        members={workspaceMembers}
+        onlineUserIds={onlineUserIds}
+        onlineUsernames={onlineUsernames}
+        currentUserId={currentUser?.id || null}
+        currentRole={workspaceRole}
+        canManageMembers={canManageMembers}
+        onInvite={handleInviteMember}
+        onChangeRole={handleChangeMemberRole}
+      />
     </div>
   );
 }
