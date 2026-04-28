@@ -1,21 +1,34 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  FiInbox,
+  FiCheckCircle,
+  FiFolder,
+  FiUsers,
+  FiList,
+  FiArchive,
+  FiHexagon,
+  FiHelpCircle,
+  FiSettings,
+  FiBell,
+  FiSearch,
+} from "react-icons/fi";
 import { clearAccessToken, logout } from "../net/api";
 import "../styles/dashboard.css";
 
 const NAV_ITEMS = [
-  { to: "/inbox",      icon: "📥", label: "Inbox" },
-  { to: "/my-tasks",   icon: "✔︎",  label: "My Tasks" },
-  { to: "/projects",   icon: "📁", label: "Projects" },
-  { to: "/team",       icon: "👥", label: "Team" },
-  { to: "/backlog",    icon: "🗂",  label: "Backlog" },
-  { to: "/archive",    icon: "📦", label: "Archive" },
-  { to: "/workspaces", icon: "⬡",  label: "Canvases" },
+  { to: "/inbox",      Icon: FiInbox,       label: "Inbox" },
+  { to: "/my-tasks",   Icon: FiCheckCircle, label: "My Tasks" },
+  { to: "/projects",   Icon: FiFolder,      label: "Projects" },
+  { to: "/team",       Icon: FiUsers,       label: "Team" },
+  { to: "/backlog",    Icon: FiList,        label: "Backlog" },
+  { to: "/archive",    Icon: FiArchive,     label: "Archive" },
+  { to: "/workspaces", Icon: FiHexagon,     label: "Canvases" },
 ];
 
 const FOOTER_ITEMS = [
-  { to: "/support",  icon: "❓", label: "Support" },
-  { to: "/settings", icon: "⚙️", label: "Settings" },
+  { to: "/support",  Icon: FiHelpCircle, label: "Support" },
+  { to: "/settings", Icon: FiSettings,   label: "Settings" },
 ];
 
 export function DashboardLayout({ user, children }) {
@@ -35,7 +48,7 @@ export function DashboardLayout({ user, children }) {
   return (
     <div className="dashboard">
       {/* ── Sidebar ────────────────────────── */}
-      <aside className="sidebar">
+      <aside className="sidebar glass-panel">
         <Link to="/workspaces" className="sidebar-logo">
           <div className="sidebar-logo-mark">LG</div>
           <div className="sidebar-logo-text">
@@ -45,7 +58,7 @@ export function DashboardLayout({ user, children }) {
         </Link>
 
         <div className="sidebar-search">
-          <span className="sidebar-search-icon">🔍</span>
+          <FiSearch className="sidebar-search-icon" size={13} />
           <input
             type="search"
             placeholder="Search canvases..."
@@ -54,7 +67,7 @@ export function DashboardLayout({ user, children }) {
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
-          {NAV_ITEMS.map(({ to, icon, label }) => (
+          {NAV_ITEMS.map(({ to, Icon, label }) => (
             <Link
               key={to}
               to={to}
@@ -63,20 +76,16 @@ export function DashboardLayout({ user, children }) {
                 (location.pathname.startsWith(to) ? " active" : "")
               }
             >
-              <span className="sidebar-nav-icon">{icon}</span>
+              <Icon className="sidebar-nav-icon" size={14} />
               {label}
             </Link>
           ))}
         </nav>
 
         <div className="sidebar-footer">
-          {FOOTER_ITEMS.map(({ to, icon, label }) => (
-            <Link
-              key={to}
-              to={to}
-              className="sidebar-nav-link"
-            >
-              <span className="sidebar-nav-icon">{icon}</span>
+          {FOOTER_ITEMS.map(({ to, Icon, label }) => (
+            <Link key={to} to={to} className="sidebar-nav-link">
+              <Icon className="sidebar-nav-icon" size={14} />
               {label}
             </Link>
           ))}
@@ -87,19 +96,11 @@ export function DashboardLayout({ user, children }) {
       <div className="dashboard-content">
         {/* Topbar */}
         <header className="dashboard-topbar">
-          <button
-            className="topbar-icon-btn"
-            aria-label="Notifications"
-            title="Notifications"
-          >
-            🔔
+          <button className="topbar-icon-btn" aria-label="Notifications" title="Notifications">
+            <FiBell size={16} />
           </button>
-          <button
-            className="topbar-icon-btn"
-            aria-label="Help"
-            title="Help"
-          >
-            ❓
+          <button className="topbar-icon-btn" aria-label="Help" title="Help">
+            <FiHelpCircle size={16} />
           </button>
           <button
             className="btn-ghost"

@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
+  FiPlus,
+  FiFilter,
+  FiMoreHorizontal,
+  FiGitBranch,
+  FiDatabase,
+  FiMap,
+  FiShield,
+  FiLoader,
+  FiHexagon,
+  FiArrowRight,
+} from "react-icons/fi";
+import {
   apiFetch,
   clearAccessToken,
   getAccessToken,
@@ -11,42 +23,37 @@ import { DashboardLayout } from "../layouts/DashboardLayout";
 const TEMPLATES = [
   {
     id: "microservices",
-    icon: "🔧",
+    Icon: FiGitBranch,
     label: "Microservices Flow",
     desc: "Map out your service architecture.",
   },
   {
     id: "er-diagram",
-    icon: "🗄",
+    Icon: FiDatabase,
     label: "ER Diagram",
     desc: "Structure your database relationships.",
   },
   {
     id: "user-journey",
-    icon: "🗺",
+    Icon: FiMap,
     label: "User Journey",
     desc: "Visualise end-to-end user paths.",
   },
   {
     id: "security-audit",
-    icon: "🔒",
+    Icon: FiShield,
     label: "Security Audit",
     desc: "Identify vulnerability spots.",
     badge: "Popular",
   },
 ];
 
-// Deterministic colour for each canvas icon based on its index
 const ICON_COLORS = [
-  { bg: "rgba(46,196,182,0.18)",  color: "#2ec4b6" },
-  { bg: "rgba(244,211,94,0.18)", color: "#e8b829" },
-  { bg: "rgba(139,92,246,0.18)", color: "#8b5cf6" },
-  { bg: "rgba(242,95,92,0.18)",  color: "#f25f5c" },
+  { bg: "rgba(14,165,233,0.15)", color: "#0EA5E9" },
+  { bg: "rgba(245,158,11,0.15)", color: "#F59E0B" },
+  { bg: "rgba(139,92,246,0.15)", color: "#8B5CF6" },
+  { bg: "rgba(239,68,68,0.15)",  color: "#EF4444" },
 ];
-
-function canvasIcon(name = "", idx = 0) {
-  return name.trim()[0]?.toUpperCase() || "C";
-}
 
 function relativeTime(dateString) {
   if (!dateString) return "";
@@ -61,12 +68,12 @@ function relativeTime(dateString) {
 
 export function WorkspacesPage() {
   const navigate = useNavigate();
-  const [user, setUser]           = useState(null);
+  const [user, setUser]             = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState("");
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName]     = useState("");
+  const [newName, setNewName]       = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -117,20 +124,28 @@ export function WorkspacesPage() {
       {/* ── Page header ─────────────────────── */}
       <div className="page-header">
         <div className="page-title">
-          <h1>Canvases</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <h1>Canvases</h1>
+            <span className="noob-tip">
+              <FiPlus size={10} />
+              Start here
+            </span>
+          </div>
           <p>Infinite workspaces for your team's architectural designs, flowcharts, and system mapping.</p>
         </div>
 
         <div className="page-actions">
           <button className="btn-ghost" aria-label="Filter canvases">
-            ⚡ Filter
+            <FiFilter size={14} />
+            Filter
           </button>
           <button
-            className="btn-primary"
+            className="btn-primary creative-glow"
             onClick={() => setShowCreate(true)}
             id="new-canvas-btn"
           >
-            + New Canvas
+            <FiPlus size={15} />
+            New Canvas
           </button>
         </div>
       </div>
@@ -147,20 +162,21 @@ export function WorkspacesPage() {
 
       <div className="recent-canvases-row">
         {/* Create blank card */}
-        <div className="canvas-create-card" onClick={() => setShowCreate(true)}>
-          <div className="canvas-create-plus">+</div>
+        <div className="canvas-create-card creative-glow" onClick={() => setShowCreate(true)}>
+          <div className="canvas-create-plus" style={{ background: "linear-gradient(135deg, var(--color-primary), var(--color-role-lead))" }}>
+            <FiPlus size={22} color="white" />
+          </div>
           <div>
             <h3>Start a blank workspace</h3>
-            <p>
-              Begin a new architectural diagram or ideation session from scratch.
-            </p>
+            <p>Begin a new architectural diagram or ideation session from scratch.</p>
           </div>
           <button
             className="canvas-create-link"
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", color: "var(--color-primary)" }}
             onClick={(e) => { e.stopPropagation(); setShowCreate(true); }}
           >
-            Create Workspace →
+            Create Workspace
+            <FiArrowRight size={14} />
           </button>
         </div>
 
@@ -168,20 +184,21 @@ export function WorkspacesPage() {
         <div className="canvas-list">
           {loading && (
             <div className="canvas-empty">
-              <span className="canvas-empty-icon">⏳</span>
+              <FiLoader size={32} className="canvas-empty-icon" style={{ opacity: 0.4 }} />
               <span>Loading canvases…</span>
             </div>
           )}
 
           {!loading && recent.length === 0 && (
             <div className="canvas-empty">
-              <span className="canvas-empty-icon">⬡</span>
+              <FiHexagon size={36} className="canvas-empty-icon" style={{ opacity: 0.3 }} />
               <p>No canvases yet. Create one to get started.</p>
             </div>
           )}
 
           {recent.map((ws, idx) => {
             const col = ICON_COLORS[idx % ICON_COLORS.length];
+            const letter = ws.name.trim()[0]?.toUpperCase() || "C";
             return (
               <Link
                 key={ws.id}
@@ -193,7 +210,7 @@ export function WorkspacesPage() {
                   className="canvas-list-icon"
                   style={{ background: col.bg, color: col.color }}
                 >
-                  {canvasIcon(ws.name, idx)}
+                  {letter}
                 </div>
 
                 <div className="canvas-list-info">
@@ -207,7 +224,7 @@ export function WorkspacesPage() {
                 <div className="canvas-list-actions">
                   <div className="member-stack">
                     <div className="member-pip" style={{ background: col.color }}>
-                      {canvasIcon(ws.name, idx)}
+                      {letter}
                     </div>
                   </div>
                   <button
@@ -215,7 +232,7 @@ export function WorkspacesPage() {
                     onClick={(e) => e.preventDefault()}
                     aria-label="More options"
                   >
-                    ⋯
+                    <FiMoreHorizontal size={15} />
                   </button>
                 </div>
               </Link>
@@ -233,20 +250,22 @@ export function WorkspacesPage() {
       </div>
 
       <div className="templates-grid">
-        {TEMPLATES.map((t) => (
+        {TEMPLATES.map(({ id, Icon, label, desc, badge }) => (
           <div
-            key={t.id}
+            key={id}
             className="template-card"
             role="button"
             tabIndex={0}
-            id={`template-${t.id}`}
+            id={`template-${id}`}
             onClick={() => setShowCreate(true)}
             onKeyDown={(e) => e.key === "Enter" && setShowCreate(true)}
           >
-            <div className="template-card-icon">{t.icon}</div>
-            <h3>{t.label}</h3>
-            <p>{t.desc}</p>
-            {t.badge && <span className="template-badge">{t.badge}</span>}
+            <div className="template-card-icon">
+              <Icon size={22} style={{ color: "var(--color-primary)" }} />
+            </div>
+            <h3>{label}</h3>
+            <p>{desc}</p>
+            {badge && <span className="template-badge">{badge}</span>}
           </div>
         ))}
       </div>
@@ -260,10 +279,7 @@ export function WorkspacesPage() {
           aria-modal="true"
           aria-label="Create new canvas"
         >
-          <div
-            className="create-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="create-modal" onClick={(e) => e.stopPropagation()}>
             <h2>New Canvas</h2>
 
             <form onSubmit={handleCreate} className="auth-form">

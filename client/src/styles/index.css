@@ -1,114 +1,98 @@
 /* ============================================================
-   LIGMA Design Tokens
+   LIGMA Design Tokens — "Figma Dark" System
    ============================================================
-   Structure:
-     1. Primitive palette  — raw HSL values, never used directly
-     2. Semantic tokens    — meaning-based aliases
-     3. Legacy aliases     — keeps existing CSS from breaking
-     4. Spacing scale
-     5. Typography scale
-     6. Border-radius & shadow
-     7. Z-index ladder
-     8. Animation easings & durations
-     9. Component-level tokens
+   Inspired by Figma's professional dark mode:
+   #1E1E1E base, #2C2C2C panels, #0D99FF accents.
    ============================================================ */
 
-/* 1. Primitive Palette */
+/* 1. Primitive Palette — NEVER reference directly in components */
 :root {
-  /* Blues / slate */
-  --primitive-navy-950: #04090f;
-  --primitive-navy-900: #081426;
-  --primitive-navy-800: #0e1e35;
-  --primitive-navy-700: #12263d;
-  --primitive-navy-600: #1a344f;
-  --primitive-navy-500: #234263;
+  /* Figma greys */
+  --primitive-figma-950: #121212;
+  --primitive-figma-900: #1E1E1E; /* Main canvas bg */
+  --primitive-figma-800: #2C2C2C; /* Sidebar/Panels bg */
+  --primitive-figma-700: #383838; /* Border/Dividers */
+  --primitive-figma-600: #444444; /* Hover/Subtle highlight */
+  --primitive-figma-500: #555555;
 
-  /* Teal (primary brand) */
-  --primitive-teal-400: #2ec4b6;
-  --primitive-teal-300: #59d6ca;
-  --primitive-teal-200: #8cf5dc;
-  --primitive-teal-100: #bcfff8;
+  /* Figma Blue */
+  --primitive-blue-500: #0D99FF;
+  --primitive-blue-400: #33A9FF;
+  --primitive-blue-600: #0087E5;
 
-  /* Amber (accent / highlight) */
-  --primitive-amber-400: #f4d35e;
-  --primitive-amber-300: #f7df82;
-  --primitive-amber-500: #e8b829;
+  /* White/neutral text */
+  --primitive-white-100: #FFFFFF;
+  --primitive-white-90:  #E6E6E6;
+  --primitive-white-60:  #B3B3B3;
+  --primitive-white-30:  #808080;
 
-  /* Red (danger / destructive) */
-  --primitive-red-400: #f25f5c;
-  --primitive-red-300: #f58a88;
-  --primitive-red-500: #d94340;
+  /* Figma Purple (Selection/Pro) */
+  --primitive-purple-500: #A259FF;
+  --primitive-purple-400: #B782FF;
 
-  /* Green (success) */
-  --primitive-green-400: #4dd993;
-  --primitive-green-300: #7fe8b2;
-
-  /* Purple (info / AI) */
-  --primitive-purple-400: #8b5cf6;
-  --primitive-purple-300: #a78bfa;
-
-  /* Neutral text */
-  --primitive-white-100: #eef5ff;
-  --primitive-white-60:  rgba(238, 245, 255, 0.6);
-  --primitive-white-40:  rgba(238, 245, 255, 0.4);
-  --primitive-white-20:  rgba(238, 245, 255, 0.2);
-  --primitive-white-10:  rgba(238, 245, 255, 0.1);
-  --primitive-white-05:  rgba(238, 245, 255, 0.05);
+  /* Figma Red/Green */
+  --primitive-green-400: #0FA958;
+  --primitive-red-400:   #F24822;
+  --primitive-orange-400: #F24822; /* Figma uses red for most alerts */
 }
 
-/* 2. Semantic Tokens */
+/* 2. Semantic Tokens — USE THESE in all components */
 :root {
   /* Backgrounds */
-  --color-bg:          var(--primitive-navy-900);
-  --color-bg-raised:   var(--primitive-navy-800);
-  --color-bg-overlay:  var(--primitive-navy-700);
+  --color-bg:           var(--primitive-figma-900);   /* #1E1E1E */
+  --color-bg-deep:      var(--primitive-figma-950);   /* #121212 */
+  --color-bg-raised:    var(--primitive-figma-800);   /* #2C2C2C */
+  --color-bg-elevated:  var(--primitive-figma-700);   /* #383838 */
+  --color-bg-highlight: var(--primitive-figma-600);   /* #444444 */
 
-  /* Surfaces (glassmorphism panels) */
-  --color-surface:           rgba(10, 20, 40, 0.70);
-  --color-surface-hover:     rgba(10, 20, 40, 0.85);
-  --color-surface-active:    rgba(10, 20, 40, 0.95);
+  /* Surfaces */
+  --color-surface:        var(--primitive-figma-800);
+  --color-surface-hover:  var(--primitive-figma-700);
+  --color-surface-active: var(--primitive-figma-600);
 
   /* Borders */
-  --color-border:       rgba(171, 200, 255, 0.25);
-  --color-border-focus: rgba(46, 196, 182, 0.55);
-  --color-border-strong: rgba(171, 200, 255, 0.45);
+  --color-border:        var(--primitive-figma-700);    /* #383838 */
+  --color-border-strong: var(--primitive-figma-600);    /* #444444 */
+  --color-border-focus:  var(--primitive-blue-500);     /* #0D99FF */
 
   /* Text */
   --color-text:         var(--primitive-white-100);
-  --color-text-muted:   #c4d5ee;
-  --color-text-subtle:  var(--primitive-white-40);
-  --color-text-inverse: #072622;
+  --color-text-muted:   var(--primitive-white-60);     /* #B3B3B3 */
+  --color-text-subtle:  var(--primitive-white-30);
+  --color-text-inverse: var(--primitive-white-100);
 
   /* Brand / Primary */
-  --color-primary:        var(--primitive-teal-400);
-  --color-primary-light:  var(--primitive-teal-300);
-  --color-primary-strong: var(--primitive-teal-200);
+  --color-primary:       var(--primitive-blue-500);    /* #0D99FF */
+  --color-primary-light: var(--primitive-blue-400);
+  --color-primary-dark:  var(--primitive-blue-600);
 
-  /* Accent / Highlight */
-  --color-accent:       var(--primitive-amber-400);
-  --color-accent-light: var(--primitive-amber-300);
+  /* Role accents */
+  --color-role-lead:          var(--primitive-purple-500); /* Figma selection purple */
+  --color-role-lead-light:    var(--primitive-purple-400);
+  --color-role-contributor:   var(--primitive-blue-500);
+  --color-role-contributor-light: var(--primitive-blue-400);
 
   /* Status */
-  --color-danger:   var(--primitive-red-400);
   --color-success:  var(--primitive-green-400);
-  --color-info:     var(--primitive-purple-400);
-  --color-warning:  var(--primitive-amber-400);
+  --color-danger:   var(--primitive-red-400);
+  --color-warning:  var(--primitive-purple-500);
+  --color-info:     var(--primitive-blue-500);
 
   /* Interactive states */
-  --color-interactive-hover:  var(--primitive-white-10);
-  --color-interactive-active: var(--primitive-white-20);
+  --color-interactive-hover:  rgba(255, 255, 255, 0.04);
+  --color-interactive-active: rgba(255, 255, 255, 0.08);
 }
 
-/* 3. Legacy Aliases — keeps existing code working without edits */
+/* 3. Legacy Aliases — maps old names so existing CSS doesn't break */
 :root {
   --bg-0:           var(--color-bg);
-  --bg-1:           var(--color-bg-overlay);
+  --bg-1:           var(--color-bg-raised);
   --surface:        var(--color-surface);
   --surface-border: var(--color-border);
   --text-0:         var(--color-text);
   --text-1:         var(--color-text-muted);
   --accent:         var(--color-primary);
-  --accent-strong:  var(--color-accent);
+  --accent-strong:  var(--color-role-lead);
   --danger:         var(--color-danger);
 }
 
@@ -227,7 +211,7 @@
 
   /* Toolbar */
   --toolbar-height: 48px;
-  --toolbar-bg:     rgba(8, 20, 38, 0.90);
+  --toolbar-bg:     var(--color-bg-deep);
   --toolbar-border: var(--color-border);
 }
 
@@ -243,11 +227,51 @@ body {
 
 body {
   font-family: var(--font-sans);
-  color: var(--text-0);
-  background:
-    radial-gradient(circle at 15% 20%, rgba(46, 196, 182, 0.2), transparent 35%),
-    radial-gradient(circle at 85% 10%, rgba(244, 211, 94, 0.22), transparent 30%),
-    linear-gradient(120deg, var(--bg-0), var(--bg-1));
+  color: var(--color-text);
+  background: var(--color-bg);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(13, 153, 255, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(162, 89, 255, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphism & Creative Accents */
+.glass-panel {
+  background: rgba(44, 44, 44, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.creative-glow {
+  position: relative;
+}
+
+.creative-glow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(45deg, var(--color-primary), var(--color-role-lead), transparent);
+  z-index: -1;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.creative-glow:hover::after {
+  opacity: 0.4;
+}
+
+/* Onboarding / Friendly UI */
+.noob-tip {
+  font-size: var(--text-xs);
+  color: var(--color-primary);
+  background: rgba(13, 153, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .shell {
