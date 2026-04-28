@@ -13,14 +13,22 @@ async function listWorkspaceTasks(workspaceId) {
 }
 
 async function createTask(workspaceId, data) {
-  const { title, status = 'todo', sourceNodeId = null, assigneeId = null } = data;
+  const { title, status = 'todo', sourceNodeId = null, assigneeId = null, source = 'manual' } = data;
   const result = await pool.query(
-    `INSERT INTO tasks (workspace_id, title, status, source_node_id, assignee_id)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO tasks (workspace_id, title, status, source_node_id, assignee_id, source)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
-    [workspaceId, title, status, sourceNodeId, assigneeId]
+    [workspaceId, title, status, sourceNodeId, assigneeId, source]
   );
   return result.rows[0];
+}
+
+async function deleteTaskByNodeId(workspaceId, sourceNodeId) {
+  const result = await pool.query(
+    `DELETE FROM tasks WHERE workspace_id = $1 AND source_node_id = $2 RETURNING *`,
+    [workspaceId, sourceNodeId]
+  );
+  return result.rows;
 }
 
 async function updateTaskStatus(taskId, status) {
@@ -31,8 +39,56 @@ async function updateTaskStatus(taskId, status) {
   return result.rows[0];
 }
 
+async function upsertTaskByNodeId(workspaceId, sourceNodeId, data) {
+  const { title, status = 'todo', assigneeId = null, source = 'ai' } = data;
+  
+  const existing = await pool.query(
+    `SELECT id FROM tasks WHERE workspace_id = $1 AND source_node_id = $2`,
+    [workspaceId, sourceNodeId]
+  );
+
+  if (existing.rows.length > 0) {
+    const result = await pool.query(
+      `UPDATE tasks 
+       SET title = $1, updated_at = NOW() 
+       WHERE workspace_id = $2 AND source_node_id = $3 
+       RETURNING *`,
+      [title, workspaceId, sourceNodeId]
+    );
+    return result.rows[0];
+  } else {
+    return createTask(workspaceId, { title, status, sourceNodeId, assigneeId, source });
+  }
+}
+
+async function deleteTask(taskId) {
+  const result = await pool.query(
+    `DELETE FROM tasks WHERE id = $1 RETURNING *`,
+    [taskId]
+  );
+  return result.rows[0];
+}
+
+async function updateTask(taskId, data) {
+  const { title, status } = data;
+  const result = await pool.query(
+    `UPDATE tasks 
+     SET title = COALESCE($1, title), 
+         status = COALESCE($2, status), 
+         updated_at = NOW() 
+     WHERE id = $3 
+     RETURNING *`,
+    [title, status, taskId]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   listWorkspaceTasks,
   createTask,
+  deleteTaskByNodeId,
   updateTaskStatus,
+  upsertTaskByNodeId,
+  deleteTask,
+  updateTask,
 };

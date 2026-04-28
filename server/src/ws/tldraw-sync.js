@@ -38,7 +38,8 @@ function createSocketIoMinimalSocket(socket) {
   const onMessage = async (message) => {
     try {
       const parsed = typeof message === "string" ? JSON.parse(message) : message;
-      if (parsed.type === "update" && parsed.updates && parsed.updates.length > 0) {
+      // Persist any message that isn't a heartbeat or status check
+      if (parsed.type && !["ping", "pong", "presence"].includes(parsed.type)) {
         await eventService.appendEvent(
           socket.workspaceId,
           socket.user?.id || null,
@@ -50,7 +51,10 @@ function createSocketIoMinimalSocket(socket) {
     } catch (e) {
       console.error("[tldraw-sync] Failed to persist update", e);
     }
-    listeners.message.forEach((listener) => listener({ data: message }));
+    
+    // Ensure data is Uint8Array for tldraw core
+    const data = new TextEncoder().encode(typeof message === "string" ? message : JSON.stringify(message));
+    listeners.message.forEach((listener) => listener({ data }));
   };
 
   const onDisconnect = () => {
@@ -115,6 +119,7 @@ async function getRoom(workspaceId) {
       const events = await eventService.getAllEvents(workspaceId);
       
       if (events && events.length > 0) {
+        console.log(`[tldraw-sync] Hydrating room ${workspaceId} with ${events.length} events`);
         const dummySocket = {
           readyState: 1,
           send() {},
@@ -125,13 +130,20 @@ async function getRoom(workspaceId) {
         
         room.handleSocketConnect({ sessionId: 'hydration', socket: dummySocket });
         
+        let replayed = 0;
+        const encoder = new TextEncoder();
         for (const event of events) {
           if (event.eventType === 'tldraw_update' && event.payload) {
-            room.handleSocketMessage('hydration', { data: JSON.stringify(event.payload) });
+            const data = encoder.encode(JSON.stringify(event.payload));
+            room.handleSocketMessage('hydration', { data });
+            replayed++;
           }
         }
         
+        console.log(`[tldraw-sync] Hydration complete for ${workspaceId}. Replayed ${replayed} updates.`);
         room.handleSocketClose('hydration');
+      } else {
+        console.log(`[tldraw-sync] Room ${workspaceId} is fresh (no events found)`);
       }
     } catch (e) {
       console.error(`[tldraw-sync] Failed to hydrate room ${workspaceId}`, e);

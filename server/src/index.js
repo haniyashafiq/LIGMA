@@ -37,7 +37,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 const server = http.createServer(app);
-attachGateway(server);
+const io = attachGateway(server);
+app.set('io', io);
 
 function getSanitizedDatabaseTarget(connectionString) {
   try {

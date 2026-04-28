@@ -79,6 +79,7 @@ export function WorkspacePage() {
   const [layersVersion, setLayersVersion] = useState(0);
 
   const [showAddTask, setShowAddTask] = useState(false);
+  const [editingTask, setEditingTask] = useState(null); // Task being edited
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
@@ -123,11 +124,64 @@ export function WorkspacePage() {
 
   useEffect(() => {
     loadTasks();
+    
+    // Listen for AI-triggered task updates from CanvasView
+    window.addEventListener('ligma:tasks-updated', loadTasks);
+    return () => window.removeEventListener('ligma:tasks-updated', loadTasks);
   }, [loadTasks]);
 
   const handleToolSelect = useCallback((toolId) => {
     setActiveTool(toolId);
   }, []);
+
+  const handleJumpToNode = (nodeId) => {
+    if (editor && nodeId) {
+      try {
+        const shape = editor.getShape(nodeId);
+        if (shape) {
+          editor.select(nodeId);
+          editor.zoomToSelection({ animation: { duration: 500 } });
+        }
+      } catch (e) {
+        console.error("Jump failed:", e);
+      }
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+    }
+  };
+
+  const handleToggleStatus = async (task) => {
+    const statuses = ["todo", "in_progress", "done"];
+    const currentIndex = statuses.indexOf(task.status);
+    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+    
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
+  };
+
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setNewTaskTitle(task.title);
+    setNewTaskStatus(task.status);
+    setShowAddTask(true);
+  };
 
   const handleAddTask = async (e) => {
     e.preventDefault();
@@ -135,19 +189,30 @@ export function WorkspacePage() {
 
     setIsSubmittingTask(true);
     try {
-      await apiFetch(`/api/workspaces/${workspaceId}/tasks`, {
-        method: "POST",
-        body: JSON.stringify({
-          title: newTaskTitle.trim(),
-          status: newTaskStatus,
-        }),
-      });
+      if (editingTask) {
+        await apiFetch(`/api/workspaces/${workspaceId}/tasks/${editingTask.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            title: newTaskTitle.trim(),
+            status: newTaskStatus,
+          }),
+        });
+      } else {
+        await apiFetch(`/api/workspaces/${workspaceId}/tasks`, {
+          method: "POST",
+          body: JSON.stringify({
+            title: newTaskTitle.trim(),
+            status: newTaskStatus,
+          }),
+        });
+      }
       setNewTaskTitle("");
       setNewTaskStatus("todo");
+      setEditingTask(null);
       setShowAddTask(false);
       loadTasks();
     } catch (err) {
-      console.error("Failed to add task:", err);
+      console.error("Failed to save task:", err);
     } finally {
       setIsSubmittingTask(false);
     }
@@ -458,25 +523,52 @@ export function WorkspacePage() {
                   <div key={task.id} className="ws-task-card">
                     <div className="ws-task-card-header">
                       <div className="ws-task-header-left">
-                        <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
-                          {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
+                        <span className={`ws-task-badge ${task.source === 'ai' ? 'ai' : (!task.source_node_id ? "manual" : "auto")}`}>
+                          {task.source === 'ai' ? (
+                            <><FiZap size={10} style={{ color: '#8B5CF6', marginRight: 4 }} /> AI Task</>
+                          ) : (
+                            !task.source_node_id ? "✦ Manual" : "✦ Canvas"
+                          )}
                         </span>
                       </div>
                       <span className="ws-task-added-by">
-                        {task.authorName || "Direct Entry"}
+                        {task.authorName || (task.source === 'ai' ? "AI Agent" : "Direct Entry")}
                       </span>
                     </div>
                     <p className="ws-task-title">{task.title}</p>
                     <div className="ws-task-footer">
-                      <span className={`ws-task-status ${task.status}`}>
-                        {task.status === 'in_progress' ? 'Doing' : task.status}
+                      <span 
+                        className={`ws-task-status ${task.status}`}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleToggleStatus(task)}
+                        title="Click to change status"
+                      >
+                        {task.status === 'in_progress' ? 'Doing' : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                       </span>
                       <div className="ws-task-footer-actions">
                         {task.source_node_id && (
-                          <button className="ws-task-link-btn" title="View on canvas">
+                          <button 
+                            className="ws-task-link-btn" 
+                            title="View on canvas"
+                            onClick={() => handleJumpToNode(task.source_node_id)}
+                          >
                             <FiLink size={10} />
                           </button>
                         )}
+                        <button 
+                          className="ws-task-link-btn" 
+                          title="Edit task"
+                          onClick={() => handleEditTask(task)}
+                        >
+                          <FiEdit2 size={10} />
+                        </button>
+                        <button 
+                          className="ws-task-link-btn" 
+                          title="Delete task"
+                          onClick={() => handleDeleteTask(task.id)}
+                        >
+                          <FiTrash2 size={10} style={{ color: 'var(--color-danger, #ff4d4f)' }} />
+                        </button>
                         <div className="ws-task-user-pip">
                           {(task.authorName || "U")[0]}
                         </div>
@@ -492,8 +584,8 @@ export function WorkspacePage() {
               <div className="ws-add-task-overlay">
                 <form className="ws-add-task-form" onSubmit={handleAddTask}>
                   <div className="ws-modal-header">
-                    <h3>New Task</h3>
-                    <button type="button" className="ws-close-btn" onClick={() => setShowAddTask(false)}>
+                    <h3>{editingTask ? "Edit Task" : "New Task"}</h3>
+                    <button type="button" className="ws-close-btn" onClick={() => { setShowAddTask(false); setEditingTask(null); }}>
                       <FiPlus size={18} style={{ transform: 'rotate(45deg)' }} />
                     </button>
                   </div>
@@ -513,14 +605,14 @@ export function WorkspacePage() {
                       <div className="ws-field-group">
                         <label>Status</label>
                         <div className="ws-status-toggle">
-                          {['todo', 'doing', 'done'].map((s) => (
+                          {['todo', 'in_progress', 'done'].map((s) => (
                             <button
                               key={s}
                               type="button"
                               className={newTaskStatus === s ? 'active' : ''}
                               onClick={() => setNewTaskStatus(s)}
                             >
-                              {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
+                              {s === 'in_progress' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
                             </button>
                           ))}
                         </div>
@@ -534,7 +626,7 @@ export function WorkspacePage() {
                       className="ws-submit-btn creative-glow"
                       disabled={isSubmittingTask || !newTaskTitle.trim()}
                     >
-                      {isSubmittingTask ? "Creating..." : "Create Task"}
+                      {isSubmittingTask ? (editingTask ? "Saving..." : "Creating...") : (editingTask ? "Save Changes" : "Create Task")}
                     </button>
                   </div>
                 </form>
