@@ -2,13 +2,13 @@ import React, { useContext, useEffect, useState, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   FiMousePointer,
-  FiHand,
+  FiMove,
   FiSquare,
   FiType,
   FiEdit2,
   FiFileText,
   FiArrowUpRight,
-  FiEraser,
+  FiTrash2,
   FiLayers,
   FiSettings,
   FiBell,
@@ -32,13 +32,13 @@ import "../styles/workspace.css";
 
 const TOOLS = [
   { id: "select",  Icon: FiMousePointer, label: "Select" },
-  { id: "hand",    Icon: FiHand,         label: "Hand" },
+  { id: "hand",    Icon: FiMove,         label: "Hand" },
   { id: "geo",     Icon: FiSquare,       label: "Shapes" },
   { id: "text",    Icon: FiType,         label: "Text" },
   { id: "draw",    Icon: FiEdit2,        label: "Pen" },
   { id: "arrow",   Icon: FiArrowUpRight, label: "Arrow" },
   { id: "note",    Icon: FiFileText,     label: "Notes" },
-  { id: "eraser",  Icon: FiEraser,       label: "Eraser" },
+  { id: "eraser",  Icon: FiTrash2,       label: "Eraser" },
 ];
 
 const TOOL_EXTRAS = [
@@ -62,7 +62,6 @@ export function WorkspacePage() {
   const {
     setCurrentWorkspace,
     connectionStatus,
-    taskPanelOpen,
     setTaskPanelOpen,
   } = useContext(AppContext);
 
