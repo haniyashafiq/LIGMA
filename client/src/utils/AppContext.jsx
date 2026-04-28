@@ -19,6 +19,8 @@ export const AppContext = createContext({
   setMembersOpen: () => {},
   members: [],
   setMembers: () => {},
+  timeTravelOpen: false,
+  setTimeTravelOpen: () => {},
   jumpToNode: null,
   exposeJump: () => {},
 });
@@ -40,6 +42,7 @@ export function AppProvider({ children }) {
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [members, setMembers] = useState([]);
+  const [timeTravelOpen, setTimeTravelOpen] = useState(false);
 
   // jumpToNode function will be set by CanvasView
   const [jumpFn, setJumpFn] = useState(null);
@@ -107,6 +110,8 @@ export function AppProvider({ children }) {
         setMembersOpen,
         members,
         setMembers,
+        timeTravelOpen,
+        setTimeTravelOpen,
         jumpToNode: jumpFn,
         exposeJump,
       }}

@@ -43,6 +43,10 @@
 .tool-btn:hover {
   background: rgba(255, 255, 255, 0.03);
 }
+.tool-btn-active {
+  background: rgba(129, 140, 248, 0.25);
+  color: #eef;
+}
 .toolbar-spacer {
   flex: 1;
 }

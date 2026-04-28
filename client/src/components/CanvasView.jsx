@@ -43,7 +43,22 @@ function createSocketIoTldrawSocket({
   const messageListeners = new Set();
   const statusListeners = new Set();
   const aclCache = new Map();
+  const peers = new Map();
   let connectionStatus = socket.connected ? "online" : "offline";
+
+  function emitPresence() {
+    const members = Array.from(peers.entries()).map(([clientId, user]) => ({
+      clientId,
+      user: {
+        id: user.userId,
+        name: user.username,
+        color: user.color,
+      },
+    }));
+    window.dispatchEvent(
+      new CustomEvent("ligma:presence", { detail: { members } }),
+    );
+  }
 
   function notifyStatus(nextStatus, reason) {
     connectionStatus =
@@ -84,7 +99,30 @@ function createSocketIoTldrawSocket({
     );
   });
 
+  socket.on("server:ready", (payload) => {
+    if (payload?.socketId && payload?.user) {
+      peers.set(payload.socketId, payload.user);
+      emitPresence();
+    }
+  });
+
+  socket.on("presence:join", (payload) => {
+    if (payload?.socketId && payload?.user) {
+      peers.set(payload.socketId, payload.user);
+      emitPresence();
+    }
+  });
+
+  socket.on("presence:leave", (payload) => {
+    if (payload?.socketId) {
+      peers.delete(payload.socketId);
+      emitPresence();
+    }
+  });
+
   socket.on("disconnect", () => {
+    peers.clear();
+    emitPresence();
     notifyStatus("offline");
   });
 
@@ -285,7 +323,7 @@ export default function CanvasView({ workspaceId, workspaceRole, userId }) {
   return (
     <div className="canvas-root">
       <div className="canvas-toolbar-wrap">
-        <CustomToolbar editor={editor} />
+        <CustomToolbar editor={editor} workspaceRole={workspaceRole} />
       </div>
       <div className="canvas-container">
         {rbacError ? <div className="error-canvas">{rbacError}</div> : null}

@@ -1,5 +1,6 @@
 const express = require('express');
 const workspaceService = require('../services/workspace.service');
+const eventService = require('../services/event.service');
 const { authenticateRequest } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
 
@@ -27,6 +28,18 @@ router.get('/', async (req, res) => {
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       message: error.message || 'Failed to list workspaces.',
+    });
+  }
+});
+
+router.get('/:id/canvas-events', async (req, res) => {
+  try {
+    await workspaceService.getWorkspaceWithMembers(req.params.id, req.user.id);
+    const events = await eventService.getAllEvents(req.params.id);
+    return res.status(200).json({ events });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      message: error.message || 'Failed to load canvas events.',
     });
   }
 });
