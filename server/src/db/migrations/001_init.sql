@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS canvas_events (
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id),
   event_type VARCHAR(50) NOT NULL,
-  node_id UUID,
+  node_id TEXT,
   payload JSONB NOT NULL,
   yjs_update BYTEA,
   sequence_num BIGINT NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS yjs_snapshots (
 CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  source_node_id UUID NOT NULL,
+  source_node_id TEXT NOT NULL,
   title TEXT NOT NULL,
   intent VARCHAR(30) CHECK (intent IN ('action_item', 'decision', 'question', 'reference')),
   status VARCHAR(20) NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'done')),

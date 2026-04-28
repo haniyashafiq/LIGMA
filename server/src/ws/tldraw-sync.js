@@ -1,46 +1,185 @@
-// Minimal tldraw sync server stub.
-// This file is a scaffold for integrating the tldraw TLSocketAdapter
-// and bridging tldraw store changes into the server's Yjs event store.
+const { createTLSchema, defaultShapeSchemas } = require("@tldraw/tlschema");
+const { TLSocketRoom } = require("@tldraw/sync-core");
+const eventService = require("../services/event.service");
 
-const WebSocket = require("ws");
+const baseSchema = createTLSchema({
+  shapes: { ...defaultShapeSchemas },
+});
 
-module.exports = function attachTldrawSync(
-  server,
-  { eventService, authService },
-) {
-  const wss = new WebSocket.Server({ noServer: true });
+const schema = Object.assign(
+  Object.create(Object.getPrototypeOf(baseSchema)),
+  baseSchema,
+);
 
-  server.on("upgrade", async (request, socket, head) => {
-    // expect path: /ws/tldraw/:workspaceId
-    const url = new URL(request.url, `http://${request.headers.host}`);
-    if (!url.pathname.startsWith("/ws/tldraw")) return;
+// TLSyncRoom expects a `migrateStorage(txn)` hook. The StoreSchema returned by
+// @tldraw/tlschema in this workspace does not provide one, so we attach a
+// compatibility shim here. This keeps the room bootstrap stable for fresh rooms
+// without altering the underlying schema instance.
+schema.migrateStorage = function migrateStorage() {
+  // no-op compatibility shim
+};
 
-    // basic token check (query param `token`)
-    const token = url.searchParams.get("token");
+const rooms = new Map();
+const roomPromises = new Map();
+
+function createSocketIoMinimalSocket(socket) {
+  const listeners = {
+    message: new Set(),
+    close: new Set(),
+    error: new Set(),
+  };
+
+  const cleanup = () => {
+    socket.off("tldraw-message", onMessage);
+    socket.off("disconnect", onDisconnect);
+    socket.off("connect_error", onError);
+  };
+
+  const onMessage = async (message) => {
     try {
-      const user = await authService.verifyToken(token);
-      // accept the connection
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request, { user });
-      });
+      const parsed = typeof message === "string" ? JSON.parse(message) : message;
+      if (parsed.type === "update" && parsed.updates && parsed.updates.length > 0) {
+        await eventService.appendEvent(
+          socket.workspaceId,
+          socket.user?.id || null,
+          "tldraw_update",
+          null,
+          parsed
+        );
+      }
     } catch (e) {
-      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-      socket.destroy();
+      console.error("[tldraw-sync] Failed to persist update", e);
     }
-  });
+    listeners.message.forEach((listener) => listener({ data: message }));
+  };
 
-  wss.on("connection", (ws, req, meta) => {
-    // TODO: create TLSocketAdapter here and wire to Yjs doc + eventService
-    const user = meta && meta.user;
-    console.log("[tldraw-sync] connection", user && user.id);
+  const onDisconnect = () => {
+    listeners.close.forEach((listener) => listener());
+    cleanup();
+  };
 
-    ws.on("message", (data) => {
-      // for now just log messages; real implementation uses TLSocketAdapter
-      console.log("[tldraw-sync] message length", data.length);
+  const onError = (error) => {
+    listeners.error.forEach((listener) => listener(error));
+  };
+
+  socket.on("tldraw-message", onMessage);
+  socket.on("disconnect", onDisconnect);
+  socket.on("connect_error", onError);
+
+  return {
+    get readyState() {
+      return socket.connected ? 1 : 3;
+    },
+    send(message) {
+      socket.emit("tldraw-message", message);
+    },
+    close() {
+      cleanup();
+      socket.disconnect();
+    },
+    addEventListener(type, listener) {
+      if (listeners[type]) {
+        listeners[type].add(listener);
+      }
+    },
+    removeEventListener(type, listener) {
+      if (listeners[type]) {
+        listeners[type].delete(listener);
+      }
+    },
+  };
+}
+
+async function getRoom(workspaceId) {
+  const existingRoom = rooms.get(workspaceId);
+  if (existingRoom && !existingRoom.isClosed()) {
+    return existingRoom;
+  }
+
+  if (roomPromises.has(workspaceId)) {
+    return roomPromises.get(workspaceId);
+  }
+
+  const promise = (async () => {
+    const room = new TLSocketRoom({
+      schema,
+      onSessionRemoved(roomInstance, args) {
+        if (args.numSessionsRemaining === 0) {
+          roomInstance.close();
+          rooms.delete(workspaceId);
+        }
+      },
     });
 
-    ws.on("close", () => {});
-  });
+    try {
+      const events = await eventService.getAllEvents(workspaceId);
+      
+      if (events && events.length > 0) {
+        const dummySocket = {
+          readyState: 1,
+          send() {},
+          close() {},
+          addEventListener() {},
+          removeEventListener() {},
+        };
+        
+        room.handleSocketConnect({ sessionId: 'hydration', socket: dummySocket });
+        
+        for (const event of events) {
+          if (event.eventType === 'tldraw_update' && event.payload) {
+            room.handleSocketMessage('hydration', { data: JSON.stringify(event.payload) });
+          }
+        }
+        
+        room.handleSocketClose('hydration');
+      }
+    } catch (e) {
+      console.error(`[tldraw-sync] Failed to hydrate room ${workspaceId}`, e);
+    }
 
-  return wss;
+    rooms.set(workspaceId, room);
+    roomPromises.delete(workspaceId);
+    return room;
+  })();
+
+  roomPromises.set(workspaceId, promise);
+  return promise;
+}
+
+function createTldrawSyncManager(_io) {
+  async function handleWorkspaceJoin(socket) {
+    const room = await getRoom(socket.workspaceId);
+    room.handleSocketConnect({
+      sessionId: socket.id,
+      socket: createSocketIoMinimalSocket(socket),
+      isReadonly: socket.workspaceRole === "viewer",
+    });
+  }
+
+  async function cleanupWorkspaceIfUnused(workspaceId) {
+    const room = rooms.get(workspaceId);
+
+    if (!room) {
+      return;
+    }
+
+    if (room.getNumActiveSessions() === 0) {
+      room.close();
+      rooms.delete(workspaceId);
+    }
+  }
+
+  function getRoomCount() {
+    return rooms.size;
+  }
+
+  return {
+    handleWorkspaceJoin,
+    cleanupWorkspaceIfUnused,
+    getRoomCount,
+  };
+}
+
+module.exports = {
+  createTldrawSyncManager,
 };

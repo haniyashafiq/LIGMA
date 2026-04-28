@@ -1,30 +1,177 @@
-import React, { useEffect, useRef, useContext } from "react";
-import { Tldraw } from "@tldraw/tldraw";
+import React, { useEffect, useMemo, useState, useContext } from "react";
+import { io } from "socket.io-client";
+import { Tldraw, inlineBase64AssetStore } from "tldraw";
 import { useSync } from "@tldraw/sync";
 import CustomToolbar from "../canvas/CustomToolbar";
-import useCanvasSync from "../canvas/useCanvasSync";
 import { AppContext } from "../utils/AppContext";
-import MembersPanel from "../canvas/MembersPanel";
 import "../styles/canvas.css";
 
-export default function CanvasView({ workspaceId }) {
-  const { token, exposeJump } = useContext(AppContext);
-  const editorRef = useRef(null);
+import { getAccessToken } from "../net/api";
 
-  // create a tldraw sync store connected to our server (placeholder uri)
-  const store = useSync({
-    uri: `ws://localhost:3000/ws/tldraw/${workspaceId}?token=${token}`,
+function createSocketIoTldrawSocket({
+  workspaceId,
+  token,
+  sessionId,
+  storeId,
+}) {
+  const socketBaseUrl =
+    import.meta.env.VITE_SOCKET_URL ||
+    import.meta.env.VITE_SERVER_URL ||
+    (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+
+  const socket = io(socketBaseUrl, {
+    auth: (cb) => {
+      cb({
+        token: getAccessToken() || token,
+        workspaceId,
+      });
+    },
+    query: {
+      sessionId,
+      storeId,
+    },
   });
 
-  // client-side sync hook (listens and emits AI events)
-  useCanvasSync(store, workspaceId);
+  const messageListeners = new Set();
+  const statusListeners = new Set();
+  let connectionStatus = socket.connected ? "online" : "offline";
+
+  function notifyStatus(nextStatus, reason) {
+    connectionStatus =
+      nextStatus === "error" ||
+      nextStatus === "online" ||
+      nextStatus === "offline"
+        ? nextStatus
+        : "offline";
+
+    const statusEvent = reason
+      ? { status: connectionStatus, reason }
+      : { status: connectionStatus };
+
+    statusListeners.forEach((listener) => listener(statusEvent));
+  }
+
+  socket.on("tldraw-message", (message) => {
+    try {
+      const parsed = typeof message === "string" ? JSON.parse(message) : message;
+      messageListeners.forEach((listener) => listener(parsed));
+    } catch (e) {
+      console.error("Failed to parse tldraw-message", e);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    notifyStatus("offline");
+  });
+
+  socket.on("connect_error", (error) => {
+    notifyStatus("error", error?.message || "Connection error");
+  });
+
+  socket.on("connect", () => {
+    notifyStatus("online");
+  });
+
+  return {
+    get connectionStatus() {
+      return connectionStatus;
+    },
+    get readyState() {
+      return socket.connected ? 1 : 3;
+    },
+    onReceiveMessage(callback) {
+      messageListeners.add(callback);
+      return () => {
+        messageListeners.delete(callback);
+      };
+    },
+    onStatusChange(callback) {
+      statusListeners.add(callback);
+      return () => {
+        statusListeners.delete(callback);
+      };
+    },
+    send(message) {
+      socket.emit("tldraw-message", JSON.stringify(message));
+    },
+    sendMessage(message) {
+      socket.emit("tldraw-message", JSON.stringify(message));
+    },
+    close() {
+      socket.disconnect();
+    },
+    restart() {
+      socket.disconnect();
+      socket.connect();
+    },
+  };
+}
+
+function createNoopSocket() {
+  const messageListeners = new Set();
+  const statusListeners = new Set();
+  let connectionStatus = "offline";
+
+  return {
+    get connectionStatus() {
+      return connectionStatus;
+    },
+    get readyState() {
+      return 3;
+    },
+    onReceiveMessage(callback) {
+      // noop
+      return () => {};
+    },
+    onStatusChange(callback) {
+      statusListeners.add(callback);
+      // immediately notify offline
+      try {
+        callback({ status: connectionStatus });
+      } catch (e) {}
+      return () => statusListeners.delete(callback);
+    },
+    send() {
+      // noop
+    },
+    sendMessage() {},
+    close() {},
+    restart() {},
+  };
+}
+
+export default function CanvasView({ workspaceId }) {
+  const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
+  const [editor, setEditor] = useState(null);
+
+  const syncState = useSync(
+    useMemo(
+      () => ({
+        connect: ({ sessionId, storeId }) =>
+          token
+            ? createSocketIoTldrawSocket({
+                workspaceId,
+                token,
+                sessionId,
+                storeId,
+              })
+            : createNoopSocket(),
+        assets: inlineBase64AssetStore,
+      }),
+      [token, workspaceId],
+    ),
+  );
 
   useEffect(() => {
-    if (!store) return;
+    if (!setConnectionStatus) return;
+    setConnectionStatus(syncState.connectionStatus || "disconnected");
+  }, [setConnectionStatus, syncState.connectionStatus]);
+
+  useEffect(() => {
+    if (!editor) return;
     // expose jumpToNode via context for TaskBoard to call
     const jumpToNode = (nodeId) => {
       try {
-        const editor = store.getEditor();
         const shape = editor.getShape(nodeId);
         if (!shape) return;
         const bounds = editor.getShapePageBounds(shape);
@@ -34,17 +181,24 @@ export default function CanvasView({ workspaceId }) {
       }
     };
     if (exposeJump) exposeJump(jumpToNode);
-  }, [store, exposeJump]);
+  }, [editor, exposeJump]);
 
   return (
     <div className="canvas-root">
       <div className="canvas-toolbar-wrap">
-        <CustomToolbar store={store} />
+        <CustomToolbar editor={editor} />
       </div>
       <div className="canvas-container">
-        {store ? <Tldraw store={store} /> : <div>Loading canvas…</div>}
+        {syncState.status === "loading" && (
+          <div className="loading-canvas">Connecting to workspace...</div>
+        )}
+        {syncState.status === "error" && (
+          <div className="error-canvas">Error connecting to workspace</div>
+        )}
+        {syncState.status === "synced-remote" && (
+          <Tldraw store={syncState.store} onMount={setEditor} />
+        )}
       </div>
-      <MembersPanel />
     </div>
   );
 }

@@ -1,10 +1,40 @@
-import React, { createContext, useState, useCallback } from "react";
-import { useEffect } from "react";
+import React, { createContext, useState, useCallback, useEffect } from "react";
+import {
+  getAccessToken,
+  hasAuthHint,
+  refreshAccessToken,
+  setAccessToken,
+} from "../net/api";
 
-export const AppContext = createContext({});
+export const AppContext = createContext({
+  token: null,
+  setToken: () => {},
+  currentWorkspace: null,
+  setCurrentWorkspace: () => {},
+  connectionStatus: "disconnected",
+  setConnectionStatus: () => {},
+  taskPanelOpen: false,
+  setTaskPanelOpen: () => {},
+  membersOpen: false,
+  setMembersOpen: () => {},
+  members: [],
+  setMembers: () => {},
+  jumpToNode: null,
+  exposeJump: () => {},
+});
 
 export function AppProvider({ children }) {
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState(() => {
+    const storedToken = window.sessionStorage.getItem("ligma:token");
+
+    if (storedToken) {
+      setAccessToken(storedToken);
+      return storedToken;
+    }
+
+    const apiToken = getAccessToken();
+    return apiToken || null;
+  });
   const [currentWorkspace, setCurrentWorkspace] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
@@ -14,6 +44,39 @@ export function AppProvider({ children }) {
   // jumpToNode function will be set by CanvasView
   const [jumpFn, setJumpFn] = useState(null);
   const exposeJump = useCallback((fn) => setJumpFn(() => fn), []);
+
+  useEffect(() => {
+    if (token) {
+      window.sessionStorage.setItem("ligma:token", token);
+      setAccessToken(token);
+    } else {
+      window.sessionStorage.removeItem("ligma:token");
+      setAccessToken(null);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (token || !hasAuthHint()) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    refreshAccessToken()
+      .then((payload) => {
+        if (cancelled || !payload?.accessToken) return;
+        setToken(payload.accessToken);
+      })
+      .catch(() => {
+        // No active session in this tab yet.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     function onPresence(e) {

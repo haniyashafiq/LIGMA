@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import "../styles/canvas.css";
 import { AppContext } from "../utils/AppContext";
 
-export default function CustomToolbar({ store }) {
+export default function CustomToolbar({ editor }) {
   const { taskPanelOpen, setTaskPanelOpen, setMembersOpen } =
     useContext(AppContext);
 
@@ -16,14 +16,12 @@ export default function CustomToolbar({ store }) {
 
   function selectTool(tool) {
     try {
-      const editor = store?.getEditor ? store.getEditor() : null;
-      if (editor && typeof editor.selectTool === "function") {
-        editor.selectTool(tool);
-      } else if (store && typeof store.setSelectedTool === "function") {
-        store.setSelectedTool(tool);
-      } else {
-        console.debug("[CustomToolbar] tool switch not available", tool);
+      if (editor && typeof editor.setCurrentTool === "function") {
+        editor.setCurrentTool(tool);
+        return;
       }
+
+      console.debug("[CustomToolbar] tool switch not available", tool);
     } catch (e) {
       console.error("[CustomToolbar] failed to select tool", e);
     }
@@ -34,7 +32,7 @@ export default function CustomToolbar({ store }) {
       <button className="tool-btn" onClick={() => selectTool("select")}>
         Select
       </button>
-      <button className="tool-btn" onClick={() => selectTool("sticky")}>
+      <button className="tool-btn" onClick={() => selectTool("note")}>
         Sticky
       </button>
       <button className="tool-btn" onClick={() => selectTool("text")}>
@@ -43,7 +41,7 @@ export default function CustomToolbar({ store }) {
       <button className="tool-btn" onClick={() => selectTool("draw")}>
         Draw
       </button>
-      <button className="tool-btn" onClick={() => selectTool("shape")}>
+      <button className="tool-btn" onClick={() => selectTool("geo")}>
         Shape
       </button>
       <div className="toolbar-spacer" />

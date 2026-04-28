@@ -11,15 +11,15 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 
 ### Tech Stack Summary
 
-| Layer      | Technology                                               |
-| ---------- | -------------------------------------------------------- |
-| Frontend   | Vite + React, **tldraw** (open-source canvas), Yjs       |
-| Backend    | Node.js, Express, Socket.IO, Yjs server                  |
-| Database   | PostgreSQL 16 (Docker for dev, Render addon for prod)    |
-| AI/NLP     | `compromise` + rule-based boosters                       |
-| Auth       | JWT access tokens (in-memory) + httpOnly refresh cookies |
-| CRDT       | Yjs for conflict-free real-time text/state sync          |
-| Deployment | Render (via `render.yaml` Blueprint)                     |
+| Layer      | Technology                                                |
+| ---------- | --------------------------------------------------------- |
+| Frontend   | Vite + React, **tldraw** (open-source canvas), Socket.IO  |
+| Backend    | Node.js, Express, Socket.IO, tldraw sync core             |
+| Database   | PostgreSQL 16 (Docker for dev, Render addon for prod)     |
+| AI/NLP     | `compromise` + rule-based boosters                        |
+| Auth       | JWT access tokens (in-memory) + httpOnly refresh cookies  |
+| CRDT       | Yjs for non-canvas realtime state; tldraw sync for canvas |
+| Deployment | Render (via `render.yaml` Blueprint)                      |
 
 ### Current State
 
@@ -255,60 +255,18 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 
 **File**: [server/src/ws/gateway.js](file:///d:/Projects/LIGMA/server/src/ws/gateway.js)
 
-### Task 4.3 — WebSocket Message Handlers
+### Task 4.3 — Legacy Canvas Transport Cleanup
 
-- [x] Create `server/src/ws/handlers.js`:
-  - Route all `canvas:*` events through RBAC check
-  - `canvas:node:create` → validate → append event → broadcast `canvas:delta`
-  - `canvas:node:update` → validate ownership → append → broadcast
-  - `canvas:node:move` → validate → append → broadcast
-  - `canvas:node:delete` → validate (lead or own node) → append → broadcast
-  - `canvas:draw:stroke` → validate → append → broadcast
-  - `canvas:draw:erase` → validate → append → broadcast
-  - `cursor:move` → broadcast to room (no persistence)
-  - `reconnect` → fetch events since `lastSequenceNum` → emit `canvas:sync`
-
-**File**: [server/src/ws/handlers.js](file:///d:/Projects/LIGMA/server/src/ws/handlers.js)
-
-### Task 4.4 — Yjs Server Sync
-
-- [x] Create `server/src/ws/yjs-sync.js`:
-  - In-memory `Map<workspaceId, Y.Doc>`
-  - On first connection: hydrate from latest snapshot + replay subsequent events
-  - On `yjs:update`: apply to server Y.Doc → append event → broadcast
-  - Periodic snapshotting: every 50 updates OR 60 seconds (whichever first)
-  - Cleanup: remove Y.Doc from memory when last user leaves workspace
-
-**File**: [server/src/ws/yjs-sync.js](file:///d:/Projects/LIGMA/server/src/ws/yjs-sync.js)
-
-### Task 4.5 — Socket.IO Client Setup
-
-- [x] Create `client/src/net/socket.js`:
-  - Connect to server with `auth: { token }` handshake
-  - Auto-reconnect with exponential backoff (Socket.IO built-in)
-  - On reconnect: send `lastSequenceNum` from `sessionStorage`
-  - Expose `emit()` and `on()` wrappers
-  - Connection state indicator (connected/reconnecting/disconnected)
-
-**File**: [client/src/net/socket.js](file:///d:/Projects/LIGMA/client/src/net/socket.js)
-
-### Task 4.6 — Yjs Client Provider
-
-- [x] Create `client/src/net/yjs-provider.js`:
-  - Bridge between local `Y.Doc` and Socket.IO transport
-  - Send Y.Doc updates as `yjs:update` events
-  - Apply incoming updates to local doc
-  - Awareness protocol for cursor/presence metadata
-
-**File**: [client/src/net/yjs-provider.js](file:///d:/Projects/LIGMA/client/src/net/yjs-provider.js)
+- [x] The old canvas event handlers and Yjs bridge were removed after the tldraw sync refactor.
+- [x] tldraw collaboration now runs through the workspace room manager in `server/src/ws/tldraw-sync.js`.
+- [x] The previous Socket.IO/Yjs adapter files were deleted as dead code.
 
 ### ✅ Phase 4 Checkpoint
 
-- Two browser tabs connect to same workspace via WebSocket
-- Events emitted from one tab appear in the other
-- Server persists events to `canvas_events` table with incrementing sequence numbers
-- Disconnect one tab → push events from other → reconnect first tab → missed events replayed
-- Yjs snapshot created after 50 updates
+- Two browser tabs connect to the same workspace through the tldraw sync room
+- Edits emitted from one tab appear in the other
+- Server keeps the room alive while the workspace is active
+- Disconnect one tab, edit in the other, reconnect the first tab, and the canvas stays in sync
 
 ---
 
@@ -316,7 +274,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 
 > **Goal**: Working infinite canvas with pan, zoom, node CRUD, freehand drawing, cursor presence, and real-time multi-user collaboration — using **tldraw v2** instead of fabric.js.
 
-> **Why tldraw over fabric.js:** tldraw is a complete collaborative canvas with Yjs sync built in as a first-class feature. It requires React (which we now use) and eliminates the SyncBridge, CanvasEngine, NodeManager, DrawingLayer, and CursorLayer — all replaced by tldraw's internals. This saves ~3 hours of the riskiest integration work (the Fabric↔Yjs infinite-loop problem).
+> **Why tldraw over fabric.js:** tldraw is a complete collaborative canvas with built-in collaboration primitives. It requires React (which we now use) and eliminates the SyncBridge, CanvasEngine, NodeManager, DrawingLayer, and CursorLayer — all replaced by tldraw's internals. This saves ~3 hours of the riskiest integration work (the Fabric↔canvas-sync infinite-loop problem).
 
 ### ❌ REMOVED — These files are no longer needed:
 
@@ -331,8 +289,8 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 
 **What this replaces:** CanvasEngine.js + SyncBridge.js + CursorLayer.js
 
-- [ ] Install: `npm install tldraw @tldraw/sync`
-- [ ] Create `client/src/canvas/CanvasView.jsx` — Main canvas React component:
+- [x] Install: `npm install tldraw @tldraw/sync`
+- [x] Create `client/src/canvas/CanvasView.jsx` — Main canvas React component:
 
   ```jsx
   import { Tldraw } from "tldraw";
@@ -347,7 +305,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
   }
   ```
 
-- [ ] Create `server/src/ws/tldraw-sync.js` — tldraw sync server using `TLSocketAdapter`:
+- [x] Create `server/src/ws/tldraw-sync.js` — tldraw sync server using `TLSocketAdapter`:
   - Accepts tldraw WebSocket connections
   - Bridges tldraw's sync protocol into your existing Yjs event store
   - One `TLSocketAdapter` per workspace (same pattern as your existing Y.Doc map)
@@ -357,35 +315,23 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 - 🟢 `client/src/canvas/CanvasView.jsx`
 - 🟢 `server/src/ws/tldraw-sync.js`
 
-### Task 5.2 — tldraw Store Listener (AI Hook + RBAC) 🟢 NEW
+### Task 5.2 — tldraw Store Listener (AI Hook + RBAC) 🟡 DEFERRED
 
 **What this replaces:** The outbound half of SyncBridge.js + NodeManager's WebSocket emit logic
 
-- [ ] Create `client/src/canvas/useCanvasSync.js` — React hook:
-  - Listens to tldraw's `store.listen()` for shape changes
-  - On `ShapeCreated` / `ShapeUpdated` → extract text content → emit to AI service via Socket.IO
-  - On `ShapeDeleted` → emit `canvas:node:delete`
-  - Filters out remote updates using tldraw's `source` field (`'remote'` vs `'user'`)
-
-```js
-store.listen((entry) => {
-  if (entry.source === "remote") return; // ignore, already applied
-  // emit to your Socket.IO event pipeline
-});
-```
-
-**File**: 🟢 `client/src/canvas/useCanvasSync.js`
+- [x] The separate hook file was removed with the transport cleanup.
+- [ ] If AI extraction returns in a later phase, wire it directly off the mounted tldraw editor or store events beside `CanvasView.jsx`.
 
 ### Task 5.3 — Custom tldraw Tools & UI 🟢 NEW
 
 **What this replaces:** Task 5.5 (Toolbar) from old plan — tldraw has a toolbar built in, you just customize it
 
-- [ ] Create `client/src/canvas/CustomToolbar.jsx`:
+- [x] Create `client/src/canvas/CustomToolbar.jsx`:
   - Override tldraw's default toolbar to match LIGMA's glassmorphism aesthetic
   - Add task board toggle button (opens/closes task panel)
   - Add members sidebar toggle
   - Keep tldraw's built-in tools: select, draw, text, sticky note, shapes, eraser
-- [ ] Create `client/src/styles/canvas.css`:
+- [x] Create `client/src/styles/canvas.css`:
   - CSS variable overrides for tldraw's design tokens to match dark slate theme
   - `--tl-background: #0f172a`, `--tl-color-primary: #6366f1`, etc.
   - Canvas container and panel layout
@@ -397,7 +343,7 @@ store.listen((entry) => {
 
 **What this replaces:** `CanvasEngine.animateTo()` from old plan
 
-- [ ] Add to `CanvasView.jsx`:
+- [x] Add to `CanvasView.jsx`:
 
   ```jsx
   const editor = useEditor(); // tldraw hook
@@ -410,18 +356,18 @@ store.listen((entry) => {
   }
   ```
 
-- [ ] Expose `jumpToNode` via React context so TaskCard can call it
+- [x] Expose `jumpToNode` via React context so TaskCard can call it
 
 ### Task 5.5 — State Management 🔴 CHANGED
 
 **What changed:** tldraw manages canvas state internally. You only need app-level state.
 
-- [ ] 🔴 Create `client/src/utils/AppContext.jsx` ~~state.js~~ — React context for:
+- [x] 🔴 Create `client/src/utils/AppContext.jsx` ~~state.js~~ — React context for:
   - Auth state (token, user)
   - Current workspace
   - Connection status
   - Task board open/closed
-- [ ] Keep `client/src/utils/helpers.js` — `debounce`, `throttle`, `generateId` _(No change)_
+- [x] Keep `client/src/utils/helpers.js` — `debounce`, `throttle`, `generateId` _(No change)_
       **Files**:
 - 🔴 `client/src/utils/AppContext.jsx` ~~state.js~~
 - `client/src/utils/helpers.js`
@@ -430,12 +376,12 @@ store.listen((entry) => {
 
 **What changed:** Hash router replaced with React Router (standard for React apps).
 
-- [ ] Install: `npm install react-router-dom`
-- [ ] 🔴 Update `client/src/App.jsx` — React Router routes:
+- [x] Install: `npm install react-router-dom`
+- [x] 🔴 Update `client/src/App.jsx` — React Router routes:
   - `/login` → `<AuthUI />`
   - `/workspaces` → `<WorkspaceList />`
   - `/workspace/:id` → `<CanvasView />` + `<TaskBoard />`
-- [ ] 🟢 Create `client/src/workspaces/WorkspaceList.jsx` — Card grid of workspaces
+- [x] 🟢 Create `client/src/workspaces/WorkspaceList.jsx` — Card grid of workspaces
       **Files**:
 - 🔴 `client/src/App.jsx`
 - 🟢 `client/src/workspaces/WorkspaceList.jsx`
@@ -445,9 +391,9 @@ store.listen((entry) => {
 - 🔴 tldraw canvas loads in React component
 - Can create sticky notes, shapes, text blocks, freehand draw — all built into tldraw
 - Pan/zoom, cursor presence, multi-select — all built into tldraw
-- **Two browser tabs show real-time sync** via tldraw sync adapter → Yjs → Socket.IO
-- RBAC mutations rejected server-side (same as before)
-- All canvas changes flow through: `store.listen()` → `useCanvasSync` → Socket.IO → Server RBAC → Event Store → Broadcast → tldraw sync → Remote canvas
+- **Two browser tabs show real-time sync** via the tldraw sync room over Socket.IO
+- RBAC mutations are enforced server-side before a workspace room accepts edits
+- Canvas collaboration stays on the tldraw sync path end to end
 
 ---
 

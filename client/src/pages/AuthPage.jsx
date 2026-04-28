@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAccessToken, login, register } from "../net/api";
+import { AppContext } from "../utils/AppContext";
 
 function validateForm(mode, values) {
   const username = values.username.trim();
@@ -24,6 +25,7 @@ function validateForm(mode, values) {
 
 export function AuthPage({ mode }) {
   const navigate = useNavigate();
+  const { setToken } = useContext(AppContext);
   const [formState, setFormState] = useState({
     username: "",
     password: "",
@@ -66,6 +68,10 @@ export function AuthPage({ mode }) {
             });
 
       if (payload?.user) {
+        setToken(payload.accessToken || null);
+        if (payload.accessToken) {
+          sessionStorage.setItem("ligma:token", payload.accessToken);
+        }
         navigate("/workspaces", { replace: true });
       }
     } catch (authError) {

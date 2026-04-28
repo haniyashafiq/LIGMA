@@ -9,16 +9,14 @@ A real-time collaborative workspace bridging ideation (infinite canvas) and exec
 ```mermaid
 graph TB
     subgraph Client["Frontend (Vite + React SPA)"]
-      IC[Canvas View]
+      IC[Canvas View (Tldraw)]
         TB[Task Board Panel]
-        CP[Cursor Presence Layer]
         TT[Time-Travel Slider]
-        YC[Yjs Client Provider]
     end
 
     subgraph Server["Backend (Node.js)"]
         WS[WebSocket Gateway]
-        YS[Yjs Server Sync]
+        TS[Tldraw Sync Adapter]
         ES[Event Store Service]
         RBAC[RBAC Middleware]
         AI["AI Task Extractor (compromise + rules)"]
@@ -27,23 +25,19 @@ graph TB
 
     subgraph DB["PostgreSQL"]
         EL[(Event Log)]
-        SNAP[(Snapshots)]
         ACL[(Users / Roles / ACLs)]
         TASKS[(Tasks)]
     end
 
-    IC <-->|Yjs updates + deltas| YC
-    YC <-->|WebSocket wss://| WS
+    IC <-->|Tldraw sync protocol| WS
     WS --> RBAC
-    RBAC --> YS
-    YS --> ES
+    RBAC --> TS
+    TS --> ES
     ES --> EL
-    ES --> SNAP
     AI --> TASKS
-    YS -->|node text changes| AI
+    TS -->|node text changes| AI
     REST --> ACL
     REST --> TASKS
-    CP <-->|cursor-move events| WS
     TT -->|replay request| REST
     REST --> EL
 ```
@@ -307,12 +301,11 @@ Message protocol (all messages include `authToken` and `nodeId` where applicable
 | `presence:join`      | S→C       | `{ userId, name, color }`                | User joined workspace                      |
 | `presence:leave`     | S→C       | `{ userId }`                             | User left workspace                        |
 
-#### [NEW] [server/src/ws/yjs-sync.js](file:///d:/Projects/LIGMA/server/src/ws/yjs-sync.js)
+#### [NEW] [server/src/ws/tldraw-sync.js](file:///d:/Projects/LIGMA/server/src/ws/tldraw-sync.js)
 
-- Maintains in-memory `Y.Doc` per active workspace
-- On `yjs:update` → applies to server doc → appends to event store → broadcasts delta
-- Periodic snapshotting (every 50 updates or 60s)
-- Hydration: Load latest snapshot + replay subsequent events
+- Manages Tldraw `TLSocketRoom` instances per active workspace
+- On incoming `update` messages → intercepts and appends to event store → broadcasts delta
+- Hydration: Loads all historical events from PostgreSQL and replays them into the room on boot.
 
 ---
 
@@ -425,26 +418,9 @@ client/
 
 #### Reconnection Flow
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Server
-    participant DB
-
-    Note over Client: Connection drops
-    Client->>Client: Store lastSequenceNum locally
-    Note over Client: Connection re-established
-    Client->>Server: reconnect { workspaceId, lastSequenceNum, token }
-    Server->>DB: SELECT * FROM canvas_events WHERE workspace_id = $1 AND sequence_num > $2
-    DB-->>Server: missed events[]
-    Server-->>Client: canvas:sync { events[] }
-    Client->>Client: Apply missed Yjs updates to local doc
-    Note over Client: State caught up, resume live sync
-```
-
-- Client persists `lastSequenceNum` in `sessionStorage`
-- Socket.IO built-in reconnection with exponential backoff
-- Server replays only missed events, not full state
+- Client uses `@tldraw/sync` module which handles reconnection automatically with exponential backoff
+- Server reconstructs the full canvas state from `canvas_events` in PostgreSQL using Event Sourcing
+- Room is hydrated from the database before new clients attach to it
 
 ---
 
@@ -504,10 +480,8 @@ The UI will feature:
 - **Phase 1 — Scaffolding**: React template and `main.jsx` added. Status: ✅ Completed.
 - **Phase 2 — Database**: Migrations and DB pool present. Status: ✅ Completed.
 - **Phase 3 — Auth**: Frontend `AuthUI.jsx` and `AuthContext.jsx` added. Status: ✅ Completed.
-- **Phase 4 — WebSocket**: Frontend hooks `useSocket.js` and `useYjs.js` added. Status: ✅ Completed.
-- **Phase 5 — Canvas**: `tldraw` integrated; fabric removed. Status: ✅ Completed.
-- **Phase 6 — AI & Board**: `TaskBoard.jsx`, `TaskCard.jsx`, and `compromise.js` added. Status: ✅ Completed.
-- **Phase 7 — Time Travel & Members**: `TimeTravel.jsx` and `MembersSidebar.jsx` added. Status: ✅ Completed.
-- **Phase 8 — Polish**: Minor change — `framer-motion` used for transitions instead of pure CSS. Status: ✅ Completed (minor change).
-
-4. Test with 3+ concurrent users
+- **Phase 4 — WebSocket**: Event store and gateway setup. Status: ✅ Completed.
+- **Phase 5 — Canvas**: `tldraw` integrated; fabric and Yjs removed. Status: ✅ Completed.
+- **Phase 6 — AI & Board**: Scaffolding complete; pending backend logic. Status: 🚧 In Progress.
+- **Phase 7 — Time Travel & Members**: Not started. Status: ❌ Pending.
+- **Phase 8 — Polish**: Not started. Status: ❌ Pending.
