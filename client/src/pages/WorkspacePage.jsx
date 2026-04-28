@@ -2,10 +2,13 @@ import React, { useContext, useEffect, useState, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   FiMousePointer,
+  FiHand,
   FiSquare,
   FiType,
   FiEdit2,
   FiFileText,
+  FiArrowUpRight,
+  FiEraser,
   FiLayers,
   FiSettings,
   FiBell,
@@ -29,10 +32,13 @@ import "../styles/workspace.css";
 
 const TOOLS = [
   { id: "select",  Icon: FiMousePointer, label: "Select" },
+  { id: "hand",    Icon: FiHand,         label: "Hand" },
   { id: "geo",     Icon: FiSquare,       label: "Shapes" },
   { id: "text",    Icon: FiType,         label: "Text" },
   { id: "draw",    Icon: FiEdit2,        label: "Pen" },
+  { id: "arrow",   Icon: FiArrowUpRight, label: "Arrow" },
   { id: "note",    Icon: FiFileText,     label: "Notes" },
+  { id: "eraser",  Icon: FiEraser,       label: "Eraser" },
 ];
 
 const TOOL_EXTRAS = [
@@ -91,7 +97,11 @@ export function WorkspacePage() {
   // Sync editor tool with activeTool state
   useEffect(() => {
     if (editor && activeTool) {
-      editor.setCurrentTool(activeTool);
+      try {
+        editor.setSelectedTool(activeTool);
+      } catch (err) {
+        console.warn("[Workspace] Failed to set tool:", activeTool, err);
+      }
     }
   }, [editor, activeTool]);
 
@@ -107,6 +117,7 @@ export function WorkspacePage() {
   }, []);
 
   const onCanvasMount = useCallback((editorInstance) => {
+    console.log("[Workspace] Canvas mounted", editorInstance);
     setEditor(editorInstance);
   }, []);
 

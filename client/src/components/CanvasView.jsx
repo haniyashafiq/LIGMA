@@ -202,7 +202,6 @@ export default function CanvasView({ workspaceId, onMount }) {
         <Tldraw 
           store={syncState.store} 
           onMount={handleMount}
-          // Hide default tldraw UI elements since we have our own
           hideUi={true}
         />
       )}
