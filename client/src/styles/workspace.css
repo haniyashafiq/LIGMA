@@ -588,54 +588,252 @@
 }
 
 .ws-task-card {
-  background: var(--color-bg);
+  background: var(--color-bg-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-3);
-  transition: border-color var(--duration-fast), background var(--duration-fast);
-  cursor: pointer;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+  cursor: default;
 }
 
 .ws-task-card:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-bg-elevated);
+  transform: translateY(-1px);
 }
 
 .ws-task-card-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-2);
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .ws-task-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  font-size: 0.6rem;
-  font-weight: var(--font-bold);
+  font-size: 8px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
-.ws-task-badge.action {
-  background: rgba(13, 153, 255, 0.15);
-  color: var(--color-primary);
+.ws-task-badge.manual {
+  background: rgba(13, 153, 255, 0.1);
+  color: #0D99FF;
 }
 
-.ws-task-badge.ai {
-  background: rgba(162, 89, 255, 0.15);
-  color: var(--color-role-lead);
+.ws-task-badge.auto {
+  background: rgba(162, 89, 255, 0.1);
+  color: #A259FF;
 }
 
 .ws-task-added-by {
-  font-size: 0.6rem;
+  font-size: 9px;
   color: var(--color-text-subtle);
+  font-weight: 500;
+}
+
+.ws-task-title {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text);
+  margin: 0 0 10px 0;
+  font-weight: 500;
+}
+
+.ws-task-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ws-task-status {
+  font-size: 8px;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  background: var(--color-bg-deep);
+  color: var(--color-text-subtle);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.ws-task-status.doing {
+  color: #F24822;
+  background: rgba(242, 72, 34, 0.1);
+}
+
+.ws-task-status.done {
+  color: #14AE5C;
+  background: rgba(20, 174, 92, 0.1);
+}
+
+.ws-task-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-task-link-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-subtle);
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.ws-task-link-btn:hover {
+  color: var(--color-primary);
+}
+
+.ws-task-user-pip {
+  width: 18px;
+  height: 18px;
+  background: #0D99FF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+}
+
+/* Add Task Overlay - Refined */
+.ws-add-task-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: fadeIn 0.2s ease;
+}
+
+.ws-add-task-form {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.ws-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+}
+
+.ws-modal-header h3 {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #999;
+  margin: 0;
+}
+
+.ws-close-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  transition: color 0.2s;
+}
+
+.ws-close-btn:hover {
+  color: #fff;
+}
+
+.ws-form-content {
+  padding: 16px;
+}
+
+.ws-form-field textarea {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  padding: 0;
+  margin-bottom: 20px;
+  min-height: 60px;
+}
+
+.ws-form-field textarea:focus {
+  outline: none;
+}
+
+.ws-form-field label {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ws-status-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ws-status-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #999;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ws-cancel-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.ws-submit-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-primary);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ws-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .ws-task-title {
@@ -699,68 +897,186 @@
 }
 
 .ws-task-user-pip {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-full);
-  display: grid;
-  place-items: center;
-  font-size: 0.55rem;
-  font-weight: var(--font-bold);
+  width: 18px;
+  height: 18px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
   color: white;
 }
 
-/* ── Add Task / Execute Sprint ───────────────────────── */
-.ws-exec-footer {
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-border);
+/* Add Task Overlay - Professional Refinement */
+.ws-add-task-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  z-index: 1000;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.ws-add-task-form {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.ws-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid #333;
+}
+
+.ws-modal-header h3 {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #888;
+  margin: 0;
+}
+
+.ws-close-btn {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  transition: color 0.2s;
+}
+
+.ws-close-btn:hover {
+  color: #fff;
+}
+
+.ws-form-content {
+  padding: 20px;
+}
+
+.ws-form-field textarea {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: none;
+  padding: 0;
+  margin-bottom: 24px;
+  min-height: 80px;
+}
+
+.ws-form-field textarea:focus {
+  outline: none;
+}
+
+.ws-form-field label {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.ws-status-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.ws-status-toggle button {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #777;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ws-status-toggle button:hover {
+  color: #aaa;
+}
+
+.ws-status-toggle button.active {
+  background: #333;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ws-form-footer {
+  padding: 16px 20px;
+  background: #181818;
+  border-top: 1px solid #333;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Footer Actions - Compact & Balanced */
+.ws-exec-footer {
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--color-bg-raised);
+}
+
+.ws-add-task-btn,
+.ws-sprint-btn {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0 10px;
 }
 
 .ws-add-task-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-2) 0;
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-muted);
-  font-family: inherit;
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  cursor: pointer;
-  transition: border-color var(--duration-fast), color var(--duration-fast);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
 }
 
 .ws-add-task-btn:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  background: var(--color-interactive-hover);
+  border-color: var(--color-border-strong);
 }
 
 .ws-sprint-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-3) 0;
+  background: var(--color-primary);
   border: none;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--color-primary), var(--color-role-lead));
   color: white;
-  font-family: inherit;
-  font-size: var(--text-xs);
-  font-weight: var(--font-bold);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  cursor: pointer;
-  transition: filter var(--duration-fast);
 }
 
 .ws-sprint-btn:hover {
@@ -790,8 +1106,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }
 
 /* ── Loading / Error states ──────────────────────────── */
@@ -811,8 +1134,13 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── tldraw token overrides (Figma Dark) ─────────────── */

@@ -86,4 +86,15 @@ router.get('/:id/tasks', async (req, res) => {
   }
 });
 
+router.post('/:id/tasks', async (req, res) => {
+  try {
+    const task = await taskService.createTask(req.params.id, req.body);
+    return res.status(201).json({ task });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to create task.',
+    });
+  }
+});
+
 module.exports = router;

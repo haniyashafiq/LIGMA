@@ -2,7 +2,7 @@
 
 ## Figma Dark Design System
 
-**Version:** 2.0.0  
+**Version:** 2.1.0  
 **Last Updated:** 2026-04-28  
 **Inspired by:** Figma — Professional, creative, focused on the canvas experience.
 
@@ -85,6 +85,14 @@ The "Figma Dark" system focuses on a neutral, deep-grey workspace (#1E1E1E) that
 --color-info            → blue-500   (#0D99FF)
 ```
 
+### Button Classification
+> **Global Reset:** Standard HTML `button` elements are reset to `all: unset`. Styling is applied exclusively through semantic classes to avoid UI poisoning.
+
+- `.btn-primary`: High-visibility action. White text on Primary Gradient. Used for Auth, New Canvas, and main task creation.
+- `.btn-secondary`: Balanced secondary action. Bordered with subtle background. Used for logs and alternate paths.
+- `.btn-ghost`: Low-emphasis utility. Transparent background, border appears on hover. Used for filters and auxiliary controls.
+- `.btn-hero`: Specialized onboarding button with mesh gradient and high contrast.
+
 ---
 
 ## Component Layout: Workspace Page
@@ -119,6 +127,8 @@ To balance professional rigidity with creativity:
 ## Component Decisions (Workspace)
 
 - **Tools Panel**: Floating `radius-lg` (12px) with 1px border.
-- **Execution Panel**: Solid background, separated by 1px divider.
+- **Execution Panel**: Solid background, separated by 1px divider. Includes vertical Task Board.
+- **Task Cards**: High-density compact cards with manual/canvas badges. Manual tasks are direct entries; Canvas tasks link back to sticky notes.
+- **Modals**: Width-constrained (440px), glassmorphic backdrop, horizontal segment controls for state toggles (e.g., Status).
 - **Tabs**: Bottom-aligned active border matching Figma's tab style.
 - **Icons**: Lucide (`Fi`) used for all UI elements for consistency.

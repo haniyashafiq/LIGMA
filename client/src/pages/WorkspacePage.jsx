@@ -78,6 +78,11 @@ export function WorkspacePage() {
   const [gridEnabled, setGridEnabled] = useState(true);
   const [layersVersion, setLayersVersion] = useState(0);
 
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskStatus, setNewTaskStatus] = useState("todo");
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+
   // Load workspace metadata
   useEffect(() => {
     if (!getAccessToken()) {
@@ -110,16 +115,43 @@ export function WorkspacePage() {
     }
   }, [editor, activeTool]);
 
-  // Load tasks for this workspace
-  useEffect(() => {
+  const loadTasks = useCallback(() => {
     apiFetch(`/api/workspaces/${workspaceId}/tasks`)
       .then((res) => setTasks(res.tasks || []))
       .catch(() => { });
   }, [workspaceId]);
 
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
   const handleToolSelect = useCallback((toolId) => {
     setActiveTool(toolId);
   }, []);
+
+  const handleAddTask = async (e) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+
+    setIsSubmittingTask(true);
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: newTaskTitle.trim(),
+          status: newTaskStatus,
+        }),
+      });
+      setNewTaskTitle("");
+      setNewTaskStatus("todo");
+      setShowAddTask(false);
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to add task:", err);
+    } finally {
+      setIsSubmittingTask(false);
+    }
+  };
 
   const onCanvasMount = useCallback((editorInstance) => {
     console.log("[Workspace] Canvas mounted", editorInstance);
@@ -425,39 +457,27 @@ export function WorkspacePage() {
                 {tasks.map((task) => (
                   <div key={task.id} className="ws-task-card">
                     <div className="ws-task-card-header">
-                      <span
-                        className={`ws-task-badge ${task.source === "ai" ? "ai" : "action"
-                          }`}
-                      >
-                        {task.source === "ai" ? "✦ AI" : "✦ Action Item"}
-                      </span>
+                      <div className="ws-task-header-left">
+                        <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
+                          {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
+                        </span>
+                      </div>
                       <span className="ws-task-added-by">
-                        Added by {task.authorName || "User"}
+                        {task.authorName || "Direct Entry"}
                       </span>
                     </div>
                     <p className="ws-task-title">{task.title}</p>
                     <div className="ws-task-footer">
-                      <span
-                        className={`ws-task-status ${task.status === "DOING"
-                          ? "in-progress"
-                          : task.status === "DONE"
-                            ? "done"
-                            : ""
-                          }`}
-                      >
-                        {task.status || "Todo"}
+                      <span className={`ws-task-status ${task.status}`}>
+                        {task.status === 'in_progress' ? 'Doing' : task.status}
                       </span>
                       <div className="ws-task-footer-actions">
-                        <button
-                          className="ws-task-link-btn"
-                          title="View on canvas"
-                        >
-                          <FiLink size={12} />
-                        </button>
-                        <div
-                          className="ws-task-user-pip"
-                          style={{ background: "#0D99FF" }}
-                        >
+                        {task.source_node_id && (
+                          <button className="ws-task-link-btn" title="View on canvas">
+                            <FiLink size={10} />
+                          </button>
+                        )}
+                        <div className="ws-task-user-pip">
                           {(task.authorName || "U")[0]}
                         </div>
                       </div>
@@ -467,13 +487,70 @@ export function WorkspacePage() {
               </div>
             </div>
 
+            {/* Add Task Overlay */}
+            {showAddTask && (
+              <div className="ws-add-task-overlay">
+                <form className="ws-add-task-form" onSubmit={handleAddTask}>
+                  <div className="ws-modal-header">
+                    <h3>New Task</h3>
+                    <button type="button" className="ws-close-btn" onClick={() => setShowAddTask(false)}>
+                      <FiPlus size={18} style={{ transform: 'rotate(45deg)' }} />
+                    </button>
+                  </div>
+                  
+                  <div className="ws-form-content">
+                    <div className="ws-form-field">
+                      <textarea
+                        autoFocus
+                        placeholder="Task description..."
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="ws-form-row">
+                      <div className="ws-field-group">
+                        <label>Status</label>
+                        <div className="ws-status-toggle">
+                          {['todo', 'doing', 'done'].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              className={newTaskStatus === s ? 'active' : ''}
+                              onClick={() => setNewTaskStatus(s)}
+                            >
+                              {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="ws-form-footer">
+                    <button
+                      type="submit"
+                      className="ws-submit-btn creative-glow"
+                      disabled={isSubmittingTask || !newTaskTitle.trim()}
+                    >
+                      {isSubmittingTask ? "Creating..." : "Create Task"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             {/* Footer Actions */}
             <div className="ws-exec-footer">
-              <button className="ws-add-task-btn">
-                <FiPlus size={13} />
+              <button
+                className="ws-add-task-btn"
+                onClick={() => setShowAddTask(true)}
+              >
+                <FiPlus size={14} />
                 Add Task
               </button>
-              <button className="ws-sprint-btn">
+              <button className="ws-sprint-btn creative-glow">
                 <FiZap size={13} />
                 Execute Sprint
               </button>
