@@ -100,6 +100,11 @@ export function WorkspacePage() {
   const [events, setEvents] = useState([]);
   const [execTab, setExecTab] = useState("dashboard"); // "dashboard" | "timeline"
 
+  const [taskFilter, setTaskFilter] = useState("all");
+  const [showTaskFilter, setShowTaskFilter] = useState(false);
+  const [activityFilter, setActivityFilter] = useState("all");
+  const [showActivityFilter, setShowActivityFilter] = useState(false);
+
   // Load workspace metadata
   useEffect(() => {
     if (!getAccessToken()) {
@@ -515,18 +520,41 @@ export function WorkspacePage() {
           <aside className="ws-exec-panel">
             <div className="ws-exec-scroll">
                   {/* Activity Log Section (Recent) */}
-                  <div className="ws-section-toggle">
+                  <div className="ws-section-toggle" style={{ position: 'relative' }}>
                     <h3>
                       <FiActivity size={12} />
                       Recent Activity
                     </h3>
-                    <button className="ws-section-add-btn" aria-label="Filter events" title="Filter events">
+                    <button 
+                      className="ws-section-add-btn" 
+                      aria-label="Filter events" 
+                      title="Filter events"
+                      onClick={() => setShowActivityFilter(!showActivityFilter)}
+                    >
                       <FiMoreHorizontal size={12} />
                     </button>
+                    {showActivityFilter && (
+                      <div className="ws-dropdown-menu" style={{ position: 'absolute', right: 0, top: '24px', background: 'var(--color-bg-raised)', border: '1px solid var(--color-border)', borderRadius: '4px', zIndex: 100, padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', width: '100px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                        {['all', 'mine', 'others'].map(filter => (
+                          <button 
+                            key={filter}
+                            style={{ background: activityFilter === filter ? 'var(--color-primary)' : 'transparent', color: activityFilter === filter ? '#fff' : 'var(--color-text)', border: 'none', padding: '4px 8px', textAlign: 'left', borderRadius: '2px', cursor: 'pointer', fontSize: '10px', textTransform: 'capitalize' }}
+                            onClick={() => { setActivityFilter(filter); setShowActivityFilter(false); }}
+                          >
+                            {filter}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <ul className="ws-activity-list">
-                    {events.slice(0, 3).map((event) => {
+                    {events.filter(e => {
+                      if (activityFilter === 'all') return true;
+                      if (activityFilter === 'mine') return e.userId === currentUser?.id;
+                      if (activityFilter === 'others') return e.userId !== currentUser?.id;
+                      return true;
+                    }).slice(0, 3).map((event) => {
                       let action = "modified the canvas";
                       if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
                         const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
@@ -560,18 +588,35 @@ export function WorkspacePage() {
                   </ul>
 
                   {/* Task Board Section */}
-              <div className="ws-section-toggle">
+              <div className="ws-section-toggle" style={{ position: 'relative' }}>
                 <h3>
                   <FiFileText size={12} />
                   Task Board
                 </h3>
-                <button className="ws-section-add-btn" aria-label="Sort tasks">
+                <button 
+                  className="ws-section-add-btn" 
+                  aria-label="Filter tasks"
+                  onClick={() => setShowTaskFilter(!showTaskFilter)}
+                >
                   <FiMoreHorizontal size={12} />
                 </button>
+                {showTaskFilter && (
+                  <div className="ws-dropdown-menu" style={{ position: 'absolute', right: 0, top: '24px', background: 'var(--color-bg-raised)', border: '1px solid var(--color-border)', borderRadius: '4px', zIndex: 100, padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', width: '100px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                    {['all', 'todo', 'doing', 'done'].map(filter => (
+                      <button 
+                        key={filter}
+                        style={{ background: taskFilter === filter ? 'var(--color-primary)' : 'transparent', color: taskFilter === filter ? '#fff' : 'var(--color-text)', border: 'none', padding: '4px 8px', textAlign: 'left', borderRadius: '2px', cursor: 'pointer', fontSize: '10px', textTransform: 'capitalize' }}
+                        onClick={() => { setTaskFilter(filter); setShowTaskFilter(false); }}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="ws-task-section" style={{ paddingTop: '16px' }}>
-                {tasks.length === 0 && (
+                {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).length === 0 && (
                   <div
                     style={{
                       textAlign: "center",
@@ -585,7 +630,7 @@ export function WorkspacePage() {
                   </div>
                 )}
 
-                {tasks.map((task) => (
+                {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).map((task) => (
                   <div key={task.id} className="ws-task-card">
                     <div className="ws-task-card-header">
                       <div className="ws-task-header-left">
