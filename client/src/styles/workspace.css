@@ -1,0 +1,718 @@
+/* ============================================================
+   Workspace Page — Figma Dark Design System
+   ============================================================ */
+
+/* ── Top Nav Bar ──────────────────────────────────────── */
+.workspace-topbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  background: var(--color-bg-raised);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 200;
+  flex-shrink: 0;
+}
+
+.workspace-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.workspace-topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  padding-right: var(--space-4);
+  border-right: 1px solid var(--color-border);
+  margin-right: var(--space-2);
+}
+
+.workspace-topbar-logo-mark {
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--color-text);
+  letter-spacing: var(--tracking-wide);
+}
+
+.workspace-topbar-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.workspace-tab {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  position: relative;
+  transition: color var(--duration-fast);
+}
+
+.workspace-tab:hover {
+  color: var(--color-text);
+}
+
+.workspace-tab.active {
+  color: var(--color-text);
+}
+
+.workspace-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: var(--space-4);
+  right: var(--space-4);
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 2px 2px 0 0;
+}
+
+.workspace-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ws-topbar-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+
+.ws-topbar-icon-btn:hover {
+  color: var(--color-text);
+  background: var(--color-interactive-hover);
+}
+
+.ws-share-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px var(--space-4);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+
+.ws-share-btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-interactive-hover);
+}
+
+.ws-mode-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 5px var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.ws-mode-badge:hover {
+  background: var(--color-bg-highlight);
+}
+
+.ws-mode-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.ws-topbar-settings {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--duration-fast);
+}
+
+.ws-topbar-settings:hover {
+  color: var(--color-text);
+}
+
+/* ── Workspace Body ──────────────────────────────────── */
+.workspace-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Left Tool Panel ─────────────────────────────────── */
+.ws-tool-panel {
+  position: absolute;
+  left: var(--space-4);
+  top: var(--space-4);
+  width: 56px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3) 0;
+  gap: 2px;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.ws-tool-panel-label {
+  font-size: 0.55rem;
+  font-weight: var(--font-bold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-widest);
+  margin-bottom: var(--space-2);
+}
+
+.ws-tool-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+
+.ws-tool-btn span {
+  font-size: 0.5rem;
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ws-tool-btn:hover {
+  color: var(--color-text);
+  background: var(--color-interactive-hover);
+}
+
+.ws-tool-btn.active {
+  color: var(--color-primary);
+  background: rgba(13, 153, 255, 0.1);
+}
+
+.ws-tool-divider {
+  width: 28px;
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-2) 0;
+}
+
+/* ── Canvas Area ─────────────────────────────────────── */
+.ws-canvas-area {
+  flex: 1;
+  position: relative;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.ws-canvas-area .canvas-root {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg);
+}
+
+.ws-canvas-area .canvas-container {
+  position: absolute;
+  inset: 0;
+}
+
+/* Hide tldraw's default toolbar — we use our own */
+.ws-canvas-area .canvas-toolbar-wrap {
+  display: none;
+}
+
+/* ── Bottom Toolbar ──────────────────────────────────── */
+.ws-bottom-bar {
+  position: absolute;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-4);
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.ws-zoom-display {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-muted);
+  min-width: 40px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ws-bottom-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+
+.ws-bottom-btn:hover {
+  color: var(--color-text);
+  background: var(--color-interactive-hover);
+}
+
+.ws-bottom-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border);
+}
+
+/* ── Execution Panel (Right Sidebar) ─────────────────── */
+.ws-exec-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--color-bg-raised);
+  border-left: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.ws-exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ws-exec-header h2 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.ws-exec-more-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ws-exec-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--space-4);
+}
+
+/* ── Activity Log ────────────────────────────────────── */
+.ws-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ws-section-toggle h3 {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ws-section-add-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
+
+.ws-section-add-btn:hover {
+  color: var(--color-text);
+}
+
+.ws-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ws-activity-item {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.ws-activity-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  font-size: 0.65rem;
+  font-weight: var(--font-bold);
+  color: white;
+  flex-shrink: 0;
+}
+
+.ws-activity-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ws-activity-body strong {
+  color: var(--color-text);
+  font-weight: var(--font-semibold);
+}
+
+.ws-activity-body p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.ws-activity-body a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.ws-activity-time {
+  font-size: 0.6rem;
+  color: var(--color-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+/* ── Task Board (inside exec panel) ──────────────────── */
+.ws-task-section {
+  padding-bottom: var(--space-4);
+}
+
+.ws-task-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+  cursor: pointer;
+}
+
+.ws-task-card:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-elevated);
+}
+
+.ws-task-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.ws-task-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.6rem;
+  font-weight: var(--font-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ws-task-badge.action {
+  background: rgba(13, 153, 255, 0.15);
+  color: var(--color-primary);
+}
+
+.ws-task-badge.ai {
+  background: rgba(162, 89, 255, 0.15);
+  color: var(--color-role-lead);
+}
+
+.ws-task-added-by {
+  font-size: 0.6rem;
+  color: var(--color-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ws-task-title {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  margin: 0 0 var(--space-2);
+  line-height: 1.4;
+}
+
+.ws-task-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws-task-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.6rem;
+  font-weight: var(--font-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+}
+
+.ws-task-status.in-progress {
+  background: rgba(13, 153, 255, 0.1);
+  color: var(--color-primary);
+}
+
+.ws-task-status.done {
+  background: rgba(15, 169, 88, 0.1);
+  color: var(--color-success);
+}
+
+.ws-task-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ws-task-link-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
+
+.ws-task-link-btn:hover {
+  color: var(--color-primary);
+}
+
+.ws-task-user-pip {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  font-size: 0.55rem;
+  font-weight: var(--font-bold);
+  color: white;
+}
+
+/* ── Add Task / Execute Sprint ───────────────────────── */
+.ws-exec-footer {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ws-add-task-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+
+.ws-add-task-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.ws-sprint-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-role-lead));
+  color: white;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+  transition: filter var(--duration-fast);
+}
+
+.ws-sprint-btn:hover {
+  filter: brightness(1.1);
+}
+
+/* ── Connection indicator ────────────────────────────── */
+.ws-connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ws-connection-dot.online {
+  background: var(--color-success);
+  box-shadow: 0 0 6px rgba(15, 169, 88, 0.5);
+}
+
+.ws-connection-dot.offline {
+  background: var(--color-danger);
+}
+
+.ws-connection-dot.connecting {
+  background: var(--color-warning);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Loading / Error states ──────────────────────────── */
+.ws-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.ws-loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── tldraw token overrides (Figma Dark) ─────────────── */
+.ws-canvas-area :root,
+.ws-canvas-area {
+  --tl-background: var(--color-bg);
+  --tl-color-primary: var(--color-primary);
+  --tl-color-on-primary: #ffffff;
+  --tl-panel-bg: var(--color-bg-raised);
+  --tl-accent: var(--color-role-lead);
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .ws-exec-panel {
+    display: none;
+  }
+
+  .ws-tool-panel {
+    bottom: var(--space-4);
+    top: auto;
+    left: var(--space-3);
+    width: 48px;
+    padding: var(--space-2) 0;
+  }
+}

@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useState, useContext } from "react";
+import React, { useEffect, useMemo, useContext } from "react";
 import { io } from "socket.io-client";
 import { Tldraw, inlineBase64AssetStore } from "tldraw";
 import { useSync } from "@tldraw/sync";
-import CustomToolbar from "../canvas/CustomToolbar";
 import { AppContext } from "../utils/AppContext";
 import "../styles/canvas.css";
 
@@ -140,9 +139,13 @@ function createNoopSocket() {
   };
 }
 
-export default function CanvasView({ workspaceId }) {
+/**
+ * CanvasView component
+ * Now fully integrated into the Figma-style shell.
+ * It exposes the editor instance back to the parent via onMount.
+ */
+export default function CanvasView({ workspaceId, onMount }) {
   const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
-  const [editor, setEditor] = useState(null);
 
   const syncState = useSync(
     useMemo(
@@ -167,8 +170,9 @@ export default function CanvasView({ workspaceId }) {
     setConnectionStatus(syncState.connectionStatus || "disconnected");
   }, [setConnectionStatus, syncState.connectionStatus]);
 
-  useEffect(() => {
-    if (!editor) return;
+  const handleMount = (editor) => {
+    if (onMount) onMount(editor);
+
     // expose jumpToNode via context for TaskBoard to call
     const jumpToNode = (nodeId) => {
       try {
@@ -181,24 +185,27 @@ export default function CanvasView({ workspaceId }) {
       }
     };
     if (exposeJump) exposeJump(jumpToNode);
-  }, [editor, exposeJump]);
+  };
 
   return (
-    <div className="canvas-root">
-      <div className="canvas-toolbar-wrap">
-        <CustomToolbar editor={editor} />
-      </div>
-      <div className="canvas-container">
-        {syncState.status === "loading" && (
-          <div className="loading-canvas">Connecting to workspace...</div>
-        )}
-        {syncState.status === "error" && (
-          <div className="error-canvas">Error connecting to workspace</div>
-        )}
-        {syncState.status === "synced-remote" && (
-          <Tldraw store={syncState.store} onMount={setEditor} />
-        )}
-      </div>
+    <div className="canvas-container">
+      {syncState.status === "loading" && (
+        <div className="ws-loading">
+          <div className="ws-loading-spinner" />
+          Connecting to workspace...
+        </div>
+      )}
+      {syncState.status === "error" && (
+        <div className="error-canvas">Error connecting to workspace</div>
+      )}
+      {syncState.status === "synced-remote" && (
+        <Tldraw 
+          store={syncState.store} 
+          onMount={handleMount}
+          // Hide default tldraw UI elements since we have our own
+          hideUi={true}
+        />
+      )}
     </div>
   );
 }
