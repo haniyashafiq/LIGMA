@@ -17,6 +17,7 @@ import {
   FiMoreHorizontal,
   FiSearch,
   FiZoomIn,
+  FiArrowLeft,
   FiRotateCcw,
   FiRotateCw,
   FiClock,
@@ -24,6 +25,7 @@ import {
   FiLink,
   FiZap,
   FiShare2,
+  FiMaximize,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
 import { AppContext } from "../utils/AppContext";
@@ -71,6 +73,9 @@ export function WorkspacePage() {
   const [workspaceName, setWorkspaceName] = useState("Workspace");
   const [tasks, setTasks] = useState([]);
   const [execOpen, setExecOpen] = useState(true);
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [gridEnabled, setGridEnabled] = useState(true);
+  const [layersVersion, setLayersVersion] = useState(0);
 
   // Load workspace metadata
   useEffect(() => {
@@ -118,6 +123,13 @@ export function WorkspacePage() {
   const onCanvasMount = useCallback((editorInstance) => {
     console.log("[Workspace] Canvas mounted", editorInstance);
     setEditor(editorInstance);
+
+    // Force re-render when shapes change to keep layers list in sync
+    const handleChange = () => {
+      setLayersVersion((v) => v + 1);
+    };
+
+    editorInstance.on("change", handleChange);
   }, []);
 
   const connectionDot =
@@ -127,6 +139,14 @@ export function WorkspacePage() {
         ? "offline"
         : "connecting";
 
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  };
+
   return (
     <div
       className="workspace-shell"
@@ -135,6 +155,14 @@ export function WorkspacePage() {
       {/* ── Top Navigation Bar ──────────────────────── */}
       <header className="workspace-topbar">
         <div className="workspace-topbar-left">
+          <button 
+            className="ws-topbar-back-btn" 
+            onClick={() => navigate("/workspaces")}
+            title="Go back to projects"
+          >
+            <FiArrowLeft size={16} />
+          </button>
+
           <Link to="/workspaces" className="workspace-topbar-logo">
             <span className="workspace-topbar-logo-mark">LIGMA</span>
           </Link>
@@ -218,9 +246,12 @@ export function WorkspacePage() {
           {TOOL_EXTRAS.map(({ id, Icon, label }) => (
             <button
               key={id}
-              className="ws-tool-btn"
+              className={`ws-tool-btn${id === "layers" && layersOpen ? " active" : ""}`}
               title={label}
               aria-label={label}
+              onClick={() => {
+                if (id === "layers") setLayersOpen(!layersOpen);
+              }}
             >
               <Icon size={16} />
               <span>{label}</span>
@@ -230,7 +261,41 @@ export function WorkspacePage() {
 
         {/* Canvas Area */}
         <div className="ws-canvas-area">
-          <CanvasView workspaceId={workspaceId} onMount={onCanvasMount} />
+          <CanvasView 
+            workspaceId={workspaceId} 
+            onMount={onCanvasMount} 
+            gridMode={gridEnabled}
+          />
+
+          {layersOpen && (
+            <div className="ws-layers-panel">
+              <div className="ws-layers-header">
+                <span>Layers</span>
+                <button onClick={() => setLayersOpen(false)}><FiPlus style={{ transform: "rotate(45deg)" }} /></button>
+              </div>
+              <div className="ws-layers-list">
+                {!editor && <div className="ws-layers-empty">Loading editor...</div>}
+                {editor && editor.getCurrentPageShapes().length === 0 && (
+                  <div className="ws-layers-empty">No layers yet</div>
+                )}
+                {editor && [...editor.getCurrentPageShapes()]
+                  .sort((a, b) => (a.index < b.index ? 1 : -1))
+                  .map(shape => (
+                  <div 
+                    key={shape.id} 
+                    className="ws-layer-item"
+                    onClick={() => {
+                      editor.select(shape.id);
+                      editor.zoomToSelection();
+                    }}
+                  >
+                    <FiSquare size={12} />
+                    <span>{shape.type} - {shape.id.split(':')[1].substring(0, 4)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Bottom Toolbar */}
           <div className="ws-bottom-bar">
@@ -246,6 +311,20 @@ export function WorkspacePage() {
               <FiRotateCw size={14} />
             </button>
             <div className="ws-bottom-divider" />
+            <button 
+              className={`ws-bottom-btn${gridEnabled ? " active" : ""}`} 
+              title="Toggle Grid"
+              onClick={() => setGridEnabled(!gridEnabled)}
+            >
+              <FiSquare size={14} />
+            </button>
+            <button 
+              className="ws-bottom-btn" 
+              title="Toggle Fullscreen"
+              onClick={toggleFullScreen}
+            >
+              <FiMaximize size={14} />
+            </button>
             <button className="ws-bottom-btn" title="History">
               <FiClock size={14} />
             </button>

@@ -144,7 +144,7 @@ function createNoopSocket() {
  * Now fully integrated into the Figma-style shell.
  * It exposes the editor instance back to the parent via onMount.
  */
-export default function CanvasView({ workspaceId, onMount }) {
+export default function CanvasView({ workspaceId, onMount, gridMode = true }) {
   const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
 
   const syncState = useSync(
@@ -203,6 +203,7 @@ export default function CanvasView({ workspaceId, onMount }) {
           store={syncState.store} 
           onMount={handleMount}
           hideUi={true}
+          gridMode={gridMode}
         />
       )}
     </div>
