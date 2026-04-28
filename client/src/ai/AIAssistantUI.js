@@ -42,25 +42,66 @@ export function renderAIAssistantUI(container) {
     window.location.hash = '#/logout'; // main.js will handle logout
   });
 
-  const sendMessage = () => {
+  // Conversation history for multi-turn context
+  const chatHistory = [];
+
+  const sendMessage = async () => {
     const text = input.value.trim();
-    if (text) {
-      const messages = container.querySelector('#chat-messages');
-      const userMsg = document.createElement('div');
-      userMsg.className = 'chat-message message-user';
-      userMsg.textContent = text;
-      messages.appendChild(userMsg);
-      input.value = '';
-      messages.scrollTop = messages.scrollHeight;
+    if (!text) return;
+
+    const messages = container.querySelector('#chat-messages');
+
+    // Show user message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-message message-user';
+    userMsg.textContent = text;
+    messages.appendChild(userMsg);
+    input.value = '';
+    messages.scrollTop = messages.scrollHeight;
+
+    // Disable input while waiting
+    input.disabled = true;
+    sendBtn.disabled = true;
+
+    // Show typing indicator
+    const typingMsg = document.createElement('div');
+    typingMsg.className = 'chat-message message-ai';
+    typingMsg.textContent = '⏳ Thinking...';
+    messages.appendChild(typingMsg);
+    messages.scrollTop = messages.scrollHeight;
+
+    try {
+      const res = await fetch('/chatbot/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          history: chatHistory,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server error (${res.status})`);
+      }
+
+      const data = await res.json();
       
-      // Placeholder for AI response
-      setTimeout(() => {
-        const aiMsg = document.createElement('div');
-        aiMsg.className = 'chat-message message-ai';
-        aiMsg.textContent = "I've received your message. Backend integration is coming soon!";
-        messages.appendChild(aiMsg);
-        messages.scrollTop = messages.scrollHeight;
-      }, 600);
+      // Update typing indicator with final reply
+      typingMsg.innerHTML = '';
+      const textNode = document.createTextNode(data.reply);
+      typingMsg.appendChild(textNode);
+
+      // Update history
+      chatHistory.push({ role: 'user', content: text });
+      chatHistory.push({ role: 'ai', content: data.reply });
+    } catch (err) {
+      typingMsg.textContent = `⚠️ Error: ${err.message}`;
+    } finally {
+      input.disabled = false;
+      sendBtn.disabled = false;
+      input.focus();
+      messages.scrollTop = messages.scrollHeight;
     }
   };
 
