@@ -609,33 +609,165 @@
   margin-bottom: var(--space-2);
 }
 
+/* Task Badges */
 .ws-task-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  font-size: 0.6rem;
-  font-weight: var(--font-bold);
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
-.ws-task-badge.action {
-  background: rgba(13, 153, 255, 0.15);
-  color: var(--color-primary);
+.ws-task-badge.manual {
+  background: rgba(13, 153, 255, 0.1);
+  color: #0D99FF;
 }
 
-.ws-task-badge.ai {
-  background: rgba(162, 89, 255, 0.15);
-  color: var(--color-role-lead);
+.ws-task-badge.auto {
+  background: rgba(162, 89, 255, 0.1);
+  color: #A259FF;
 }
 
-.ws-task-added-by {
-  font-size: 0.6rem;
+.ws-task-status {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
   color: var(--color-text-subtle);
+  background: var(--color-bg-elevated);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.ws-task-status.doing {
+  color: #F24822;
+  background: rgba(242, 72, 34, 0.1);
+}
+
+.ws-task-status.done {
+  color: #14AE5C;
+  background: rgba(20, 174, 92, 0.1);
+}
+
+/* Add Task Overlay */
+.ws-add-task-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.ws-add-task-form {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.ws-add-task-form h3 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin-bottom: var(--space-6);
+  color: var(--color-text);
+}
+
+.ws-form-field {
+  margin-bottom: var(--space-5);
+}
+
+.ws-form-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.ws-form-field textarea {
+  width: 100%;
+  min-height: 100px;
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+
+.ws-form-field textarea:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.ws-status-toggle {
+  display: flex;
+  background: var(--color-bg-deep);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  gap: 2px;
+}
+
+.ws-status-toggle button {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ws-status-toggle button.active {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.ws-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}
+
+.ws-cancel-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.ws-submit-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-primary);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ws-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .ws-task-title {

@@ -13,12 +13,12 @@ async function listWorkspaceTasks(workspaceId) {
 }
 
 async function createTask(workspaceId, data) {
-  const { title, intent, sourceNodeId, assigneeId } = data;
+  const { title, status = 'todo', sourceNodeId = null, assigneeId = null } = data;
   const result = await pool.query(
-    `INSERT INTO tasks (workspace_id, title, intent, source_node_id, assignee_id)
+    `INSERT INTO tasks (workspace_id, title, status, source_node_id, assignee_id)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [workspaceId, title, intent, sourceNodeId, assigneeId]
+    [workspaceId, title, status, sourceNodeId, assigneeId]
   );
   return result.rows[0];
 }
