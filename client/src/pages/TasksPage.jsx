@@ -50,41 +50,43 @@ export function TasksPage({ user }) {
     <DashboardLayout user={user}>
       <header className="page-header">
         <div className="page-title">
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <h1>Global Task Board</h1>
-            
-            <div className="ws-filter-wrap" style={{ position: 'relative' }}>
-              <button 
-                className="ws-board-select-btn"
-                onClick={() => setShowWsDropdown(!showWsDropdown)}
-              >
-                {filterWorkspace === 'all' ? 'All Workspaces' : workspaces.find(w => w.id === filterWorkspace)?.name || 'Select Workspace'}
-                <FiPlus size={12} style={{ transform: showWsDropdown ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s' }} />
-              </button>
-              
-              {showWsDropdown && (
-                <div className="ws-board-dropdown glass-panel">
-                  <div 
-                    className={`ws-board-dropdown-item ${filterWorkspace === 'all' ? 'active' : ''}`}
-                    onClick={() => { setFilterWorkspace('all'); setShowWsDropdown(false); }}
-                  >
-                    All Workspaces
-                  </div>
-                  <div className="ws-board-dropdown-divider" />
-                  {workspaces.map(ws => (
-                    <div 
-                      key={ws.id}
-                      className={`ws-board-dropdown-item ${filterWorkspace === ws.id ? 'active' : ''}`}
-                      onClick={() => { setFilterWorkspace(ws.id); setShowWsDropdown(false); }}
-                    >
-                      {ws.name}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <h1>Global Task Board</h1>
           <p>Unified view of your engineering initiatives across the platform.</p>
+        </div>
+
+        <div className="page-actions">
+          <div className="ws-filter-wrap" style={{ position: 'relative' }}>
+            <button 
+              className="ws-board-select-btn"
+              onClick={() => setShowWsDropdown(!showWsDropdown)}
+              style={{ padding: '8px 16px', borderRadius: '10px' }}
+            >
+              <span style={{ opacity: 0.5, marginRight: '4px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Project:</span>
+              {filterWorkspace === 'all' ? 'All Workspaces' : workspaces.find(w => w.id === filterWorkspace)?.name || 'Select Workspace'}
+              <FiPlus size={12} style={{ transform: showWsDropdown ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s', opacity: 0.5 }} />
+            </button>
+            
+            {showWsDropdown && (
+              <div className="ws-board-dropdown glass-panel" style={{ right: 0, left: 'auto' }}>
+                <div 
+                  className={`ws-board-dropdown-item ${filterWorkspace === 'all' ? 'active' : ''}`}
+                  onClick={() => { setFilterWorkspace('all'); setShowWsDropdown(false); }}
+                >
+                  All Workspaces
+                </div>
+                <div className="ws-board-dropdown-divider" />
+                {workspaces.map(ws => (
+                  <div 
+                    key={ws.id}
+                    className={`ws-board-dropdown-item ${filterWorkspace === ws.id ? 'active' : ''}`}
+                    onClick={() => { setFilterWorkspace(ws.id); setShowWsDropdown(false); }}
+                  >
+                    {ws.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
