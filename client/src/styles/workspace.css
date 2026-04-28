@@ -707,6 +707,12 @@
   color: #A259FF;
 }
 
+.ws-task-badge.ai {
+  background: rgba(139, 92, 246, 0.15);
+  color: #A78BFA;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
 .ws-task-added-by {
   font-size: 9px;
   color: var(--color-text-subtle);

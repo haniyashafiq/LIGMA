@@ -125,7 +125,7 @@ router.get('/:id/tasks', async (req, res) => {
   }
 });
 
-router.post('/:id/tasks', async (req, res) => {
+router.post('/:id/tasks', requireRole('lead', 'contributor'), async (req, res) => {
   try {
     const task = await taskService.createTask(req.params.id, req.body);
     return res.status(201).json({ task });
@@ -136,9 +136,69 @@ router.post('/:id/tasks', async (req, res) => {
   }
 });
 
-router.patch('/:id/tasks/:taskId', async (req, res) => {
+router.put('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), async (req, res) => {
   try {
-    const task = await taskService.updateTask(req.params.taskId, req.body);
+    const task = await taskService.upsertTaskByNodeId(req.params.id, req.params.nodeId, req.body);
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`room:${req.params.id}`).emit('task:sync', {
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        sourceNodeId: task.source_node_id
+      });
+    }
+
+    return res.status(200).json({ task });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to upsert task.',
+    });
+  }
+});
+
+router.delete('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), async (req, res) => {
+  try {
+    const deletedRows = await taskService.deleteTaskByNodeId(req.params.id, req.params.nodeId);
+    
+    if (deletedRows && deletedRows.length > 0) {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`room:${req.params.id}`).emit('task:sync', {
+          deleted: true,
+          sourceNodeId: req.params.nodeId
+        });
+      }
+    }
+
+    return res.status(200).json({ deleted: deletedRows });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to delete task.',
+    });
+  }
+});
+
+router.patch('/:id/tasks/:taskId', requireRole('lead', 'contributor'), async (req, res) => {
+  try {
+    const task = await taskService.updateTask(req.params.id, req.params.taskId, req.body);
+    if (!task) {
+      return res.status(404).json({
+        message: 'Task not found in this workspace.',
+      });
+    }
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`room:${req.params.id}`).emit('task:sync', {
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        sourceNodeId: task.source_node_id
+      });
+    }
+
     return res.status(200).json({ task });
   } catch (error) {
     return res.status(500).json({
@@ -158,6 +218,34 @@ router.get('/:id/events', async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: error.message || 'Failed to list events.',
+    });
+  }
+});
+
+router.delete('/:id/tasks/:taskId', requireRole('lead', 'contributor'), async (req, res) => {
+  try {
+    const deleted = await taskService.deleteTask(req.params.id, req.params.taskId);
+    if (!deleted) {
+      return res.status(404).json({
+        message: 'Task not found in this workspace.',
+      });
+    }
+    
+    if (deleted) {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`room:${req.params.id}`).emit('task:sync', {
+          id: deleted.id,
+          deleted: true,
+          sourceNodeId: deleted.source_node_id
+        });
+      }
+    }
+
+    return res.status(200).json({ deleted });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to delete task.',
     });
   }
 });

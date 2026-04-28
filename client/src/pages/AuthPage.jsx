@@ -146,6 +146,12 @@ export function AuthPage({ mode }) {
             />
           </label>
 
+          {!isRegister && (
+            <div className="auth-forgot-password">
+              <Link to="/forgot-password">Forgot password?</Link>
+            </div>
+          )}
+
           <p className="auth-error" aria-live="polite">
             {error}
           </p>
