@@ -311,6 +311,11 @@ export default function CanvasView({
   const handleMount = (editor) => {
     if (onMount) onMount(editor);
 
+    // theme is now controlled by WorkspacePage toggle via editor instance
+    
+    // Ensure grid is visible (dotted grid pattern)
+    editor.updateInstanceState({ isGridMode: true });
+
     // expose jumpToNode via context for TaskBoard to call
     const jumpToNode = (nodeId) => {
       try {

@@ -372,6 +372,8 @@ function createSocketIoMinimalSocket(socket, room) {
 
   const onMessage = async (message) => {
     let outgoingMessage = message;
+    let shouldSaveToDb = true;
+
     try {
       const decodedMessage = decodeIncomingSocketMessage(message);
       let createdNodeIds = [];
@@ -395,10 +397,25 @@ function createSocketIoMinimalSocket(socket, room) {
                 // ignore
               }
             }
+
+            // Check if the diff only contains ephemeral state (pointers, camera, presence)
+            const diffKeys = Object.keys(parsedMessage.diff || {});
+            const allEphemeral = diffKeys.length > 0 && diffKeys.every(k => 
+              k.startsWith('pointer:') || 
+              k.startsWith('camera:') || 
+              k.startsWith('presence:') || 
+              k.startsWith('instance:') ||
+              k.startsWith('instance_page_state:') ||
+              k.startsWith('instance_presence:')
+            );
+
+            if (allEphemeral) {
+              shouldSaveToDb = false;
+            }
+
             // Important: do NOT swallow denied pushes. Let TLSyncRoom process
             // the filtered (possibly empty) diff so the client receives a
             // push_result and immediately rebases optimistic local changes.
-
             outgoingMessage = JSON.stringify(parsedMessage);
           }
         } catch (_error) {
@@ -417,7 +434,7 @@ function createSocketIoMinimalSocket(socket, room) {
       }
 
       const storedPayload = serializeMessageForStorage(outgoingMessage);
-      if (storedPayload) {
+      if (storedPayload && shouldSaveToDb) {
         await eventService.appendEvent(
           socket.workspaceId,
           socket.user?.id || null,

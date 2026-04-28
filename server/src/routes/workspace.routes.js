@@ -97,4 +97,30 @@ router.post('/:id/tasks', async (req, res) => {
   }
 });
 
+router.patch('/:id/tasks/:taskId', async (req, res) => {
+  try {
+    const task = await taskService.updateTask(req.params.taskId, req.body);
+    return res.status(200).json({ task });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to update task.',
+    });
+  }
+});
+
+const eventService = require('../services/event.service');
+
+router.get('/:id/events', async (req, res) => {
+  try {
+    const events = await eventService.getAllEvents(req.params.id);
+    
+    // We can enrich events with user details if needed, but for now just returning them
+    return res.status(200).json({ events });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to list events.',
+    });
+  }
+});
+
 module.exports = router;
