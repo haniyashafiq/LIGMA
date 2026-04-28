@@ -779,8 +779,8 @@ export function WorkspacePage() {
                             <FiLink size={10} />
                           </button>
                         )}
-                        <div className="ws-task-user-pip">
-                          {(task.authorName || "U")[0]}
+                        <div className="ws-task-user-pip" title={getUsername(task.assignee_id)}>
+                          {getUsername(task.assignee_id).charAt(0).toUpperCase()}
                         </div>
                       </div>
                     </div>
