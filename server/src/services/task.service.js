@@ -61,24 +61,24 @@ async function upsertTaskByNodeId(workspaceId, sourceNodeId, data) {
   }
 }
 
-async function deleteTask(taskId) {
+async function deleteTask(workspaceId, taskId) {
   const result = await pool.query(
-    `DELETE FROM tasks WHERE id = $1 RETURNING *`,
-    [taskId]
+    `DELETE FROM tasks WHERE workspace_id = $1 AND id = $2 RETURNING *`,
+    [workspaceId, taskId]
   );
   return result.rows[0];
 }
 
-async function updateTask(taskId, data) {
+async function updateTask(workspaceId, taskId, data) {
   const { title, status } = data;
   const result = await pool.query(
     `UPDATE tasks 
      SET title = COALESCE($1, title), 
          status = COALESCE($2, status), 
          updated_at = NOW() 
-     WHERE id = $3 
+     WHERE workspace_id = $3 AND id = $4 
      RETURNING *`,
-    [title, status, taskId]
+    [title, status, workspaceId, taskId]
   );
   return result.rows[0];
 }

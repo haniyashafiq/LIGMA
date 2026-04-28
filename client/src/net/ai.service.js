@@ -4,6 +4,15 @@
 
 const CHATBOT_URL = 'http://localhost:8000';
 
+function normalizeTaskStatus(rawStatus) {
+  const status = String(rawStatus || '').trim().toLowerCase();
+  if (status === 'doing') return 'in_progress';
+  if (status === 'in_progress' || status === 'todo' || status === 'done') {
+    return status;
+  }
+  return 'todo';
+}
+
 /**
  * Classify the intent of a text statement using the AI Chatbot.
  * @param {string} text - The text to analyze.
@@ -28,7 +37,7 @@ export async function classifyIntent(text) {
     const data = await response.json();
     return {
       intent: data.intent || 'general',
-      status: data.status || 'todo'
+      status: normalizeTaskStatus(data.status)
     };
   } catch (err) {
     if (err.name === 'TypeError' && err.message.includes('fetch')) {
