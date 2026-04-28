@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useState, useContext } from "react";
+import React, { useEffect, useMemo, useContext } from "react";
 import { io } from "socket.io-client";
 import { Tldraw, inlineBase64AssetStore } from "tldraw";
 import { useSync } from "@tldraw/sync";
-import CustomToolbar from "../canvas/CustomToolbar";
 import { AppContext } from "../utils/AppContext";
 import {
   applyMutationsToAclCache,
@@ -224,10 +223,13 @@ function createNoopSocket() {
   };
 }
 
-export default function CanvasView({ workspaceId, workspaceRole, userId }) {
+/**
+ * CanvasView component
+ * Now fully integrated into the Figma-style shell.
+ * It exposes the editor instance back to the parent via onMount.
+ */
+export default function CanvasView({ workspaceId, onMount }) {
   const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
-  const [editor, setEditor] = useState(null);
-  const [rbacError, setRbacError] = useState("");
 
   const syncState = useSync(
     useMemo(
@@ -254,8 +256,9 @@ export default function CanvasView({ workspaceId, workspaceRole, userId }) {
     setConnectionStatus(syncState.connectionStatus || "disconnected");
   }, [setConnectionStatus, syncState.connectionStatus]);
 
-  useEffect(() => {
-    if (!editor) return;
+  const handleMount = (editor) => {
+    if (onMount) onMount(editor);
+
     // expose jumpToNode via context for TaskBoard to call
     const jumpToNode = (nodeId) => {
       try {
@@ -268,7 +271,7 @@ export default function CanvasView({ workspaceId, workspaceRole, userId }) {
       }
     };
     if (exposeJump) exposeJump(jumpToNode);
-  }, [editor, exposeJump]);
+  };
 
   useEffect(() => {
     function onNodeRbacDenied(event) {
@@ -283,22 +286,23 @@ export default function CanvasView({ workspaceId, workspaceRole, userId }) {
   }, []);
 
   return (
-    <div className="canvas-root">
-      <div className="canvas-toolbar-wrap">
-        <CustomToolbar editor={editor} />
-      </div>
-      <div className="canvas-container">
-        {rbacError ? <div className="error-canvas">{rbacError}</div> : null}
-        {syncState.status === "loading" && (
-          <div className="loading-canvas">Connecting to workspace...</div>
-        )}
-        {syncState.status === "error" && (
-          <div className="error-canvas">Error connecting to workspace</div>
-        )}
-        {syncState.status === "synced-remote" && (
-          <Tldraw store={syncState.store} onMount={setEditor} />
-        )}
-      </div>
+    <div className="canvas-container">
+      {syncState.status === "loading" && (
+        <div className="ws-loading">
+          <div className="ws-loading-spinner" />
+          Connecting to workspace...
+        </div>
+      )}
+      {syncState.status === "error" && (
+        <div className="error-canvas">Error connecting to workspace</div>
+      )}
+      {syncState.status === "synced-remote" && (
+        <Tldraw 
+          store={syncState.store} 
+          onMount={handleMount}
+          hideUi={true}
+        />
+      )}
     </div>
   );
 }

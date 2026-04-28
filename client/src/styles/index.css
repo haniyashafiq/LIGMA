@@ -1,27 +1,218 @@
+/* ============================================================
+   LIGMA Design Tokens — "Figma Dark" System
+   ============================================================
+   Inspired by Figma's professional dark mode:
+   #1E1E1E base, #2C2C2C panels, #0D99FF accents.
+   ============================================================ */
+
+/* 1. Primitive Palette — NEVER reference directly in components */
 :root {
-  --bg-0: #081426;
-  --bg-1: #12263d;
-  --surface: rgba(10, 20, 40, 0.7);
-  --surface-border: rgba(171, 200, 255, 0.25);
-  --text-0: #eef5ff;
-  --text-1: #c4d5ee;
-  --accent: #2ec4b6;
-  --accent-strong: #f4d35e;
-  --danger: #f25f5c;
+  /* Figma greys */
+  --primitive-figma-950: #121212;
+  --primitive-figma-900: #1E1E1E; /* Main canvas bg */
+  --primitive-figma-800: #2C2C2C; /* Sidebar/Panels bg */
+  --primitive-figma-700: #383838; /* Border/Dividers */
+  --primitive-figma-600: #444444; /* Hover/Subtle highlight */
+  --primitive-figma-500: #555555;
 
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
+  /* Figma Blue */
+  --primitive-blue-500: #0D99FF;
+  --primitive-blue-400: #33A9FF;
+  --primitive-blue-600: #0087E5;
 
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --shadow-lg: 0 24px 60px rgba(3, 8, 20, 0.45);
+  /* White/neutral text */
+  --primitive-white-100: #FFFFFF;
+  --primitive-white-90:  #E6E6E6;
+  --primitive-white-60:  #B3B3B3;
+  --primitive-white-30:  #808080;
 
-  --font-sans: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Figma Purple (Selection/Pro) */
+  --primitive-purple-500: #A259FF;
+  --primitive-purple-400: #B782FF;
+
+  /* Figma Red/Green */
+  --primitive-green-400: #0FA958;
+  --primitive-red-400:   #F24822;
+  --primitive-orange-400: #F24822; /* Figma uses red for most alerts */
+}
+
+/* 2. Semantic Tokens — USE THESE in all components */
+:root {
+  /* Backgrounds */
+  --color-bg:           var(--primitive-figma-900);   /* #1E1E1E */
+  --color-bg-deep:      var(--primitive-figma-950);   /* #121212 */
+  --color-bg-raised:    var(--primitive-figma-800);   /* #2C2C2C */
+  --color-bg-elevated:  var(--primitive-figma-700);   /* #383838 */
+  --color-bg-highlight: var(--primitive-figma-600);   /* #444444 */
+
+  /* Surfaces */
+  --color-surface:        var(--primitive-figma-800);
+  --color-surface-hover:  var(--primitive-figma-700);
+  --color-surface-active: var(--primitive-figma-600);
+
+  /* Borders */
+  --color-border:        var(--primitive-figma-700);    /* #383838 */
+  --color-border-strong: var(--primitive-figma-600);    /* #444444 */
+  --color-border-focus:  var(--primitive-blue-500);     /* #0D99FF */
+
+  /* Text */
+  --color-text:         var(--primitive-white-100);
+  --color-text-muted:   var(--primitive-white-60);     /* #B3B3B3 */
+  --color-text-subtle:  var(--primitive-white-30);
+  --color-text-inverse: var(--primitive-white-100);
+
+  /* Brand / Primary */
+  --color-primary:       var(--primitive-blue-500);    /* #0D99FF */
+  --color-primary-light: var(--primitive-blue-400);
+  --color-primary-dark:  var(--primitive-blue-600);
+
+  /* Role accents */
+  --color-role-lead:          var(--primitive-purple-500); /* Figma selection purple */
+  --color-role-lead-light:    var(--primitive-purple-400);
+  --color-role-contributor:   var(--primitive-blue-500);
+  --color-role-contributor-light: var(--primitive-blue-400);
+
+  /* Status */
+  --color-success:  var(--primitive-green-400);
+  --color-danger:   var(--primitive-red-400);
+  --color-warning:  var(--primitive-purple-500);
+  --color-info:     var(--primitive-blue-500);
+
+  /* Interactive states */
+  --color-interactive-hover:  rgba(255, 255, 255, 0.04);
+  --color-interactive-active: rgba(255, 255, 255, 0.08);
+}
+
+/* 3. Legacy Aliases — maps old names so existing CSS doesn't break */
+:root {
+  --bg-0:           var(--color-bg);
+  --bg-1:           var(--color-bg-raised);
+  --surface:        var(--color-surface);
+  --surface-border: var(--color-border);
+  --text-0:         var(--color-text);
+  --text-1:         var(--color-text-muted);
+  --accent:         var(--color-primary);
+  --accent-strong:  var(--color-role-lead);
+  --danger:         var(--color-danger);
+}
+
+/* 4. Spacing Scale */
+:root {
+  --space-1:  0.25rem;   /*  4px */
+  --space-2:  0.5rem;    /*  8px */
+  --space-3:  0.75rem;   /* 12px */
+  --space-4:  1rem;      /* 16px */
+  --space-5:  1.5rem;    /* 24px */
+  --space-6:  2rem;      /* 32px */
+  --space-7:  2.5rem;    /* 40px */
+  --space-8:  3rem;      /* 48px */
+  --space-10: 4rem;      /* 64px */
+}
+
+/* 5. Typography Scale */
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs:   0.75rem;    /* 12px */
+  --text-sm:   0.875rem;   /* 14px */
+  --text-base: 1rem;       /* 16px */
+  --text-lg:   1.125rem;   /* 18px */
+  --text-xl:   1.25rem;    /* 20px */
+  --text-2xl:  1.5rem;     /* 24px */
+  --text-3xl:  1.875rem;   /* 30px */
+  --text-4xl:  2.25rem;    /* 36px */
+  --text-5xl:  3rem;       /* 48px */
+
+  --leading-tight:  1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  --tracking-tight:  -0.02em;
+  --tracking-normal:  0em;
+  --tracking-wide:    0.08em;
+  --tracking-widest:  0.14em;
+
+  --font-normal:   400;
+  --font-medium:   500;
+  --font-semibold: 600;
+  --font-bold:     700;
+}
+
+/* 6. Border-Radius & Shadows */
+:root {
+  --radius-sm:  6px;
+  --radius-md:  14px;
+  --radius-lg:  22px;
+  --radius-xl:  32px;
+  --radius-full: 9999px;
+
+  --shadow-sm:  0 2px 8px rgba(3, 8, 20, 0.25);
+  --shadow-md:  0 8px 24px rgba(3, 8, 20, 0.35);
+  --shadow-lg:  0 24px 60px rgba(3, 8, 20, 0.45);
+  --shadow-xl:  0 40px 80px rgba(3, 8, 20, 0.55);
+
+  --glow-primary: 0 0 18px rgba(46, 196, 182, 0.35);
+  --glow-accent:  0 0 18px rgba(244, 211, 94, 0.30);
+}
+
+/* 7. Z-Index Ladder */
+:root {
+  --z-canvas:    0;
+  --z-nodes:     10;
+  --z-cursors:   20;
+  --z-toolbar:   30;
+  --z-panel:     40;
+  --z-overlay:   50;
+  --z-modal:     60;
+  --z-toast:     70;
+}
+
+/* 8. Animation Easings & Durations */
+:root {
+  --ease-out:       cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:        cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out:    cubic-bezier(0.45, 0, 0.55, 1);
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-linear:    linear;
+
+  --duration-instant: 80ms;
+  --duration-fast:   150ms;
+  --duration-normal: 250ms;
+  --duration-slow:   400ms;
+  --duration-slower: 600ms;
+}
+
+/* 9. Component-Level Tokens */
+:root {
+  /* Panel / glassmorphism card */
+  --panel-bg:     var(--color-surface);
+  --panel-border: var(--color-border);
+  --panel-blur:   blur(14px);
+  --panel-radius: var(--radius-lg);
+  --panel-shadow: var(--shadow-lg);
+
+  /* Input fields */
+  --input-bg:       rgba(8, 20, 38, 0.8);
+  --input-border:   var(--color-border);
+  --input-radius:   var(--radius-md);
+  --input-color:    var(--color-text);
+  --input-padding:  0.75rem 0.85rem;
+
+  /* Buttons */
+  --btn-radius:   12px;
+  --btn-padding:  0.85rem 1.1rem;
+  --btn-font-weight: var(--font-bold);
+
+  /* Task board columns */
+  --board-column-width:  320px;
+  --board-card-radius:   var(--radius-md);
+  --board-gap:           var(--space-3);
+
+  /* Toolbar */
+  --toolbar-height: 48px;
+  --toolbar-bg:     var(--color-bg-deep);
+  --toolbar-border: var(--color-border);
 }
 
 * {
@@ -36,11 +227,51 @@ body {
 
 body {
   font-family: var(--font-sans);
-  color: var(--text-0);
-  background:
-    radial-gradient(circle at 15% 20%, rgba(46, 196, 182, 0.2), transparent 35%),
-    radial-gradient(circle at 85% 10%, rgba(244, 211, 94, 0.22), transparent 30%),
-    linear-gradient(120deg, var(--bg-0), var(--bg-1));
+  color: var(--color-text);
+  background: var(--color-bg);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(13, 153, 255, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(162, 89, 255, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphism & Creative Accents */
+.glass-panel {
+  background: rgba(44, 44, 44, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.creative-glow {
+  position: relative;
+}
+
+.creative-glow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(45deg, var(--color-primary), var(--color-role-lead), transparent);
+  z-index: -1;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.creative-glow:hover::after {
+  opacity: 0.4;
+}
+
+/* Onboarding / Friendly UI */
+.noob-tip {
+  font-size: var(--text-xs);
+  color: var(--color-primary);
+  background: rgba(13, 153, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .shell {
