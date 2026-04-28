@@ -132,6 +132,24 @@
   background: var(--color-interactive-hover);
 }
 
+.ws-members-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px var(--space-4);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+
+.ws-members-btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-interactive-hover);
+}
+
 .ws-role-badge {
   display: inline-flex;
   align-items: center;
@@ -230,6 +248,26 @@
 .ws-topbar-back-btn:hover {
   color: var(--color-text);
   background: var(--color-interactive-hover);
+}
+
+.ws-toast {
+  position: fixed;
+  top: 60px;
+  right: var(--space-4);
+  z-index: 1250;
+  max-width: 420px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  padding: 10px 12px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.ws-toast-error {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.92);
+  border-color: rgba(248, 113, 113, 0.45);
 }
 
 /* ── Workspace Body ──────────────────────────────────── */
@@ -767,7 +805,7 @@
   overflow: hidden;
 }
 
-.ws-modal-header {
+.ws-dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1158,22 +1196,35 @@
   }
 }
 
-/* ── Members Sidebar ─────────────────────────────────── */
-.ws-members-sidebar {
-  position: absolute;
-  top: 48px;
-  left: 0;
-  width: 340px;
-  height: calc(100dvh - 48px);
-  background: var(--color-bg-raised);
-  border-right: 1px solid var(--color-border);
-  z-index: 220;
+/* ── Members / Share Modals ──────────────────────────── */
+.ws-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.46);
   display: flex;
-  flex-direction: column;
-  box-shadow: 8px 0 18px rgba(0, 0, 0, 0.25);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
 }
 
-.ws-members-sidebar-header {
+.ws-modal {
+  width: min(560px, 100%);
+  max-height: min(82dvh, 720px);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.ws-share-modal {
+  width: min(520px, 100%);
+}
+
+.ws-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1181,12 +1232,12 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.ws-members-sidebar-header h2 {
+.ws-dialog-header h2 {
   margin: 0;
   font-size: var(--text-sm);
 }
 
-.ws-members-close-btn {
+.ws-dialog-close-btn {
   width: 28px;
   height: 28px;
   border: none;
@@ -1198,7 +1249,7 @@
   cursor: pointer;
 }
 
-.ws-members-close-btn:hover {
+.ws-dialog-close-btn:hover {
   color: var(--color-text);
   background: var(--color-interactive-hover);
 }
@@ -1311,7 +1362,6 @@
 }
 
 .ws-member-invite-form {
-  border-top: 1px solid var(--color-border);
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
@@ -1377,6 +1427,75 @@
   color: #86efac;
 }
 
+.ws-share-link-block {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ws-share-link-block label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ws-share-link-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ws-share-link-block select {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 8px;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  width: 100%;
+}
+
+.ws-share-link-row input {
+  flex: 1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 8px;
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.ws-share-link-row button,
+.ws-secondary-btn {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 8px 10px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ws-share-link-row button:hover,
+.ws-secondary-btn:hover {
+  background: var(--color-interactive-hover);
+}
+
+.ws-share-footer-actions {
+  padding: 0 var(--space-4) var(--space-4);
+}
+
 /* ── Loading / Error states ──────────────────────────── */
 .ws-loading {
   display: flex;
@@ -1438,10 +1557,29 @@
   letter-spacing: 0.02em;
 }
 
-.ws-task-priority-badge.urgent { background: rgba(242, 72, 34, 0.2); color: #ff6b6b; border: 1px solid rgba(242, 72, 34, 0.3); }
-.ws-task-priority-badge.high { background: rgba(242, 121, 34, 0.15); color: #ffa06b; border: 1px solid rgba(242, 121, 34, 0.2); }
-.ws-task-priority-badge.medium { background: rgba(13, 153, 255, 0.1); color: var(--color-primary); border: 1px solid rgba(13, 153, 255, 0.2); }
-.ws-task-priority-badge.low { background: rgba(255, 255, 255, 0.05); color: var(--color-text-muted); border: 1px solid rgba(255, 255, 255, 0.1); }
+.ws-task-priority-badge.urgent {
+  background: rgba(242, 72, 34, 0.2);
+  color: #ff6b6b;
+  border: 1px solid rgba(242, 72, 34, 0.3);
+}
+
+.ws-task-priority-badge.high {
+  background: rgba(242, 121, 34, 0.15);
+  color: #ffa06b;
+  border: 1px solid rgba(242, 121, 34, 0.2);
+}
+
+.ws-task-priority-badge.medium {
+  background: rgba(13, 153, 255, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(13, 153, 255, 0.2);
+}
+
+.ws-task-priority-badge.low {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
 
 /* ── Task Board Styles ──────────────────────────────── */
@@ -1526,9 +1664,20 @@
   border-radius: var(--radius-full);
 }
 
-.ws-task-status.todo { background: rgba(255, 255, 255, 0.05); color: var(--color-text-muted); }
-.ws-task-status.in_progress { background: rgba(255, 171, 0, 0.1); color: #ffab00; }
-.ws-task-status.done { background: rgba(0, 135, 90, 0.1); color: #00875a; }
+.ws-task-status.todo {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-muted);
+}
+
+.ws-task-status.in_progress {
+  background: rgba(255, 171, 0, 0.1);
+  color: #ffab00;
+}
+
+.ws-task-status.done {
+  background: rgba(0, 135, 90, 0.1);
+  color: #00875a;
+}
 
 .ws-task-footer-actions {
   display: flex;
@@ -1568,10 +1717,29 @@
   text-transform: uppercase;
 }
 
-.ws-status-toggle.priority button.active.urgent { background: #ff6b6b !important; color: white !important; border-color: #ff6b6b !important; }
-.ws-status-toggle.priority button.active.high { background: #ffa06b !important; color: white !important; border-color: #ffa06b !important; }
-.ws-status-toggle.priority button.active.medium { background: var(--color-primary) !important; color: white !important; border-color: var(--color-primary) !important; }
-.ws-status-toggle.priority button.active.low { background: #666 !important; color: white !important; border-color: #666 !important; }
+.ws-status-toggle.priority button.active.urgent {
+  background: #ff6b6b !important;
+  color: white !important;
+  border-color: #ff6b6b !important;
+}
+
+.ws-status-toggle.priority button.active.high {
+  background: #ffa06b !important;
+  color: white !important;
+  border-color: #ffa06b !important;
+}
+
+.ws-status-toggle.priority button.active.medium {
+  background: var(--color-primary) !important;
+  color: white !important;
+  border-color: var(--color-primary) !important;
+}
+
+.ws-status-toggle.priority button.active.low {
+  background: #666 !important;
+  color: white !important;
+  border-color: #666 !important;
+}
 
 /* ── Kanban View Styles ─────────────────────────────── */
 .ws-kanban-view {
@@ -1705,7 +1873,7 @@
 }
 
 .ws-board-dropdown-item:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--color-text);
 }
 
@@ -1721,7 +1889,7 @@
 }
 
 .ws-kanban-count-pill {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--color-text-subtle);
   font-size: 10px;
   font-weight: 700;
@@ -1739,13 +1907,21 @@
 }
 
 .ws-kanban-more:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--color-text);
 }
 
-.status-border-todo { border-left: 3px solid #555 !important; }
-.status-border-doing { border-left: 3px solid var(--color-primary) !important; }
-.status-border-done { border-left: 3px solid #ff9f1c !important; }
+.status-border-todo {
+  border-left: 3px solid #555 !important;
+}
+
+.status-border-doing {
+  border-left: 3px solid var(--color-primary) !important;
+}
+
+.status-border-done {
+  border-left: 3px solid #ff9f1c !important;
+}
 
 .ws-task-workspace-link {
   font-size: 10px;
@@ -1766,7 +1942,7 @@
 
 .ws-task-progress-bar {
   height: 3px;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -1782,6 +1958,3 @@
   opacity: 0.4;
   cursor: grabbing;
 }
-
-
-

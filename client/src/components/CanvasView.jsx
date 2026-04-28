@@ -234,6 +234,7 @@ export default function CanvasView({
   readOnly = false,
   currentUserId = null,
   currentUserRole = "viewer",
+  collabUser = null,
 }) {
   const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
   const canvasShellRef = useRef(null);
@@ -285,23 +286,32 @@ export default function CanvasView({
     return () => window.clearTimeout(id);
   }, [rbacToast]);
 
-  const syncState = useSync(
-    useMemo(
-      () => ({
-        connect: ({ sessionId, storeId }) =>
-          token
-            ? createSocketIoTldrawSocket({
-                workspaceId,
-                token,
-                sessionId,
-                storeId,
-              })
-            : createNoopSocket(),
-        assets: inlineBase64AssetStore,
-      }),
-      [token, workspaceId],
-    ),
+  const syncOptions = useMemo(
+    () => ({
+      connect: ({ sessionId, storeId }) =>
+        token
+          ? createSocketIoTldrawSocket({
+              workspaceId,
+              token,
+              sessionId,
+              storeId,
+            })
+          : createNoopSocket(),
+      assets: inlineBase64AssetStore,
+      ...(collabUser
+        ? {
+            userInfo: {
+              id: String(collabUser.id),
+              name: collabUser.name,
+              color: collabUser.color,
+            },
+          }
+        : {}),
+    }),
+    [token, workspaceId, collabUser],
   );
+
+  const syncState = useSync(syncOptions);
 
   useEffect(() => {
     if (!setConnectionStatus) return;

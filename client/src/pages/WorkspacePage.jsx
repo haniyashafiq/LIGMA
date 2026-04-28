@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState, useCallback } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import React, { useContext, useEffect, useState, useCallback, useMemo } from "react";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   FiMousePointer,
   FiMove,
@@ -32,6 +32,7 @@ import {
   FiMaximize,
   FiCrosshair,
   FiLogOut,
+  FiUsers,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
 import { AppContext } from "../utils/AppContext";
@@ -43,6 +44,7 @@ import {
   clearAccessToken,
 } from "../net/api";
 import MembersSidebar from "../workspace/MembersSidebar";
+import ShareWorkspaceModal from "../workspace/ShareWorkspaceModal";
 import RoleBadge from "../workspace/RoleBadge";
 import "../styles/workspace.css";
 
@@ -75,6 +77,7 @@ const MOCK_ACTIVITY = [
 export function WorkspacePage() {
   const { workspaceId, tab: urlTab } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     setCurrentWorkspace,
     connectionStatus,
@@ -99,10 +102,28 @@ export function WorkspacePage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   const [showAddTask, setShowAddTask] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
   const [newTaskPriority, setNewTaskPriority] = useState("medium");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [inviteLinkError, setInviteLinkError] = useState("");
+
+  const collabUser = useMemo(() => {
+    if (!currentUser?.id) return null;
+    const uid = String(currentUser.id);
+    const member = workspaceMembers.find((m) => String(m.userId) === uid);
+    const name =
+      (member?.displayName && String(member.displayName).trim()) ||
+      member?.username ||
+      currentUser.username ||
+      "Collaborator";
+    const color =
+      typeof member?.color === "string" && member.color.trim()
+        ? member.color.trim()
+        : "#6366f1";
+    return { id: uid, name, color };
+  }, [currentUser, workspaceMembers]);
 
   const [events, setEvents] = useState([]);
   const [execTab, setExecTab] = useState("dashboard"); // "dashboard" | "timeline"
@@ -123,20 +144,44 @@ export function WorkspacePage() {
       setCurrentWorkspace(workspaceId || null);
     }
 
-    apiFetch(`/api/workspaces/${workspaceId}`)
-      .then((res) => {
+    const inviteToken = new URLSearchParams(location.search).get("invite");
+
+    async function loadWorkspace() {
+      if (inviteToken) {
+        try {
+          await apiFetch("/api/workspaces/invite-links/accept", {
+            method: "POST",
+            body: JSON.stringify({ token: inviteToken }),
+          });
+          setInviteLinkError("");
+          navigate(`/workspace/${workspaceId}`, { replace: true });
+        } catch (error) {
+          setInviteLinkError(
+            error?.message || "Invite link is invalid or expired. Loading workspace anyway.",
+          );
+        }
+      }
+
+      try {
+        const res = await apiFetch(`/api/workspaces/${workspaceId}`);
         if (res?.workspace?.name) setWorkspaceName(res.workspace.name);
         if (res?.workspace?.role) setWorkspaceRole(res.workspace.role);
         setWorkspaceMembers(res?.members || []);
-      })
-      .catch(() => {});
+      } catch (_error) {
+        if (!inviteToken) {
+          setInviteLinkError("");
+        }
+      }
+    }
+
+    loadWorkspace();
 
     getMe()
       .then((res) => {
         setCurrentUser(res?.user || null);
       })
       .catch(() => {});
-  }, [workspaceId, setCurrentWorkspace, navigate]);
+  }, [workspaceId, setCurrentWorkspace, navigate, location.search]);
 
   // Sync editor tool with activeTool state
   useEffect(() => {
@@ -209,6 +254,16 @@ export function WorkspacePage() {
       await reloadWorkspaceMembers();
     },
     [workspaceId, reloadWorkspaceMembers],
+  );
+  const handleCreateInviteLink = useCallback(
+    async ({ role }) => {
+      const payload = await apiFetch(`/api/workspaces/${workspaceId}/invite-link`, {
+        method: "POST",
+        body: JSON.stringify({ role }),
+      });
+      return payload;
+    },
+    [workspaceId],
   );
 
   const isViewer = workspaceRole === "viewer";
@@ -379,9 +434,13 @@ export function WorkspacePage() {
             <FiHelpCircle size={15} />
           </button>
 
-          <button className="ws-share-btn" onClick={() => setMembersOpen((v) => !v)}>
+          <button className="ws-share-btn" onClick={() => setShareOpen(true)}>
             <FiShare2 size={12} style={{ marginRight: 4 }} />
             Share
+          </button>
+          <button className="ws-members-btn" onClick={() => setMembersOpen(true)}>
+            <FiUsers size={12} style={{ marginRight: 4 }} />
+            Members
           </button>
           <RoleBadge role={workspaceRole} />
 
@@ -412,6 +471,11 @@ export function WorkspacePage() {
           </button>
         </div>
       </header>
+      {inviteLinkError && (
+        <div className="ws-toast ws-toast-error" role="alert">
+          {inviteLinkError}
+        </div>
+      )}
 
       <div className="workspace-body">
         {activeTab === 'timeline' ? (
@@ -982,8 +1046,18 @@ export function WorkspacePage() {
         currentUserId={currentUser?.id || null}
         currentRole={workspaceRole}
         canManageMembers={canManageMembers}
-        onInvite={handleInviteMember}
         onChangeRole={handleChangeMemberRole}
+      />
+      <ShareWorkspaceModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        onInvite={handleInviteMember}
+        onCreateInviteLink={handleCreateInviteLink}
+        canManageMembers={canManageMembers}
+        onOpenMembers={() => {
+          setShareOpen(false);
+          setMembersOpen(true);
+        }}
       />
     </div>
   );

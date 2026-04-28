@@ -34,7 +34,7 @@ async function getUserPresenceProfile(userId) {
 function attachGateway(server) {
   const io = new Server(server, {
     cors: {
-      origin: config.CLIENT_URL,
+      origin: config.CLIENT_ORIGINS,
       credentials: true,
     },
   });

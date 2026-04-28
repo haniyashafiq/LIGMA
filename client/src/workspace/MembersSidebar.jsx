@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { FiUserPlus, FiX } from "react-icons/fi";
+import { FiX } from "react-icons/fi";
 import RoleBadge from "./RoleBadge";
 
 const MANAGEABLE_ROLES = ["contributor", "viewer"];
-const INVITE_ROLES = ["lead", "contributor", "viewer"];
 
 function normalizeRole(role) {
   return typeof role === "string" ? role.trim().toLowerCase() : "viewer";
@@ -21,12 +20,8 @@ export default function MembersSidebar({
   onlineUsernames,
   currentUserId,
   currentRole,
-  onInvite,
   onChangeRole,
 }) {
-  const [inviteUsername, setInviteUsername] = useState("");
-  const [inviteRole, setInviteRole] = useState("contributor");
-  const [busyInvite, setBusyInvite] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [busyRoleUserId, setBusyRoleUserId] = useState(null);
@@ -45,28 +40,6 @@ export default function MembersSidebar({
         .filter(Boolean),
     );
   }, [onlineUsernames]);
-
-  async function handleInviteSubmit(event) {
-    event.preventDefault();
-    if (!canManageMembers || typeof onInvite !== "function") {
-      return;
-    }
-
-    setActionMessage("");
-    setErrorMessage("");
-    setBusyInvite(true);
-
-    try {
-      await onInvite({ username: inviteUsername.trim(), role: inviteRole });
-      setInviteUsername("");
-      setInviteRole("contributor");
-      setActionMessage("Invite sent successfully.");
-    } catch (error) {
-      setErrorMessage(error?.message || "Failed to invite member.");
-    } finally {
-      setBusyInvite(false);
-    }
-  }
 
   async function handleRoleChange(member, nextRole) {
     if (!canManageMembers || typeof onChangeRole !== "function") {
@@ -93,14 +66,21 @@ export default function MembersSidebar({
   if (!open) return null;
 
   return (
-    <aside className="ws-members-sidebar" aria-label="Members sidebar">
-      <div className="ws-members-sidebar-header">
+    <div className="ws-modal-overlay" role="presentation" onClick={onClose}>
+      <section
+        className="ws-modal ws-members-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Workspace members"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="ws-dialog-header">
         <h2>Workspace Members</h2>
         <button
-          className="ws-members-close-btn"
+          className="ws-dialog-close-btn"
           type="button"
           onClick={onClose}
-          aria-label="Close members sidebar"
+          aria-label="Close members modal"
         >
           <FiX size={16} />
         </button>
@@ -168,43 +148,9 @@ export default function MembersSidebar({
         })}
       </div>
 
-      {canManageMembers && (
-        <form className="ws-member-invite-form" onSubmit={handleInviteSubmit}>
-          <h3>
-            <FiUserPlus size={14} />
-            Invite Member
-          </h3>
-          <label htmlFor="invite-username">Username</label>
-          <input
-            id="invite-username"
-            type="text"
-            value={inviteUsername}
-            onChange={(event) => setInviteUsername(event.target.value)}
-            placeholder="Enter username"
-            required
-          />
-
-          <label htmlFor="invite-role">Role</label>
-          <select
-            id="invite-role"
-            value={inviteRole}
-            onChange={(event) => setInviteRole(event.target.value)}
-          >
-            {INVITE_ROLES.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </select>
-
-          <button type="submit" disabled={busyInvite || !inviteUsername.trim()}>
-            {busyInvite ? "Inviting..." : "Send Invite"}
-          </button>
-        </form>
-      )}
-
       {errorMessage && <p className="ws-members-feedback error">{errorMessage}</p>}
       {actionMessage && <p className="ws-members-feedback success">{actionMessage}</p>}
-    </aside>
+      </section>
+    </div>
   );
 }
