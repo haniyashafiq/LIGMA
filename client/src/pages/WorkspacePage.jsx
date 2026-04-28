@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useCallback } from "react";
+import React, { useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   FiMousePointer,
@@ -96,6 +96,22 @@ export function WorkspacePage() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+
+  const collabUser = useMemo(() => {
+    if (!currentUser?.id) return null;
+    const uid = String(currentUser.id);
+    const member = workspaceMembers.find((m) => String(m.userId) === uid);
+    const name =
+      (member?.displayName && String(member.displayName).trim()) ||
+      member?.username ||
+      currentUser.username ||
+      "Collaborator";
+    const color =
+      typeof member?.color === "string" && member.color.trim()
+        ? member.color.trim()
+        : "#6366f1";
+    return { id: uid, name, color };
+  }, [currentUser, workspaceMembers]);
 
   // Load workspace metadata
   useEffect(() => {
@@ -382,6 +398,7 @@ export function WorkspacePage() {
             readOnly={isViewer}
             currentUserId={currentUser?.id || null}
             currentUserRole={workspaceRole}
+            collabUser={collabUser}
           />
 
           {layersOpen && (
