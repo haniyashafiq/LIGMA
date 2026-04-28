@@ -2,6 +2,8 @@ import './styles/index.css';
 import './styles/auth.css';
 import { mountAuthUI } from './auth/AuthUI';
 import { clearAccessToken, getAccessToken, getMe, logout } from './net/api';
+import { renderAIAssistantUI } from './ai/AIAssistantUI';
+import './styles/ai.css';
 
 const app = document.querySelector('#app');
 
@@ -70,7 +72,7 @@ async function renderRoute() {
   if (hash === '#/register') {
     mountAuthUI(app, {
       mode: 'register',
-      onAuthSuccess: () => navigate('#/workspaces'),
+      onAuthSuccess: () => navigate('#/ai-assistant'),
       onSwitchMode: () => navigate('#/login'),
     });
     return;
@@ -79,7 +81,7 @@ async function renderRoute() {
   if (hash === '#/login') {
     mountAuthUI(app, {
       mode: 'login',
-      onAuthSuccess: () => navigate('#/workspaces'),
+      onAuthSuccess: () => navigate('#/ai-assistant'),
       onSwitchMode: () => navigate('#/register'),
     });
     return;
@@ -98,6 +100,29 @@ async function renderRoute() {
       clearAccessToken();
       navigate('#/login');
     }
+    return;
+  }
+
+  if (hash === '#/ai-assistant') {
+    if (!getAccessToken()) {
+      navigate('#/login');
+      return;
+    }
+
+    try {
+      await getMe();
+      renderAIAssistantUI(app);
+    } catch (_error) {
+      clearAccessToken();
+      navigate('#/login');
+    }
+    return;
+  }
+
+  if (hash === '#/logout') {
+    await logout().catch(() => {});
+    clearAccessToken();
+    navigate('#/login');
     return;
   }
 
