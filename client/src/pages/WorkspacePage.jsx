@@ -24,6 +24,7 @@ import {
   FiActivity,
   FiLink,
   FiZap,
+  FiFilter,
   FiShare2,
   FiMaximize,
   FiLogOut,
@@ -158,6 +159,13 @@ export function WorkspacePage() {
       })
       .catch(() => {});
   }, [workspaceId]);
+
+  const getUsername = useCallback((userId) => {
+    if (!userId) return "System";
+    if (currentUser?.id === userId) return "You";
+    const member = workspaceMembers.find(m => m.user?.id === userId || m.userId === userId);
+    return member?.user?.username || member?.username || `User ${userId.substring(0, 4)}`;
+  }, [currentUser, workspaceMembers]);
 
   useEffect(() => {
     loadTasks();
@@ -390,7 +398,7 @@ export function WorkspacePage() {
                         Seq: {event.sequenceNum} • {new Date(event.createdAt).toLocaleString()}
                       </div>
                       <div style={{ fontSize: '15px', color: 'var(--color-text)' }}>
-                        <strong>User {(event.userId || "System").substring(0, 4)}</strong> {action}
+                        <strong>{getUsername(event.userId)}</strong> {action}
                       </div>
                     </div>
                   );
@@ -530,8 +538,18 @@ export function WorkspacePage() {
                       aria-label="Filter events" 
                       title="Filter events"
                       onClick={() => setShowActivityFilter(!showActivityFilter)}
+                      style={{ 
+                        display: 'flex', alignItems: 'center', gap: '4px', 
+                        width: 'auto', height: 'auto',
+                        background: activityFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent', 
+                        padding: activityFilter !== 'all' ? '4px 8px' : '4px', 
+                        borderRadius: '4px' 
+                      }}
                     >
-                      <FiMoreHorizontal size={12} />
+                      {activityFilter !== 'all' && (
+                        <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{activityFilter}</span>
+                      )}
+                      {activityFilter !== 'all' ? <FiFilter size={12} color="var(--color-primary)" /> : <FiMoreHorizontal size={12} />}
                     </button>
                     {showActivityFilter && (
                       <div className="ws-dropdown-menu">
@@ -567,11 +585,11 @@ export function WorkspacePage() {
                             className="ws-activity-avatar"
                             style={{ background: "#A259FF" }}
                           >
-                            U
+                            {getUsername(event.userId).charAt(0).toUpperCase()}
                           </div>
                           <div className="ws-activity-body">
                             <p>
-                              <strong>User {(event.userId || "").substring(0,4)}</strong> {action}
+                              <strong>{getUsername(event.userId)}</strong> {action}
                             </p>
                             <div className="ws-activity-time">{new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                           </div>
@@ -597,8 +615,18 @@ export function WorkspacePage() {
                   className="ws-section-add-btn" 
                   aria-label="Filter tasks"
                   onClick={() => setShowTaskFilter(!showTaskFilter)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '4px', 
+                    width: 'auto', height: 'auto',
+                    background: taskFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent', 
+                    padding: taskFilter !== 'all' ? '4px 8px' : '4px', 
+                    borderRadius: '4px' 
+                  }}
                 >
-                  <FiMoreHorizontal size={12} />
+                  {taskFilter !== 'all' && (
+                    <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{taskFilter}</span>
+                  )}
+                  {taskFilter !== 'all' ? <FiFilter size={12} color="var(--color-primary)" /> : <FiMoreHorizontal size={12} />}
                 </button>
                 {showTaskFilter && (
                   <div className="ws-dropdown-menu">
