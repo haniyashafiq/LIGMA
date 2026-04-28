@@ -15,9 +15,32 @@ const {
 const app = express();
 let dbConnected = false;
 
+function isAllowedOrigin(origin) {
+  if (!origin) {
+    return true;
+  }
+
+  if (origin === config.CLIENT_URL) {
+    return true;
+  }
+
+  if (config.NODE_ENV !== 'production') {
+    return /^http:\/\/localhost:\d+$/.test(origin);
+  }
+
+  return false;
+}
+
 app.use(
   cors({
-    origin: config.CLIENT_URL,
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Not allowed by CORS.'));
+    },
     credentials: true,
   })
 );

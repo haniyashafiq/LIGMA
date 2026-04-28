@@ -1,6 +1,7 @@
 const { createTLSchema, defaultShapeSchemas } = require("@tldraw/tlschema");
 const { TLSocketRoom } = require("@tldraw/sync-core");
 const eventService = require("../services/event.service");
+const { enforceNodeAclForMessage } = require("./node-rbac");
 
 const baseSchema = createTLSchema({
   shapes: { ...defaultShapeSchemas },
@@ -36,8 +37,27 @@ function createSocketIoMinimalSocket(socket) {
   };
 
   const onMessage = async (message) => {
+    let parsed = message;
+
     try {
-      const parsed = typeof message === "string" ? JSON.parse(message) : message;
+      parsed = typeof message === "string" ? JSON.parse(message) : message;
+
+      const authorization = await enforceNodeAclForMessage({
+        message: parsed,
+        workspaceId: socket.workspaceId,
+        workspaceRole: socket.workspaceRole,
+        userId: socket.user?.id || null,
+      });
+
+      if (!authorization.allowed) {
+        socket.emit("node-rbac:denied", {
+          reason: authorization.reason,
+          action: authorization.action || null,
+          nodeId: authorization.nodeId || null,
+        });
+        return;
+      }
+
       if (parsed.type === "update" && parsed.updates && parsed.updates.length > 0) {
         await eventService.appendEvent(
           socket.workspaceId,
@@ -47,10 +67,16 @@ function createSocketIoMinimalSocket(socket) {
           parsed
         );
       }
+
+      listeners.message.forEach((listener) =>
+        listener({ data: typeof message === "string" ? message : JSON.stringify(parsed) }),
+      );
     } catch (e) {
       console.error("[tldraw-sync] Failed to persist update", e);
+      socket.emit("node-rbac:denied", {
+        reason: "Mutation rejected by server.",
+      });
     }
-    listeners.message.forEach((listener) => listener({ data: message }));
   };
 
   const onDisconnect = () => {
