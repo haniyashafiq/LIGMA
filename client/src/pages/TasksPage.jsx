@@ -39,21 +39,20 @@ export function TasksPage({ user }) {
 
   return (
     <DashboardLayout user={user}>
-      <div className="projects-page">
-        <header className="projects-header">
-          <div className="projects-title-area">
-            <h1>Global Task Board</h1>
-            <p>All active tasks across your workspaces.</p>
-          </div>
-        </header>
+      <header className="page-header">
+        <div className="page-title">
+          <h1>Global Task Board</h1>
+          <p>All active tasks across your workspaces.</p>
+        </div>
+      </header>
 
-        {loading ? (
-          <div className="ws-loading" style={{ marginTop: '100px' }}>
-            <div className="ws-loading-spinner" />
-            Loading global tasks...
-          </div>
-        ) : (
-          <div className="ws-kanban-view" style={{ background: 'transparent', padding: '24px 0', height: 'calc(100vh - 200px)' }}>
+      {loading ? (
+        <div className="ws-loading" style={{ marginTop: '100px' }}>
+          <div className="ws-loading-spinner" />
+          Loading global tasks...
+        </div>
+      ) : (
+        <div className="ws-kanban-view" style={{ background: 'transparent', padding: '24px 0', height: 'calc(100vh - 200px)' }}>
             {['todo', 'doing', 'done'].map((status) => (
               <div key={status} className="ws-kanban-column" style={{ background: 'var(--color-bg-raised)' }}>
                 <div className="ws-kanban-column-header">
@@ -117,7 +116,6 @@ export function TasksPage({ user }) {
             ))}
           </div>
         )}
-      </div>
     </DashboardLayout>
   );
 }

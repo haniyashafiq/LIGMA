@@ -90,27 +90,25 @@ const RECENT_CHANGES = [
 export default function ProjectsPage({ user }) {
   return (
     <DashboardLayout user={user}>
-      <div className="projects-page">
-        {/* Header */}
-        <header className="projects-header">
-          <div className="projects-title-area">
-            <h1>Projects</h1>
-            <p>Manage and track your active engineering initiatives.</p>
+      <header className="page-header">
+        <div className="page-title">
+          <h1>Projects</h1>
+          <p>Manage and track your active engineering initiatives.</p>
+        </div>
+        
+        <div className="page-actions">
+          <div className="avatar-group">
+            <div className="avatar-stack" style={{ background: '#FF5733' }}>MK</div>
+            <div className="avatar-stack" style={{ background: '#33FF57' }}>JD</div>
+            <div className="avatar-stack" style={{ background: '#3357FF' }}>AS</div>
+            <div className="avatar-stack">+12</div>
           </div>
-          
-          <div className="projects-actions">
-            <div className="avatar-group">
-              <div className="avatar-stack" style={{ background: '#FF5733' }}>MK</div>
-              <div className="avatar-stack" style={{ background: '#33FF57' }}>JD</div>
-              <div className="avatar-stack" style={{ background: '#3357FF' }}>AS</div>
-              <div className="avatar-stack">+12</div>
-            </div>
-            <button className="btn-primary">
-              <FiPlus size={14} style={{ marginRight: 6 }} />
-              New Issue
-            </button>
-          </div>
-        </header>
+          <button className="btn-primary creative-glow">
+            <FiPlus size={15} />
+            New Project
+          </button>
+        </div>
+      </header>
 
         {/* Main Grid */}
         <div className="projects-main-grid">
@@ -215,7 +213,6 @@ export default function ProjectsPage({ user }) {
             ))}
           </div>
         </section>
-      </div>
     </DashboardLayout>
   );
 }
