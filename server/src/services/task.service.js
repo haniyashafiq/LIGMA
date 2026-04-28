@@ -5,9 +5,9 @@ async function listUserTasks(userId) {
     `SELECT t.*, u.display_name as "authorName", w.name as "workspaceName"
      FROM tasks t
      JOIN workspaces w ON t.workspace_id = w.id
-     JOIN workspace_members wm ON w.id = wm.workspace_id
+     JOIN workspace_roles wr ON w.id = wr.workspace_id
      LEFT JOIN users u ON t.assignee_id = u.id
-     WHERE wm.user_id = $1
+     WHERE wr.user_id = $1
      ORDER BY t.created_at DESC`,
     [userId]
   );
