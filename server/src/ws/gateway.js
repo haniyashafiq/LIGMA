@@ -1,17 +1,16 @@
-const { Server } = require('socket.io');
-const config = require('../config');
-const { pool } = require('../db/pool');
-const { authenticateSocket } = require('../middleware/auth');
-const { getUserWorkspaceRole } = require('../middleware/rbac');
-const { registerSocketHandlers } = require('./handlers');
-const { createYjsSyncManager } = require('./yjs-sync');
+const { Server } = require("socket.io");
+const config = require("../config");
+const { pool } = require("../db/pool");
+const { authenticateSocket } = require("../middleware/auth");
+const { getUserWorkspaceRole } = require("../middleware/rbac");
+const { createTldrawSyncManager } = require("./tldraw-sync");
 
 const connections = new Map();
 
 function parseWorkspaceId(socket) {
   const workspaceId = socket?.handshake?.auth?.workspaceId;
 
-  if (typeof workspaceId !== 'string' || workspaceId.trim().length === 0) {
+  if (typeof workspaceId !== "string" || workspaceId.trim().length === 0) {
     return null;
   }
 
@@ -26,7 +25,7 @@ async function getUserPresenceProfile(userId) {
       WHERE id = $1
       LIMIT 1
     `,
-    [userId]
+    [userId],
   );
 
   return result.rows[0] || null;
@@ -39,70 +38,100 @@ function attachGateway(server) {
       credentials: true,
     },
   });
-  const yjsSyncManager = createYjsSyncManager(io);
+  const tldrawSyncManager = createTldrawSyncManager(io);
 
   io.use(authenticateSocket);
 
   io.use(async (socket, next) => {
     try {
+      if (config.DEBUG_SOCKET_LOGS) {
+        console.debug("[gateway] socket handshake.auth", {
+          auth: {
+            ...socket.handshake.auth,
+            token: socket.handshake.auth?.token ? "[REDACTED]" : null,
+          },
+          socketId: socket.id,
+        });
+      }
       const workspaceId = parseWorkspaceId(socket);
 
       if (!workspaceId) {
-        return next(new Error('workspaceId is required for socket connection.'));
+        console.log("[gateway] missing workspaceId in handshake", socket.id);
+        return next(
+          new Error("workspaceId is required for socket connection."),
+        );
       }
 
       const role = await getUserWorkspaceRole(workspaceId, socket.user.id);
       if (!role) {
-        return next(new Error('Workspace access denied.'));
+        if (config.DEBUG_SOCKET_LOGS) {
+          console.debug("[gateway] user has no role for workspace", {
+            userId: socket.user.id,
+            workspaceId,
+            socketId: socket.id,
+          });
+        }
+        return next(new Error("Workspace access denied."));
       }
 
       socket.workspaceId = workspaceId;
       socket.workspaceRole = role;
       return next();
     } catch (_error) {
-      return next(new Error('Failed to verify workspace membership.'));
+      return next(new Error("Failed to verify workspace membership."));
     }
   });
 
-  io.on('connection', async (socket) => {
+  io.on("connection", async (socket) => {
+    if (config.DEBUG_SOCKET_LOGS) {
+      console.debug("[gateway] connection established", {
+        socketId: socket.id,
+        user: socket.user,
+        workspaceId: socket.handshake?.auth?.workspaceId,
+      });
+    }
     const workspaceId = socket.workspaceId;
     const room = `room:${workspaceId}`;
-    const profile = await getUserPresenceProfile(socket.user.id).catch(() => null);
+
+    // Attach the tldraw sync room immediately so the client's initial connect
+    // message cannot arrive before the room listener is ready.
+    await tldrawSyncManager.handleWorkspaceJoin(socket);
+
+    const profile = await getUserPresenceProfile(socket.user.id).catch(
+      () => null,
+    );
 
     const presence = {
       userId: socket.user.id,
       workspaceId,
       username: profile?.username || socket.user.username,
-      color: profile?.color || '#6366f1',
+      color: profile?.color || "#6366f1",
     };
 
     connections.set(socket.id, presence);
     socket.join(room);
 
-    socket.emit('server:ready', {
+    socket.emit("server:ready", {
       socketId: socket.id,
       user: presence,
       workspaceRole: socket.workspaceRole,
     });
 
-    socket.to(room).emit('presence:join', {
+    socket.to(room).emit("presence:join", {
       socketId: socket.id,
       user: presence,
     });
 
-    await yjsSyncManager.handleWorkspaceJoin(socket);
-    registerSocketHandlers(io, socket, { yjsSyncManager });
-
-    socket.on('disconnect', async () => {
+    socket.on("disconnect", async () => {
       const disconnectedPresence = connections.get(socket.id);
       connections.delete(socket.id);
 
-      socket.to(room).emit('presence:leave', {
+      socket.to(room).emit("presence:leave", {
         socketId: socket.id,
         user: disconnectedPresence || presence,
       });
 
-      await yjsSyncManager.cleanupWorkspaceIfUnused(workspaceId);
+      await tldrawSyncManager.cleanupWorkspaceIfUnused(workspaceId);
     });
   });
 

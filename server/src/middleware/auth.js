@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
-const config = require('../config');
+const jwt = require("jsonwebtoken");
+const config = require("../config");
 
 function createHttpError(message, statusCode) {
   const error = new Error(message);
@@ -8,13 +8,13 @@ function createHttpError(message, statusCode) {
 }
 
 function extractBearerToken(authorizationHeader) {
-  if (!authorizationHeader || typeof authorizationHeader !== 'string') {
+  if (!authorizationHeader || typeof authorizationHeader !== "string") {
     return null;
   }
 
-  const [scheme, token] = authorizationHeader.split(' ');
+  const [scheme, token] = authorizationHeader.split(" ");
 
-  if (scheme !== 'Bearer' || !token) {
+  if (scheme !== "Bearer" || !token) {
     return null;
   }
 
@@ -27,11 +27,11 @@ function verifyAccessToken(token) {
   try {
     payload = jwt.verify(token, config.JWT_SECRET);
   } catch (_error) {
-    throw createHttpError('Invalid or expired access token.', 401);
+    throw createHttpError("Invalid or expired access token.", 401);
   }
 
-  if (payload.type !== 'access' || !payload.id || !payload.username) {
-    throw createHttpError('Invalid access token payload.', 401);
+  if (payload.type !== "access" || !payload.id || !payload.username) {
+    throw createHttpError("Invalid access token payload.", 401);
   }
 
   return {
@@ -44,7 +44,7 @@ function authenticateRequest(req, res, next) {
   const token = extractBearerToken(req.headers.authorization);
 
   if (!token) {
-    return res.status(401).json({ message: 'Authentication required.' });
+    return res.status(401).json({ message: "Authentication required." });
   }
 
   try {
@@ -56,17 +56,33 @@ function authenticateRequest(req, res, next) {
 }
 
 function authenticateSocket(socket, next) {
-  const token = socket?.handshake?.auth?.token;
-
-  if (!token) {
-    return next(new Error('Authentication required.'));
-  }
+  const auth = socket?.handshake?.auth || {};
+  const token = auth.token;
 
   try {
+    if (!token) {
+      console.log("[socket auth] missing token in handshake.auth", auth);
+      return next(new Error("Authentication required."));
+    }
+
     socket.user = verifyAccessToken(token);
+    if (config.DEBUG_SOCKET_LOGS) {
+      console.debug("[socket auth] verified user", {
+        userId: socket.user.id,
+        username: socket.user.username,
+        socketId: socket.id,
+      });
+    }
     return next();
-  } catch (_error) {
-    return next(new Error('Invalid or expired access token.'));
+  } catch (err) {
+    if (config.DEBUG_SOCKET_LOGS) {
+      console.debug("[socket auth] token verification failed", {
+        message: err?.message,
+        socketId: socket.id,
+        handshakeAuth: { ...auth, token: auth.token ? "[REDACTED]" : null },
+      });
+    }
+    return next(new Error("Invalid or expired access token."));
   }
 }
 
