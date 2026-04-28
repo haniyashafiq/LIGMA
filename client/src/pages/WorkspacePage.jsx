@@ -75,7 +75,7 @@ const MOCK_ACTIVITY = [
 ];
 
 export function WorkspacePage() {
-  const { workspaceId } = useParams();
+  const { workspaceId, tab: urlTab } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -89,7 +89,7 @@ export function WorkspacePage() {
 
   const [editor, setEditor] = useState(null);
   const [activeTool, setActiveTool] = useState("select");
-  const [activeTab, setActiveTab] = useState("workspace");
+  const [activeTab, setActiveTab] = useState(urlTab || "workspace");
   const [workspaceName, setWorkspaceName] = useState("Workspace");
   const [workspaceRole, setWorkspaceRole] = useState("viewer");
   const [workspaceMembers, setWorkspaceMembers] = useState([]);
@@ -399,14 +399,18 @@ export function WorkspacePage() {
           </div>
 
           <div className="workspace-topbar-tabs">
-            {["Workspace", "Assets", "Timeline", "Integrations"].map((tab) => (
+            {["Workspace", "Board", "Timeline"].map((tab) => (
               <button
                 key={tab}
                 className={
                   "workspace-tab" +
                   (activeTab === tab.toLowerCase() ? " active" : "")
                 }
-                onClick={() => setActiveTab(tab.toLowerCase())}
+                onClick={() => {
+                  const newTab = tab.toLowerCase();
+                  setActiveTab(newTab);
+                  navigate(`/workspace/${workspaceId}/${newTab}`);
+                }}
               >
                 {tab}
               </button>
@@ -473,7 +477,6 @@ export function WorkspacePage() {
         </div>
       )}
 
-      {/* ── Workspace Body ──────────────────────────── */}
       <div className="workspace-body">
         {activeTab === 'timeline' ? (
           <div className="ws-full-timeline" style={{ flex: 1, padding: 'var(--space-8)', overflowY: 'auto', background: 'var(--color-bg-base)' }}>
@@ -484,7 +487,6 @@ export function WorkspacePage() {
               <div className="ws-timeline-track" style={{ position: 'relative', borderLeft: '2px solid var(--color-border)', marginLeft: '14px', paddingLeft: '32px' }}>
                 {events.map((event) => {
                   let action = "modified the canvas";
-                  let details = "";
                   if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
                     const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
                     if (payloadStr.includes('camera') || payloadStr.includes('pointer') || payloadStr.includes('presence')) {
@@ -513,6 +515,80 @@ export function WorkspacePage() {
                 )}
               </div>
             </div>
+          </div>
+        ) : activeTab === 'board' ? (
+          <div className="ws-kanban-view">
+            {['todo', 'doing', 'done'].map((status) => (
+              <div key={status} className="ws-kanban-column">
+                <div className="ws-kanban-column-header">
+                  <h3>{status === 'doing' ? 'IN PROGRESS' : status.toUpperCase()}</h3>
+                  <span className="ws-kanban-count">
+                    {tasks.filter(t => t.status === (status === 'doing' ? 'doing' : status)).length}
+                  </span>
+                </div>
+                <div className="ws-kanban-tasks">
+                  {tasks
+                    .filter(t => t.status === (status === 'doing' ? 'doing' : status))
+                    .map((task) => (
+                      <div 
+                        key={task.id} 
+                        className="ws-task-card kanban-card"
+                        onClick={() => {
+                          if (task.source_node_id) {
+                            setActiveTab('workspace');
+                            navigate(`/workspace/${workspaceId}/workspace`);
+                            setTimeout(() => jumpToNode(task.source_node_id), 100);
+                          }
+                        }}
+                        style={{ 
+                          cursor: task.source_node_id ? 'pointer' : 'default',
+                        }}
+                      >
+                        <div className="ws-task-card-header">
+                          <div className="ws-task-header-left">
+                            {task.priority && (
+                              <span className={`ws-task-priority-badge ${task.priority}`}>
+                                {task.priority}
+                              </span>
+                            )}
+                            {task.authorName ? (
+                              <span className="ws-task-added-by">by {task.authorName}</span>
+                            ) : null}
+                          </div>
+                          <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
+                            {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
+                          </span>
+                        </div>
+                        <p className="ws-task-title" style={{ fontSize: '14px', marginBottom: '16px' }}>{task.title}</p>
+                        <div className="ws-task-footer">
+                          <span 
+                            className={`ws-task-status ${task.status}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const states = ['todo', 'doing', 'done'];
+                              const current = task.status === 'in_progress' ? 'doing' : task.status;
+                              const idx = states.indexOf(current);
+                              const next = states[(idx + 1) % states.length];
+                              handleUpdateTask(task.id, { status: next });
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {task.status === 'in_progress' ? 'Doing' : task.status}
+                          </span>
+                          <div className="ws-task-footer-actions">
+                            <div className="ws-task-user-pip" title={getUsername(task.assignee_id)}>
+                              {getUsername(task.assignee_id).charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  {tasks.filter(t => t.status === (status === 'doing' ? 'doing' : status)).length === 0 && (
+                    <div className="ws-kanban-empty">No tasks in this column</div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <>
@@ -794,14 +870,14 @@ export function WorkspacePage() {
                   <div 
                     key={task.id} 
                     className="ws-task-card"
-                    onClick={() => {
-                      if (task.source_node_id) {
-                        if (activeTab !== 'workspace') {
-                          setActiveTab('workspace');
-                          setTimeout(() => jumpToNode(task.source_node_id), 100);
-                        } else {
-                          jumpToNode(task.source_node_id);
-                        }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (activeTab !== 'workspace') {
+                        setActiveTab('workspace');
+                        navigate(`/workspace/${workspaceId}/workspace`);
+                        setTimeout(() => jumpToNode(task.source_node_id), 100);
+                      } else {
+                        jumpToNode(task.source_node_id);
                       }
                     }}
                     style={{ 
@@ -850,6 +926,7 @@ export function WorkspacePage() {
                               e.stopPropagation();
                               if (activeTab !== 'workspace') {
                                 setActiveTab('workspace');
+                                navigate(`/workspace/${workspaceId}/workspace`);
                                 setTimeout(() => jumpToNode(task.source_node_id), 100);
                               } else {
                                 jumpToNode(task.source_node_id);

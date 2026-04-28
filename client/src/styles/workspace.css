@@ -1546,3 +1546,415 @@
     padding: var(--space-2) 0;
   }
 }
+
+.ws-task-priority-badge {
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-right: 6px;
+  letter-spacing: 0.02em;
+}
+
+.ws-task-priority-badge.urgent {
+  background: rgba(242, 72, 34, 0.2);
+  color: #ff6b6b;
+  border: 1px solid rgba(242, 72, 34, 0.3);
+}
+
+.ws-task-priority-badge.high {
+  background: rgba(242, 121, 34, 0.15);
+  color: #ffa06b;
+  border: 1px solid rgba(242, 121, 34, 0.2);
+}
+
+.ws-task-priority-badge.medium {
+  background: rgba(13, 153, 255, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(13, 153, 255, 0.2);
+}
+
+.ws-task-priority-badge.low {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+
+/* ── Task Board Styles ──────────────────────────────── */
+.ws-task-card {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.ws-task-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* Hover effect only for tasks that have a source_node_id (pointer cursor) */
+.ws-task-card[style*="cursor: pointer"]:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.ws-task-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ws-task-added-by {
+  font-size: 10px;
+  color: var(--color-text-subtle);
+  font-weight: 500;
+}
+
+.ws-task-badge {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.ws-task-badge.manual {
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ws-task-badge.auto {
+  color: var(--color-primary);
+  background: rgba(13, 153, 255, 0.1);
+  border: 1px solid rgba(13, 153, 255, 0.2);
+}
+
+.ws-task-title {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text);
+  margin: 0 0 12px 0;
+  font-weight: 500;
+}
+
+.ws-task-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.ws-task-status {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.ws-task-status.todo {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-muted);
+}
+
+.ws-task-status.in_progress {
+  background: rgba(255, 171, 0, 0.1);
+  color: #ffab00;
+}
+
+.ws-task-status.done {
+  background: rgba(0, 135, 90, 0.1);
+  color: #00875a;
+}
+
+.ws-task-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-task-link-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ws-task-link-btn:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.ws-task-user-pip {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primitive-purple-500);
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  text-transform: uppercase;
+}
+
+.ws-status-toggle.priority button.active.urgent {
+  background: #ff6b6b !important;
+  color: white !important;
+  border-color: #ff6b6b !important;
+}
+
+.ws-status-toggle.priority button.active.high {
+  background: #ffa06b !important;
+  color: white !important;
+  border-color: #ffa06b !important;
+}
+
+.ws-status-toggle.priority button.active.medium {
+  background: var(--color-primary) !important;
+  color: white !important;
+  border-color: var(--color-primary) !important;
+}
+
+.ws-status-toggle.priority button.active.low {
+  background: #666 !important;
+  color: white !important;
+  border-color: #666 !important;
+}
+
+/* ── Kanban View Styles ─────────────────────────────── */
+.ws-kanban-view {
+  flex: 1;
+  display: flex;
+  gap: var(--space-6);
+  padding: var(--space-8);
+  overflow-x: auto;
+  background: var(--color-bg);
+  height: calc(100vh - 48px);
+}
+
+.ws-kanban-column {
+  flex: 1;
+  min-width: 320px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  max-height: 100%;
+}
+
+.ws-kanban-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0 4px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ws-kanban-column-header h3 {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--color-text-subtle);
+  margin: 0;
+}
+
+.ws-kanban-count {
+  background: var(--color-bg-elevated);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.ws-kanban-tasks {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+/* Custom scrollbar for Kanban columns */
+.ws-kanban-tasks::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ws-kanban-tasks::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 10px;
+}
+
+.ws-kanban-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-subtle);
+  font-size: 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.kanban-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.kanban-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Kanban UI Enhancements ───────────────────────── */
+.ws-board-select-btn {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ws-board-select-btn:hover {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-primary);
+}
+
+.ws-board-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 200px;
+  z-index: 100;
+  padding: 6px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-2xl);
+  backdrop-filter: blur(20px);
+}
+
+.ws-board-dropdown-item {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ws-board-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text);
+}
+
+.ws-board-dropdown-item.active {
+  background: rgba(13, 153, 255, 0.1);
+  color: var(--color-primary);
+}
+
+.ws-board-dropdown-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 6px 0;
+}
+
+.ws-kanban-count-pill {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-subtle);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.ws-kanban-more {
+  background: none;
+  border: none;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.ws-kanban-more:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text);
+}
+
+.status-border-todo {
+  border-left: 3px solid #555 !important;
+}
+
+.status-border-doing {
+  border-left: 3px solid var(--color-primary) !important;
+}
+
+.status-border-done {
+  border-left: 3px solid #ff9f1c !important;
+}
+
+.ws-task-workspace-link {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-subtle);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ws-task-workspace-link:hover {
+  color: var(--color-primary);
+}
+
+.ws-task-progress-mini {
+  margin: 12px 0 0;
+}
+
+.ws-task-progress-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ws-task-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 2px;
+  transition: width 0.4s ease-out;
+}
+
+.kanban-card.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}

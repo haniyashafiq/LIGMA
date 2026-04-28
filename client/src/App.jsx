@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthPage } from "./pages/AuthPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
+import { TasksPage } from "./pages/TasksPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import { getMe } from "./net/api";
 
@@ -22,7 +23,8 @@ export function App() {
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/register" element={<AuthPage mode="register" />} />
         <Route path="/workspaces" element={<WorkspacesPage />} />
-        <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
+        <Route path="/workspace/:workspaceId/:tab?" element={<WorkspacePage />} />
+        <Route path="/tasks" element={<TasksPage user={user} />} />
         <Route path="/projects" element={<ProjectsPage user={user} />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
