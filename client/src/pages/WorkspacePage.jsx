@@ -492,11 +492,6 @@ export function WorkspacePage() {
 
               {/* Bottom Toolbar */}
               <div className="ws-bottom-bar">
-                <div className="ws-zoom-display">
-                  <FiSearch size={12} />
-                  100%
-                </div>
-                <div className="ws-bottom-divider" />
                 <button className="ws-bottom-btn" title="Undo">
                   <FiRotateCcw size={14} />
                 </button>
