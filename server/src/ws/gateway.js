@@ -7,6 +7,22 @@ const { createTldrawSyncManager } = require("./tldraw-sync");
 
 const connections = new Map();
 
+function isAllowedOrigin(origin) {
+  if (!origin) {
+    return true;
+  }
+
+  if (origin === config.CLIENT_URL) {
+    return true;
+  }
+
+  if (config.NODE_ENV !== "production") {
+    return /^http:\/\/localhost:\d+$/.test(origin);
+  }
+
+  return false;
+}
+
 function parseWorkspaceId(socket) {
   const workspaceId = socket?.handshake?.auth?.workspaceId;
 
@@ -34,7 +50,14 @@ async function getUserPresenceProfile(userId) {
 function attachGateway(server) {
   const io = new Server(server, {
     cors: {
-      origin: config.CLIENT_URL,
+      origin: (origin, callback) => {
+        if (isAllowedOrigin(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error("Not allowed by socket CORS."));
+      },
       credentials: true,
     },
   });

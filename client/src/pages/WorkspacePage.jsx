@@ -26,6 +26,7 @@ import {
   FiShare2,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
+import { TaskBoard } from "../board/TaskBoard";
 import { AppContext } from "../utils/AppContext";
 import { apiFetch, getAccessToken } from "../net/api";
 import "../styles/workspace.css";
@@ -65,23 +66,11 @@ export function WorkspacePage() {
     setTaskPanelOpen,
   } = useContext(AppContext);
 
-  const [editor, setEditor] = useState(null);
-  const [activeTool, setActiveTool] = useState("select");
-  const [activeTab, setActiveTab] = useState("workspace");
-  const [workspaceName, setWorkspaceName] = useState("Workspace");
-  const [tasks, setTasks] = useState([]);
-  const [execOpen, setExecOpen] = useState(true);
-
-  // Load workspace metadata
   useEffect(() => {
-    if (!getAccessToken()) {
-      navigate("/login", { replace: true });
-      return;
-    }
-
     if (typeof setCurrentWorkspace === "function") {
       setCurrentWorkspace(workspaceId || null);
     }
+  }, [workspaceId, setCurrentWorkspace]);
 
     apiFetch(`/api/workspaces`)
       .then((res) => {
@@ -95,7 +84,13 @@ export function WorkspacePage() {
 
   // Sync editor tool with activeTool state
   useEffect(() => {
-    if (editor && activeTool) {
+    let cancelled = false;
+
+    async function loadWorkspaceContext() {
+      if (!workspaceId) {
+        return;
+      }
+
       try {
         editor.setCurrentTool(activeTool);
       } catch (err) {
@@ -111,9 +106,7 @@ export function WorkspacePage() {
       .catch(() => { });
   }, [workspaceId]);
 
-  const handleToolSelect = useCallback((toolId) => {
-    setActiveTool(toolId);
-  }, []);
+    loadWorkspaceContext();
 
   const onCanvasMount = useCallback((editorInstance) => {
     console.log("[Workspace] Canvas mounted", editorInstance);
@@ -128,70 +121,19 @@ export function WorkspacePage() {
         : "connecting";
 
   return (
-    <div
-      className="workspace-shell"
-      style={{ display: "flex", flexDirection: "column", height: "100dvh" }}
-    >
-      {/* ── Top Navigation Bar ──────────────────────── */}
-      <header className="workspace-topbar">
-        <div className="workspace-topbar-left">
-          <Link to="/workspaces" className="workspace-topbar-logo">
-            <span className="workspace-topbar-logo-mark">LIGMA</span>
-          </Link>
-
-          <div className="workspace-topbar-tabs">
-            {["Workspace", "Assets", "Timeline", "Integrations"].map((tab) => (
-              <button
-                key={tab}
-                className={
-                  "workspace-tab" +
-                  (activeTab === tab.toLowerCase() ? " active" : "")
-                }
-                onClick={() => setActiveTab(tab.toLowerCase())}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+    <main className="workspace-canvas-shell" style={{ position: "relative" }}>
+      <header className="workspace-header panel">
+        <div>
+          <p className="section-label">Canvas Workspace</p>
+          <h1>Workspace {workspaceId}</h1>
+          <p className="muted-text">
+            tldraw is mounted with the multiplayer sync room for this workspace.
+          </p>
         </div>
 
-        <div className="workspace-topbar-right">
-          <button
-            className="ws-topbar-icon-btn"
-            aria-label="Notifications"
-            title="Notifications"
-          >
-            <FiBell size={15} />
-          </button>
-          <button
-            className="ws-topbar-icon-btn"
-            aria-label="Help"
-            title="Help"
-          >
-            <FiHelpCircle size={15} />
-          </button>
-
-          <button className="ws-share-btn">
-            <FiShare2 size={12} style={{ marginRight: 4 }} />
-            Share
-          </button>
-
-          <button
-            className="ws-mode-badge"
-            title="Connection status"
-          >
-            <span className={`ws-connection-dot ${connectionDot}`} />
-            {connectionStatus === "online" ? "Connected" : "Connecting…"}
-          </button>
-
-          <button
-            className="ws-topbar-settings"
-            aria-label="Settings"
-            onClick={() => setExecOpen((v) => !v)}
-          >
-            <FiSettings size={15} />
-          </button>
-        </div>
+        <Link className="secondary-button" to="/workspaces">
+          Back to workspaces
+        </Link>
       </header>
 
       {/* ── Workspace Body ──────────────────────────── */}

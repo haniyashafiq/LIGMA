@@ -1,8 +1,15 @@
-import React, { useEffect, useMemo, useContext } from "react";
+import React, { useEffect, useMemo, useState, useContext } from "react";
 import { io } from "socket.io-client";
 import { Tldraw, inlineBase64AssetStore } from "tldraw";
 import { useSync } from "@tldraw/sync";
+import CustomToolbar from "../canvas/CustomToolbar";
 import { AppContext } from "../utils/AppContext";
+import {
+  applyMutationsToAclCache,
+  canDeleteNode,
+  canEditNode,
+  collectMutations,
+} from "../utils/nodeAcl";
 import "../styles/canvas.css";
 
 import { getAccessToken } from "../net/api";
@@ -10,6 +17,8 @@ import { getAccessToken } from "../net/api";
 function createSocketIoTldrawSocket({
   workspaceId,
   token,
+  userId,
+  workspaceRole,
   sessionId,
   storeId,
 }) {
@@ -33,6 +42,7 @@ function createSocketIoTldrawSocket({
 
   const messageListeners = new Set();
   const statusListeners = new Set();
+  const aclCache = new Map();
   let connectionStatus = socket.connected ? "online" : "offline";
 
   function notifyStatus(nextStatus, reason) {
@@ -53,10 +63,25 @@ function createSocketIoTldrawSocket({
   socket.on("tldraw-message", (message) => {
     try {
       const parsed = typeof message === "string" ? JSON.parse(message) : message;
+      const incomingMutations = collectMutations(parsed);
+      applyMutationsToAclCache(aclCache, incomingMutations, userId);
       messageListeners.forEach((listener) => listener(parsed));
     } catch (e) {
       console.error("Failed to parse tldraw-message", e);
     }
+  });
+
+  socket.on("node-rbac:denied", (payload) => {
+    const reason = payload?.reason || "Node permission denied.";
+    window.dispatchEvent(
+      new CustomEvent("ligma:node-rbac-denied", {
+        detail: {
+          reason,
+          action: payload?.action || null,
+          nodeId: payload?.nodeId || null,
+        },
+      }),
+    );
   });
 
   socket.on("disconnect", () => {
@@ -91,10 +116,70 @@ function createSocketIoTldrawSocket({
       };
     },
     send(message) {
-      socket.emit("tldraw-message", JSON.stringify(message));
+      let parsed = message;
+      try {
+        parsed = typeof message === "string" ? JSON.parse(message) : message;
+      } catch (_error) {
+        return;
+      }
+
+      const outgoingMutations = collectMutations(parsed);
+
+      for (const mutation of outgoingMutations) {
+        const nodeAcl = aclCache.get(mutation.nodeId);
+        const allowed =
+          mutation.action === "delete"
+            ? canDeleteNode(nodeAcl, userId, workspaceRole)
+            : canEditNode(nodeAcl, userId, workspaceRole);
+
+        if (!allowed) {
+          window.dispatchEvent(
+            new CustomEvent("ligma:node-rbac-denied", {
+              detail: {
+                reason: "Blocked locally by node ACL.",
+                action: mutation.action,
+                nodeId: mutation.nodeId,
+              },
+            }),
+          );
+          return;
+        }
+      }
+
+      socket.emit("tldraw-message", JSON.stringify(parsed));
     },
     sendMessage(message) {
-      socket.emit("tldraw-message", JSON.stringify(message));
+      let parsed = message;
+      try {
+        parsed = typeof message === "string" ? JSON.parse(message) : message;
+      } catch (_error) {
+        return;
+      }
+
+      const outgoingMutations = collectMutations(parsed);
+
+      for (const mutation of outgoingMutations) {
+        const nodeAcl = aclCache.get(mutation.nodeId);
+        const allowed =
+          mutation.action === "delete"
+            ? canDeleteNode(nodeAcl, userId, workspaceRole)
+            : canEditNode(nodeAcl, userId, workspaceRole);
+
+        if (!allowed) {
+          window.dispatchEvent(
+            new CustomEvent("ligma:node-rbac-denied", {
+              detail: {
+                reason: "Blocked locally by node ACL.",
+                action: mutation.action,
+                nodeId: mutation.nodeId,
+              },
+            }),
+          );
+          return;
+        }
+      }
+
+      socket.emit("tldraw-message", JSON.stringify(parsed));
     },
     close() {
       socket.disconnect();
@@ -139,13 +224,10 @@ function createNoopSocket() {
   };
 }
 
-/**
- * CanvasView component
- * Now fully integrated into the Figma-style shell.
- * It exposes the editor instance back to the parent via onMount.
- */
-export default function CanvasView({ workspaceId, onMount }) {
+export default function CanvasView({ workspaceId, workspaceRole, userId }) {
   const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
+  const [editor, setEditor] = useState(null);
+  const [rbacError, setRbacError] = useState("");
 
   const syncState = useSync(
     useMemo(
@@ -155,13 +237,15 @@ export default function CanvasView({ workspaceId, onMount }) {
             ? createSocketIoTldrawSocket({
                 workspaceId,
                 token,
+                userId,
+                workspaceRole,
                 sessionId,
                 storeId,
               })
             : createNoopSocket(),
         assets: inlineBase64AssetStore,
       }),
-      [token, workspaceId],
+      [token, workspaceId, userId, workspaceRole],
     ),
   );
 
@@ -170,9 +254,8 @@ export default function CanvasView({ workspaceId, onMount }) {
     setConnectionStatus(syncState.connectionStatus || "disconnected");
   }, [setConnectionStatus, syncState.connectionStatus]);
 
-  const handleMount = (editor) => {
-    if (onMount) onMount(editor);
-
+  useEffect(() => {
+    if (!editor) return;
     // expose jumpToNode via context for TaskBoard to call
     const jumpToNode = (nodeId) => {
       try {
@@ -185,26 +268,37 @@ export default function CanvasView({ workspaceId, onMount }) {
       }
     };
     if (exposeJump) exposeJump(jumpToNode);
-  };
+  }, [editor, exposeJump]);
+
+  useEffect(() => {
+    function onNodeRbacDenied(event) {
+      const reason = event?.detail?.reason || "Node permission denied.";
+      setRbacError(reason);
+      window.setTimeout(() => setRbacError(""), 3000);
+    }
+
+    window.addEventListener("ligma:node-rbac-denied", onNodeRbacDenied);
+    return () =>
+      window.removeEventListener("ligma:node-rbac-denied", onNodeRbacDenied);
+  }, []);
 
   return (
-    <div className="canvas-container">
-      {syncState.status === "loading" && (
-        <div className="ws-loading">
-          <div className="ws-loading-spinner" />
-          Connecting to workspace...
-        </div>
-      )}
-      {syncState.status === "error" && (
-        <div className="error-canvas">Error connecting to workspace</div>
-      )}
-      {syncState.status === "synced-remote" && (
-        <Tldraw 
-          store={syncState.store} 
-          onMount={handleMount}
-          hideUi={true}
-        />
-      )}
+    <div className="canvas-root">
+      <div className="canvas-toolbar-wrap">
+        <CustomToolbar editor={editor} />
+      </div>
+      <div className="canvas-container">
+        {rbacError ? <div className="error-canvas">{rbacError}</div> : null}
+        {syncState.status === "loading" && (
+          <div className="loading-canvas">Connecting to workspace...</div>
+        )}
+        {syncState.status === "error" && (
+          <div className="error-canvas">Error connecting to workspace</div>
+        )}
+        {syncState.status === "synced-remote" && (
+          <Tldraw store={syncState.store} onMount={setEditor} />
+        )}
+      </div>
     </div>
   );
 }
