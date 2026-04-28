@@ -8,7 +8,7 @@ A real-time collaborative workspace bridging ideation (infinite canvas) and exec
 
 ```mermaid
 graph TB
-    subgraph Client["Frontend (Vite SPA)"]
+    subgraph Client["Frontend (Vite + React SPA)"]
         IC[Infinite Canvas Engine]
         TB[Task Board Panel]
         CP[Cursor Presence Layer]
@@ -56,7 +56,7 @@ graph TB
 > **AI Layer — DECIDED** — Using **`natural` (Naive Bayes classifier) + rule-based confidence boosters** for Intent-Aware Task Extraction. This gives ~85% accuracy with only ~2MB overhead, zero paid APIs, and a modular architecture that can swap in Transformers.js later if needed.
 
 > [!IMPORTANT]
-> **Frontend Framework** — I plan to use **Vite (vanilla JS + modules)** for the frontend to keep things lean and avoid heavy framework overhead. The infinite canvas will be built with a custom HTML5 Canvas engine with DOM-overlaid sticky notes. No React/Vue dependency. **Please confirm or request React/Vue.**
+> **Frontend Framework — DECIDED** — Using **Vite + React** for the frontend. React will provide the app shell, routing, auth/workspace/task UI composition, and shared state boundaries, while the infinite canvas remains a specialized rendering surface integrated with Socket.IO + Yjs for distributed collaboration. This changes the frontend implementation approach only; it does **not** change the project's scope, constraints, or backend architecture.
 
 > [!WARNING]
 > **PostgreSQL Setup** — You'll need a running PostgreSQL instance locally for development. I'll provide a Docker Compose file for convenience. For Render deployment, you'll create a managed PostgreSQL addon.
@@ -298,59 +298,74 @@ Message protocol (all messages include `authToken` and `nodeId` where applicable
 client/
 ├── index.html
 ├── src/
-│   ├── main.js                  # App bootstrap, router
+│   ├── main.jsx                 # React bootstrap
+│   ├── App.jsx                  # App shell, routes, workspace layout
 │   ├── styles/
 │   │   ├── index.css            # Design system tokens, base styles
 │   │   ├── canvas.css           # Canvas-specific styles
 │   │   ├── board.css            # Task board styles
 │   │   └── auth.css             # Login/register styles
+│   ├── app/
+│   │   ├── router.jsx           # Route definitions and auth guards
+│   │   └── providers.jsx        # React context providers (auth/workspace/socket)
 │   ├── canvas/
-│   │   ├── CanvasEngine.js      # Core: pan, zoom, coordinate transforms
-│   │   ├── CanvasRenderer.js    # Renders grid, connections, selection
-│   │   ├── NodeManager.js       # CRUD for canvas nodes (sticky, text, shape)
-│   │   ├── CursorLayer.js       # Remote cursor rendering
-│   │   └── TimeTravel.js        # Timeline slider, event replay
+│   │   ├── CanvasWorkspace.jsx  # React container for tldraw + overlays + toolbar
+│   │   ├── EditorAdapter.js     # tldraw editor integration, camera helpers, viewport coordination
+│   │   ├── SyncBridge.js        # tldraw store <-> Socket.IO/Yjs event wiring
+│   │   ├── NodeManager.js       # Task-linked shape metadata and canvas entity coordination
+│   │   ├── CursorLayer.jsx      # Remote cursor rendering overlay
+│   │   └── TimeTravel.jsx       # Timeline slider, event replay UI
 │   ├── board/
-│   │   ├── TaskBoard.js         # Kanban board component
-│   │   └── TaskCard.js          # Individual task card
+│   │   ├── TaskBoard.jsx        # Kanban board component
+│   │   └── TaskCard.jsx         # Individual task card
 │   ├── auth/
-│   │   └── AuthUI.js            # Login/register forms
+│   │   └── AuthUI.jsx           # Login/register forms
+│   ├── workspaces/
+│   │   └── WorkspaceListPage.jsx # Workspace list, create/join flow
 │   ├── net/
 │   │   ├── socket.js            # Socket.IO client, reconnection logic
 │   │   ├── api.js               # REST API client (fetch wrapper)
 │   │   └── yjs-provider.js      # Yjs <-> Socket.IO bridge
+│   ├── hooks/
+│   │   ├── useAuth.js           # Auth state + token refresh orchestration
+│   │   └── useWorkspace.js      # Workspace/task/canvas coordination hooks
 │   └── utils/
-│       ├── state.js             # Simple reactive state store
 │       └── helpers.js           # Debounce, throttle, UUID, etc.
 ├── vite.config.js
 └── package.json
 ```
 
-#### [NEW] [client/src/canvas/CanvasEngine.js](file:///d:/Projects/LIGMA/client/src/canvas/CanvasEngine.js)
-- **Camera system**: `{ x, y, scale }` with smooth interpolation
-- **Pan**: Middle-click drag or Space+drag, touch-2-finger drag
-- **Zoom**: Scroll wheel / pinch, zooms toward cursor position
-- **Coordinate transforms**: `screenToWorld(x, y)`, `worldToScreen(x, y)`
-- **Viewport culling**: Only render/update nodes within visible bounds
-- **Grid rendering**: Subtle dot grid that scales with zoom
+#### [NEW] [client/src/canvas/CanvasWorkspace.jsx](file:///d:/Projects/LIGMA/client/src/canvas/CanvasWorkspace.jsx)
+- React container that mounts the `tldraw` editor surface, toolbar, cursor layer, and task board panel
+- Owns lifecycle for joining/leaving a workspace and wiring shared providers into the canvas modules
+- Keeps React responsible for UI composition while delegating editor integration to `EditorAdapter.js` and sync orchestration to `SyncBridge.js`
+
+#### [NEW] [client/src/canvas/EditorAdapter.js](file:///d:/Projects/LIGMA/client/src/canvas/EditorAdapter.js)
+- Embeds and configures the `tldraw` editor inside the React workspace container
+- Exposes camera helpers such as `screenToWorld`, `worldToScreen`, and animated navigation used by "Jump to Canvas"
+- Coordinates viewport, tool selection, and editor lifecycle with the surrounding React shell
+- Provides integration points for persistence, replay, and custom metadata without making `tldraw` the system-of-record
 
 #### [NEW] [client/src/canvas/NodeManager.js](file:///d:/Projects/LIGMA/client/src/canvas/NodeManager.js)
-- Nodes are **DOM elements** overlaid on the canvas (for `contenteditable` text editing)
-- Node types: `sticky` (colored card), `text` (plain text), `shape` (rectangle/circle/diamond)
-- Drag-to-move with smooth animation
-- Double-click to edit text content
-- Color picker for sticky notes
-- Each node stores: `{ id, type, x, y, width, height, content, color, createdBy }`
+- Manages canvas entity lifecycles for the React workspace container and `tldraw` editor store
+- Maps LIGMA node types to `tldraw` shapes while preserving task-linked metadata such as `{ id, type, x, y, width, height, content, color, createdBy }`
+- Coordinates creation, updates, deletion, and metadata attachment in a way that still flows through server validation and replay
+- Supports rich text/task-linked overlays where React UI needs to sit above the editor surface
 
-#### [NEW] [client/src/canvas/CursorLayer.js](file:///d:/Projects/LIGMA/client/src/canvas/CursorLayer.js)
-- Absolute-positioned cursor elements overlaid on canvas
+#### [NEW] [client/src/canvas/SyncBridge.js](file:///d:/Projects/LIGMA/client/src/canvas/SyncBridge.js)
+- Bridges `tldraw` editor/store changes to Socket.IO + Yjs updates
+- Applies inbound deltas from the server to the local editor without rebroadcast loops
+- Coordinates initial hydration, replay, and reconnection catch-up within the React workspace shell
+
+#### [NEW] [client/src/canvas/CursorLayer.jsx](file:///d:/Projects/LIGMA/client/src/canvas/CursorLayer.jsx)
+- React-rendered cursor overlay positioned above the canvas
 - Smooth CSS transition movement (`transform: translate()`)
 - Throttled emission (30fps) via `requestAnimationFrame`
 - Shows user name + colored dot
 - Fades out after 5s of inactivity
 
-#### [NEW] [client/src/canvas/TimeTravel.js](file:///d:/Projects/LIGMA/client/src/canvas/TimeTravel.js)
-- Slider component at bottom of canvas
+#### [NEW] [client/src/canvas/TimeTravel.jsx](file:///d:/Projects/LIGMA/client/src/canvas/TimeTravel.jsx)
+- React slider component at bottom of canvas
 - Fetches full event log from REST API
 - Replays events incrementally onto a temporary `Y.Doc`
 - Read-only mode during replay
@@ -360,7 +375,7 @@ client/
 
 ### Phase 6: Task Board & AI Integration
 
-#### [NEW] [client/src/board/TaskBoard.js](file:///d:/Projects/LIGMA/client/src/board/TaskBoard.js)
+#### [NEW] [client/src/board/TaskBoard.jsx](file:///d:/Projects/LIGMA/client/src/board/TaskBoard.jsx)
 - Three-column Kanban: `TODO` | `In Progress` | `Done`
 - Drag-and-drop between columns
 - Each card shows intent badge (🎯 Action, ✅ Decision, ❓ Question, 📎 Reference)
@@ -376,10 +391,15 @@ client/
 
 ### Phase 7: Auth & RBAC UI
 
-#### [NEW] [client/src/auth/AuthUI.js](file:///d:/Projects/LIGMA/client/src/auth/AuthUI.js)
+#### [NEW] [client/src/auth/AuthUI.jsx](file:///d:/Projects/LIGMA/client/src/auth/AuthUI.jsx)
 - Login/Register forms with glassmorphism design
 - JWT stored in memory (not localStorage for security), with refresh via httpOnly cookie
 - Auto-redirect on token expiry
+
+#### [NEW] [client/src/app/router.jsx](file:///d:/Projects/LIGMA/client/src/app/router.jsx)
+- React Router configuration for login, workspace list, and workspace detail routes
+- Route guards redirect unauthenticated users to login
+- Workspace layout composes the canvas and task board views without changing any RBAC or auth requirements
 
 #### RBAC UI Elements
 - Members sidebar panel in workspace view

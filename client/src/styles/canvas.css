@@ -1,0 +1,137 @@
+.canvas-page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  background: rgba(10, 20, 40, 0.78);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-lg);
+}
+
+.canvas-toolbar-title {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  color: var(--text-0);
+}
+
+.canvas-toolbar-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.canvas-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: #072622;
+  background: linear-gradient(135deg, var(--accent-strong), #ffe7a3);
+}
+
+.canvas-shell {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1rem;
+}
+
+.canvas-surface {
+  min-height: 70dvh;
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  background: rgba(8, 20, 38, 0.78);
+  box-shadow: var(--shadow-lg);
+}
+
+.canvas-surface .tl-container {
+  border-radius: inherit;
+}
+
+.canvas-overlay-card {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  background: rgba(10, 20, 40, 0.78);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(14px);
+  padding: 1.25rem;
+}
+
+.canvas-chip {
+  margin: 0;
+  display: inline-flex;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 999px;
+  background: rgba(46, 196, 182, 0.15);
+  border: 1px solid rgba(46, 196, 182, 0.4);
+  color: #bcfff8;
+  font-size: 0.78rem;
+}
+
+.canvas-overlay-title {
+  margin: 1rem 0 0.5rem;
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+
+.canvas-overlay-copy {
+  margin: 0 0 1rem;
+  color: var(--text-1);
+  line-height: 1.6;
+}
+
+.canvas-meta {
+  margin: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.canvas-meta div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.canvas-meta dt {
+  color: var(--text-1);
+  font-size: 0.85rem;
+}
+
+.canvas-meta dd {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.canvas-event-preview {
+  margin: 1rem 0 0;
+  max-height: 220px;
+  overflow: auto;
+  border-radius: 14px;
+  padding: 0.85rem;
+  background: rgba(8, 20, 38, 0.88);
+  color: #d7e7ff;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 980px) {
+  .canvas-shell {
+    grid-template-columns: 1fr;
+  }
+}
