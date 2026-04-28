@@ -17,7 +17,7 @@ let dbConnected = false;
 
 app.use(
   cors({
-    origin: config.CLIENT_URL,
+    origin: config.CLIENT_ORIGINS,
     credentials: true,
   })
 );
