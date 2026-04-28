@@ -30,7 +30,6 @@ import {
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
 import { AppContext } from "../utils/AppContext";
-import { apiFetch, getAccessToken, logout, clearAccessToken } from "../net/api";
 import {
   apiFetch,
   getAccessToken,
