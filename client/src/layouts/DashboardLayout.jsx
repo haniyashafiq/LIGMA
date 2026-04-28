@@ -12,22 +12,17 @@ import {
   FiSettings,
   FiBell,
   FiSearch,
+  FiLogOut,
 } from "react-icons/fi";
 import { clearAccessToken, logout } from "../net/api";
 import "../styles/dashboard.css";
 
 const NAV_ITEMS = [
-  { to: "/inbox",      Icon: FiInbox,       label: "Inbox" },
-  { to: "/my-tasks",   Icon: FiCheckCircle, label: "My Tasks" },
   { to: "/projects",   Icon: FiFolder,      label: "Projects" },
-  { to: "/team",       Icon: FiUsers,       label: "Team" },
-  { to: "/backlog",    Icon: FiList,        label: "Backlog" },
-  { to: "/archive",    Icon: FiArchive,     label: "Archive" },
   { to: "/workspaces", Icon: FiHexagon,     label: "Canvases" },
 ];
 
 const FOOTER_ITEMS = [
-  { to: "/support",  Icon: FiHelpCircle, label: "Support" },
   { to: "/settings", Icon: FiSettings,   label: "Settings" },
 ];
 
@@ -89,6 +84,14 @@ export function DashboardLayout({ user, children }) {
               {label}
             </Link>
           ))}
+          <button 
+            className="sidebar-nav-link logout-btn" 
+            onClick={handleLogout}
+            style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+          >
+            <FiLogOut className="sidebar-nav-icon" size={14} />
+            Log out
+          </button>
         </div>
       </aside>
 
@@ -104,9 +107,10 @@ export function DashboardLayout({ user, children }) {
           </button>
           <button
             className="btn-ghost"
-            onClick={handleLogout}
+            onClick={() => navigate("/settings")}
             style={{ fontSize: "var(--text-xs)" }}
           >
+            <FiSettings size={14} />
             Settings
           </button>
           <button

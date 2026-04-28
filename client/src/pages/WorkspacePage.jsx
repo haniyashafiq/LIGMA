@@ -26,10 +26,11 @@ import {
   FiZap,
   FiShare2,
   FiMaximize,
+  FiLogOut,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
 import { AppContext } from "../utils/AppContext";
-import { apiFetch, getAccessToken } from "../net/api";
+import { apiFetch, getAccessToken, logout, clearAccessToken } from "../net/api";
 import "../styles/workspace.css";
 
 const TOOLS = [
@@ -139,6 +140,12 @@ export function WorkspacePage() {
         ? "offline"
         : "connecting";
 
+  const handleLogout = async () => {
+    await logout().catch(() => { });
+    clearAccessToken();
+    navigate("/login", { replace: true });
+  };
+
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
@@ -166,6 +173,10 @@ export function WorkspacePage() {
           <Link to="/workspaces" className="workspace-topbar-logo">
             <span className="workspace-topbar-logo-mark">LIGMA</span>
           </Link>
+
+          <div className="ws-name-container">
+            <span className="ws-name-label">{workspaceName}</span>
+          </div>
 
           <div className="workspace-topbar-tabs">
             {["Workspace", "Assets", "Timeline", "Integrations"].map((tab) => (
@@ -218,6 +229,16 @@ export function WorkspacePage() {
             onClick={() => setExecOpen((v) => !v)}
           >
             <FiSettings size={15} />
+          </button>
+
+          <button
+            className="ws-topbar-icon-btn"
+            aria-label="Logout"
+            title="Logout"
+            onClick={handleLogout}
+            style={{ marginLeft: 4 }}
+          >
+            <FiLogOut size={15} color="var(--color-danger)" />
           </button>
         </div>
       </header>
