@@ -72,4 +72,18 @@ router.patch('/:id/roles/:userId', requireRole('lead'), async (req, res) => {
   }
 });
 
+// ── Tasks ───────────────────────────────────────────
+const taskService = require('../services/task.service');
+
+router.get('/:id/tasks', async (req, res) => {
+  try {
+    const tasks = await taskService.listWorkspaceTasks(req.params.id);
+    return res.status(200).json({ tasks });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to list tasks.',
+    });
+  }
+});
+
 module.exports = router;

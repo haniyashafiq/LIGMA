@@ -31,18 +31,18 @@ import { apiFetch, getAccessToken } from "../net/api";
 import "../styles/workspace.css";
 
 const TOOLS = [
-  { id: "select",  Icon: FiMousePointer, label: "Select" },
-  { id: "hand",    Icon: FiMove,         label: "Hand" },
-  { id: "geo",     Icon: FiSquare,       label: "Shapes" },
-  { id: "text",    Icon: FiType,         label: "Text" },
-  { id: "draw",    Icon: FiEdit2,        label: "Pen" },
-  { id: "arrow",   Icon: FiArrowUpRight, label: "Arrow" },
-  { id: "note",    Icon: FiFileText,     label: "Notes" },
-  { id: "eraser",  Icon: FiTrash2,       label: "Eraser" },
+  { id: "select", Icon: FiMousePointer, label: "Select" },
+  { id: "hand", Icon: FiMove, label: "Hand" },
+  { id: "geo", Icon: FiSquare, label: "Shapes" },
+  { id: "text", Icon: FiType, label: "Text" },
+  { id: "draw", Icon: FiEdit2, label: "Pen" },
+  { id: "arrow", Icon: FiArrowUpRight, label: "Arrow" },
+  { id: "note", Icon: FiFileText, label: "Notes" },
+  { id: "eraser", Icon: FiTrash2, label: "Eraser" },
 ];
 
 const TOOL_EXTRAS = [
-  { id: "layers",   Icon: FiLayers,   label: "Layers" },
+  { id: "layers", Icon: FiLayers, label: "Layers" },
   { id: "settings", Icon: FiSettings, label: "Config" },
 ];
 
@@ -90,14 +90,14 @@ export function WorkspacePage() {
         );
         if (ws) setWorkspaceName(ws.name);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [workspaceId, setCurrentWorkspace, navigate]);
 
   // Sync editor tool with activeTool state
   useEffect(() => {
     if (editor && activeTool) {
       try {
-        editor.setSelectedTool(activeTool);
+        editor.setCurrentTool(activeTool);
       } catch (err) {
         console.warn("[Workspace] Failed to set tool:", activeTool, err);
       }
@@ -108,7 +108,7 @@ export function WorkspacePage() {
   useEffect(() => {
     apiFetch(`/api/workspaces/${workspaceId}/tasks`)
       .then((res) => setTasks(res.tasks || []))
-      .catch(() => {});
+      .catch(() => { });
   }, [workspaceId]);
 
   const handleToolSelect = useCallback((toolId) => {
@@ -124,8 +124,8 @@ export function WorkspacePage() {
     connectionStatus === "online"
       ? "online"
       : connectionStatus === "error"
-      ? "offline"
-      : "connecting";
+        ? "offline"
+        : "connecting";
 
   return (
     <div
@@ -326,9 +326,8 @@ export function WorkspacePage() {
                   <div key={task.id} className="ws-task-card">
                     <div className="ws-task-card-header">
                       <span
-                        className={`ws-task-badge ${
-                          task.source === "ai" ? "ai" : "action"
-                        }`}
+                        className={`ws-task-badge ${task.source === "ai" ? "ai" : "action"
+                          }`}
                       >
                         {task.source === "ai" ? "✦ AI" : "✦ Action Item"}
                       </span>
@@ -339,13 +338,12 @@ export function WorkspacePage() {
                     <p className="ws-task-title">{task.title}</p>
                     <div className="ws-task-footer">
                       <span
-                        className={`ws-task-status ${
-                          task.status === "DOING"
-                            ? "in-progress"
-                            : task.status === "DONE"
+                        className={`ws-task-status ${task.status === "DOING"
+                          ? "in-progress"
+                          : task.status === "DONE"
                             ? "done"
                             : ""
-                        }`}
+                          }`}
                       >
                         {task.status || "Todo"}
                       </span>
