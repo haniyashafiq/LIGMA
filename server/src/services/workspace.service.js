@@ -1,6 +1,9 @@
+const jwt = require('jsonwebtoken');
+const config = require('../config');
 const { pool } = require('../db/pool');
 
 const VALID_ROLES = new Set(['lead', 'contributor', 'viewer']);
+const INVITE_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 function createHttpError(message, statusCode) {
   const error = new Error(message);
@@ -225,6 +228,83 @@ async function updateUserRole(workspaceId, targetUserId, role) {
   };
 }
 
+function createInviteToken(workspaceId, role) {
+  const normalizedRole = normalizeRole(role);
+  if (!VALID_ROLES.has(normalizedRole)) {
+    throw createHttpError('Invalid role.', 400);
+  }
+
+  const token = jwt.sign(
+    {
+      type: 'workspace_invite',
+      workspaceId: String(workspaceId),
+      role: normalizedRole,
+    },
+    config.JWT_SECRET,
+    { expiresIn: INVITE_TOKEN_TTL_SECONDS }
+  );
+
+  const expiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_SECONDS * 1000).toISOString();
+
+  return { token, role: normalizedRole, expiresAt };
+}
+
+function verifyInviteToken(token) {
+  let payload;
+
+  try {
+    payload = jwt.verify(token, config.JWT_SECRET);
+  } catch (_error) {
+    throw createHttpError('Invalid or expired invite link.', 400);
+  }
+
+  if (
+    payload?.type !== 'workspace_invite' ||
+    !payload?.workspaceId ||
+    !VALID_ROLES.has(normalizeRole(payload.role))
+  ) {
+    throw createHttpError('Invalid invite payload.', 400);
+  }
+
+  return {
+    workspaceId: String(payload.workspaceId),
+    role: normalizeRole(payload.role),
+  };
+}
+
+async function acceptInviteToken(token, userId) {
+  if (typeof token !== 'string' || !token.trim()) {
+    throw createHttpError('Invite token is required.', 400);
+  }
+
+  const invite = verifyInviteToken(token.trim());
+
+  await pool.query(
+    `
+      INSERT INTO workspace_roles (workspace_id, user_id, role)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (workspace_id, user_id)
+      DO NOTHING
+    `,
+    [invite.workspaceId, userId, invite.role]
+  );
+
+  const membership = await pool.query(
+    `
+      SELECT role
+      FROM workspace_roles
+      WHERE workspace_id = $1 AND user_id = $2
+      LIMIT 1
+    `,
+    [invite.workspaceId, userId]
+  );
+
+  return {
+    ...invite,
+    appliedRole: membership.rows[0]?.role || invite.role,
+  };
+}
+
 module.exports = {
   VALID_ROLES,
   createWorkspace,
@@ -232,4 +312,6 @@ module.exports = {
   getWorkspaceWithMembers,
   inviteUser,
   updateUserRole,
+  createInviteToken,
+  acceptInviteToken,
 };

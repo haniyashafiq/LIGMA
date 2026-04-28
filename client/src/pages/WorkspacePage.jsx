@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback, useMemo } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   FiMousePointer,
   FiMove,
@@ -72,6 +72,7 @@ const MOCK_ACTIVITY = [
 export function WorkspacePage() {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     setCurrentWorkspace,
     connectionStatus,
@@ -127,20 +128,35 @@ export function WorkspacePage() {
       setCurrentWorkspace(workspaceId || null);
     }
 
-    apiFetch(`/api/workspaces/${workspaceId}`)
-      .then((res) => {
+    const inviteToken = new URLSearchParams(location.search).get("invite");
+
+    async function loadWorkspace() {
+      try {
+        if (inviteToken) {
+          await apiFetch("/api/workspaces/invite-links/accept", {
+            method: "POST",
+            body: JSON.stringify({ token: inviteToken }),
+          });
+          navigate(`/workspace/${workspaceId}`, { replace: true });
+        }
+
+        const res = await apiFetch(`/api/workspaces/${workspaceId}`);
         if (res?.workspace?.name) setWorkspaceName(res.workspace.name);
         if (res?.workspace?.role) setWorkspaceRole(res.workspace.role);
         setWorkspaceMembers(res?.members || []);
-      })
-      .catch(() => {});
+      } catch (_error) {
+        // handled by UI fallbacks
+      }
+    }
+
+    loadWorkspace();
 
     getMe()
       .then((res) => {
         setCurrentUser(res?.user || null);
       })
       .catch(() => {});
-  }, [workspaceId, setCurrentWorkspace, navigate]);
+  }, [workspaceId, setCurrentWorkspace, navigate, location.search]);
 
   // Sync editor tool with activeTool state
   useEffect(() => {
@@ -188,6 +204,16 @@ export function WorkspacePage() {
       await reloadWorkspaceMembers();
     },
     [workspaceId, reloadWorkspaceMembers],
+  );
+  const handleCreateInviteLink = useCallback(
+    async ({ role }) => {
+      const payload = await apiFetch(`/api/workspaces/${workspaceId}/invite-link`, {
+        method: "POST",
+        body: JSON.stringify({ role }),
+      });
+      return payload;
+    },
+    [workspaceId],
   );
 
   const isViewer = workspaceRole === "viewer";
@@ -661,6 +687,7 @@ export function WorkspacePage() {
         open={shareOpen}
         onClose={() => setShareOpen(false)}
         onInvite={handleInviteMember}
+        onCreateInviteLink={handleCreateInviteLink}
         canManageMembers={canManageMembers}
         onOpenMembers={() => {
           setShareOpen(false);

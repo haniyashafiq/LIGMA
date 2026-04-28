@@ -12,12 +12,15 @@ export default function ShareWorkspaceModal({
   open,
   onClose,
   onInvite,
+  onCreateInviteLink,
   canManageMembers,
   onOpenMembers,
 }) {
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteRole, setInviteRole] = useState("contributor");
+  const [linkRole, setLinkRole] = useState("viewer");
   const [busyInvite, setBusyInvite] = useState(false);
+  const [busyLink, setBusyLink] = useState(false);
   const [copyMessage, setCopyMessage] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -46,11 +49,28 @@ export default function ShareWorkspaceModal({
 
   async function handleCopyLink() {
     setCopyMessage("");
+    setActionMessage("");
+    setErrorMessage("");
+
+    if (!canManageMembers || typeof onCreateInviteLink !== "function") {
+      try {
+        await navigator.clipboard.writeText(workspaceLink);
+        setCopyMessage("Link copied.");
+      } catch (_error) {
+        setErrorMessage("Copy failed. Please try again.");
+      }
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(workspaceLink);
-      setCopyMessage("Link copied.");
+      setBusyLink(true);
+      const payload = await onCreateInviteLink({ role: linkRole });
+      await navigator.clipboard.writeText(payload?.inviteUrl || workspaceLink);
+      setCopyMessage(`Link copied with ${linkRole} role.`);
     } catch (error) {
-      setCopyMessage("Copy failed. Please copy manually.");
+      setErrorMessage(error?.message || "Copy failed. Please try again.");
+    } finally {
+      setBusyLink(false);
     }
   }
 
@@ -81,11 +101,27 @@ export default function ShareWorkspaceModal({
           <label htmlFor="workspace-share-link">
             <FiLink2 size={13} /> Share link
           </label>
+          {canManageMembers && (
+            <>
+              <label htmlFor="workspace-link-role">Role for this link</label>
+              <select
+                id="workspace-link-role"
+                value={linkRole}
+                onChange={(event) => setLinkRole(event.target.value)}
+              >
+                {INVITE_ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <div className="ws-share-link-row">
             <input id="workspace-share-link" type="text" value={workspaceLink} readOnly />
-            <button type="button" onClick={handleCopyLink}>
+            <button type="button" onClick={handleCopyLink} disabled={busyLink}>
               <FiCopy size={13} />
-              Copy Link
+              {busyLink ? "Creating..." : "Copy Link"}
             </button>
           </div>
         </div>

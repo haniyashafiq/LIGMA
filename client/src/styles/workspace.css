@@ -1430,6 +1430,17 @@
   gap: var(--space-2);
 }
 
+.ws-share-link-block select {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 8px;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  width: 100%;
+}
+
 .ws-share-link-row input {
   flex: 1;
   border-radius: var(--radius-sm);

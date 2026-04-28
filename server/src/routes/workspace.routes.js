@@ -1,4 +1,5 @@
 const express = require('express');
+const config = require('../config');
 const workspaceService = require('../services/workspace.service');
 const { authenticateRequest } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
@@ -51,6 +52,33 @@ router.post('/:id/invite', requireRole('lead'), async (req, res) => {
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       message: error.message || 'Failed to invite user.',
+    });
+  }
+});
+
+router.post('/:id/invite-link', requireRole('lead'), async (req, res) => {
+  const { role } = req.body || {};
+
+  try {
+    const invite = workspaceService.createInviteToken(req.params.id, role);
+    const inviteUrl = `${config.CLIENT_URL}/workspace/${req.params.id}?invite=${encodeURIComponent(invite.token)}`;
+    return res.status(200).json({ ...invite, inviteUrl });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      message: error.message || 'Failed to create invite link.',
+    });
+  }
+});
+
+router.post('/invite-links/accept', async (req, res) => {
+  const { token } = req.body || {};
+
+  try {
+    const accepted = await workspaceService.acceptInviteToken(token, req.user.id);
+    return res.status(200).json({ accepted });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      message: error.message || 'Failed to accept invite link.',
     });
   }
 });
