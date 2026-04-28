@@ -1,5 +1,19 @@
 const { pool } = require('../db/pool');
 
+async function listUserTasks(userId) {
+  const result = await pool.query(
+    `SELECT t.*, u.display_name as "authorName", w.name as "workspaceName"
+     FROM tasks t
+     JOIN workspaces w ON t.workspace_id = w.id
+     JOIN workspace_members wm ON w.id = wm.workspace_id
+     LEFT JOIN users u ON t.assignee_id = u.id
+     WHERE wm.user_id = $1
+     ORDER BY t.created_at DESC`,
+    [userId]
+  );
+  return result.rows;
+}
+
 async function listWorkspaceTasks(workspaceId) {
   const result = await pool.query(
     `SELECT t.*, u.display_name as "authorName" 
@@ -48,6 +62,7 @@ async function updateTask(taskId, data) {
 
 module.exports = {
   listWorkspaceTasks,
+  listUserTasks,
   createTask,
   updateTask,
 };

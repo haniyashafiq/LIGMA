@@ -20,6 +20,17 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.get('/all/tasks', async (req, res) => {
+  try {
+    const tasks = await taskService.listUserTasks(req.user.id);
+    return res.status(200).json({ tasks });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to list tasks.',
+    });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const workspaces = await workspaceService.listUserWorkspaces(req.user.id);

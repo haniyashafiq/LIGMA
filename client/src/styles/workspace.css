@@ -1571,4 +1571,91 @@
 .ws-status-toggle.priority button.active.urgent { background: #ff6b6b !important; color: white !important; border-color: #ff6b6b !important; }
 .ws-status-toggle.priority button.active.high { background: #ffa06b !important; color: white !important; border-color: #ffa06b !important; }
 .ws-status-toggle.priority button.active.medium { background: var(--color-primary) !important; color: white !important; border-color: var(--color-primary) !important; }
-.ws-status-toggle.priority button.active.low { background: #666 !important; color: white !important; border-color: #666 !important; }
+.ws-status-toggle.priority button.active.low { background: #666 !important; color: white !important; border-color: #666 !important; }
+
+/* ── Kanban View Styles ─────────────────────────────── */
+.ws-kanban-view {
+  flex: 1;
+  display: flex;
+  gap: var(--space-6);
+  padding: var(--space-8);
+  overflow-x: auto;
+  background: var(--color-bg);
+  height: calc(100vh - 48px);
+}
+
+.ws-kanban-column {
+  flex: 1;
+  min-width: 320px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  max-height: 100%;
+}
+
+.ws-kanban-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 0 4px;
+}
+
+.ws-kanban-column-header h3 {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--color-text-subtle);
+  margin: 0;
+}
+
+.ws-kanban-count {
+  background: var(--color-bg-elevated);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.ws-kanban-tasks {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+/* Custom scrollbar for Kanban columns */
+.ws-kanban-tasks::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ws-kanban-tasks::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 10px;
+}
+
+.ws-kanban-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-subtle);
+  font-size: 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.kanban-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.kanban-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+

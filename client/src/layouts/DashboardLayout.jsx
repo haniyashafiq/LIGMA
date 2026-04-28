@@ -20,6 +20,7 @@ import "../styles/dashboard.css";
 const NAV_ITEMS = [
   { to: "/projects",   Icon: FiFolder,      label: "Projects" },
   { to: "/workspaces", Icon: FiHexagon,     label: "Canvases" },
+  { to: "/tasks",      Icon: FiList,        label: "Task Board" },
 ];
 
 const FOOTER_ITEMS = [
