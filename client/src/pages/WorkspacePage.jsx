@@ -28,6 +28,7 @@ import {
   FiZoomOut,
   FiShare2,
   FiMaximize,
+  FiCrosshair,
   FiLogOut,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
@@ -519,6 +520,20 @@ export function WorkspacePage() {
                   onClick={() => editor?.zoomOut()}
                 >
                   <FiZoomOut size={14} />
+                </button>
+                <button 
+                  className="ws-bottom-btn" 
+                  title="Zoom to Fit"
+                  onClick={() => {
+                    if (!editor) return;
+                    try {
+                      editor.zoomToFit({ animation: { duration: 500 } });
+                    } catch (e) {
+                      editor.resetZoom();
+                    }
+                  }}
+                >
+                  <FiCrosshair size={14} />
                 </button>
                 <button 
                   className="ws-bottom-btn" 
