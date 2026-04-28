@@ -3,6 +3,12 @@ import { io } from "socket.io-client";
 import { Tldraw, inlineBase64AssetStore } from "tldraw";
 import { useSync } from "@tldraw/sync";
 import { AppContext } from "../utils/AppContext";
+import {
+  applyMutationsToAclCache,
+  canDeleteNode,
+  canEditNode,
+  collectMutations,
+} from "../utils/nodeAcl";
 import "../styles/canvas.css";
 
 import { getAccessToken } from "../net/api";
@@ -10,6 +16,8 @@ import { getAccessToken } from "../net/api";
 function createSocketIoTldrawSocket({
   workspaceId,
   token,
+  userId,
+  workspaceRole,
   sessionId,
   storeId,
 }) {
@@ -33,6 +41,7 @@ function createSocketIoTldrawSocket({
 
   const messageListeners = new Set();
   const statusListeners = new Set();
+  const aclCache = new Map();
   let connectionStatus = socket.connected ? "online" : "offline";
 
   function notifyStatus(nextStatus, reason) {
@@ -53,10 +62,25 @@ function createSocketIoTldrawSocket({
   socket.on("tldraw-message", (message) => {
     try {
       const parsed = typeof message === "string" ? JSON.parse(message) : message;
+      const incomingMutations = collectMutations(parsed);
+      applyMutationsToAclCache(aclCache, incomingMutations, userId);
       messageListeners.forEach((listener) => listener(parsed));
     } catch (e) {
       console.error("Failed to parse tldraw-message", e);
     }
+  });
+
+  socket.on("node-rbac:denied", (payload) => {
+    const reason = payload?.reason || "Node permission denied.";
+    window.dispatchEvent(
+      new CustomEvent("ligma:node-rbac-denied", {
+        detail: {
+          reason,
+          action: payload?.action || null,
+          nodeId: payload?.nodeId || null,
+        },
+      }),
+    );
   });
 
   socket.on("disconnect", () => {
@@ -91,10 +115,70 @@ function createSocketIoTldrawSocket({
       };
     },
     send(message) {
-      socket.emit("tldraw-message", JSON.stringify(message));
+      let parsed = message;
+      try {
+        parsed = typeof message === "string" ? JSON.parse(message) : message;
+      } catch (_error) {
+        return;
+      }
+
+      const outgoingMutations = collectMutations(parsed);
+
+      for (const mutation of outgoingMutations) {
+        const nodeAcl = aclCache.get(mutation.nodeId);
+        const allowed =
+          mutation.action === "delete"
+            ? canDeleteNode(nodeAcl, userId, workspaceRole)
+            : canEditNode(nodeAcl, userId, workspaceRole);
+
+        if (!allowed) {
+          window.dispatchEvent(
+            new CustomEvent("ligma:node-rbac-denied", {
+              detail: {
+                reason: "Blocked locally by node ACL.",
+                action: mutation.action,
+                nodeId: mutation.nodeId,
+              },
+            }),
+          );
+          return;
+        }
+      }
+
+      socket.emit("tldraw-message", JSON.stringify(parsed));
     },
     sendMessage(message) {
-      socket.emit("tldraw-message", JSON.stringify(message));
+      let parsed = message;
+      try {
+        parsed = typeof message === "string" ? JSON.parse(message) : message;
+      } catch (_error) {
+        return;
+      }
+
+      const outgoingMutations = collectMutations(parsed);
+
+      for (const mutation of outgoingMutations) {
+        const nodeAcl = aclCache.get(mutation.nodeId);
+        const allowed =
+          mutation.action === "delete"
+            ? canDeleteNode(nodeAcl, userId, workspaceRole)
+            : canEditNode(nodeAcl, userId, workspaceRole);
+
+        if (!allowed) {
+          window.dispatchEvent(
+            new CustomEvent("ligma:node-rbac-denied", {
+              detail: {
+                reason: "Blocked locally by node ACL.",
+                action: mutation.action,
+                nodeId: mutation.nodeId,
+              },
+            }),
+          );
+          return;
+        }
+      }
+
+      socket.emit("tldraw-message", JSON.stringify(parsed));
     },
     close() {
       socket.disconnect();
@@ -155,13 +239,15 @@ export default function CanvasView({ workspaceId, onMount }) {
             ? createSocketIoTldrawSocket({
                 workspaceId,
                 token,
+                userId,
+                workspaceRole,
                 sessionId,
                 storeId,
               })
             : createNoopSocket(),
         assets: inlineBase64AssetStore,
       }),
-      [token, workspaceId],
+      [token, workspaceId, userId, workspaceRole],
     ),
   );
 
@@ -186,6 +272,18 @@ export default function CanvasView({ workspaceId, onMount }) {
     };
     if (exposeJump) exposeJump(jumpToNode);
   };
+
+  useEffect(() => {
+    function onNodeRbacDenied(event) {
+      const reason = event?.detail?.reason || "Node permission denied.";
+      setRbacError(reason);
+      window.setTimeout(() => setRbacError(""), 3000);
+    }
+
+    window.addEventListener("ligma:node-rbac-denied", onNodeRbacDenied);
+    return () =>
+      window.removeEventListener("ligma:node-rbac-denied", onNodeRbacDenied);
+  }, []);
 
   return (
     <div className="canvas-container">

@@ -128,6 +128,43 @@ export function WorkspacePage() {
       ? "offline"
       : "connecting";
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspaceContext() {
+      if (!workspaceId) {
+        return;
+      }
+
+      try {
+        const [workspacePayload, mePayload] = await Promise.all([
+          apiFetch(`/api/workspaces/${workspaceId}`),
+          getMe(),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setWorkspaceRole(workspacePayload?.workspace?.role || "viewer");
+        setCurrentUserId(mePayload?.user?.id || null);
+      } catch (_error) {
+        if (cancelled) {
+          return;
+        }
+
+        setWorkspaceRole("viewer");
+        setCurrentUserId(null);
+      }
+    }
+
+    loadWorkspaceContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
   return (
     <div
       className="workspace-shell"
