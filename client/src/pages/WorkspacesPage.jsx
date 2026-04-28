@@ -75,6 +75,7 @@ export function WorkspacesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName]       = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showAll, setShowAll]       = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -117,7 +118,7 @@ export function WorkspacesPage() {
     }
   }
 
-  const recent = workspaces.slice(0, 3);
+  const displayedWorkspaces = showAll ? workspaces : workspaces.slice(0, 6);
 
   return (
     <DashboardLayout user={user}>
@@ -152,10 +153,14 @@ export function WorkspacesPage() {
 
       {/* ── Recent Canvases ─────────────────── */}
       <div className="section-header">
-        <h2>Recent Canvases</h2>
-        {workspaces.length > 3 && (
-          <span className="view-all-link" style={{ cursor: "pointer" }}>
-            View all
+        <h2>{showAll ? "All Canvases" : "Recent Canvases"}</h2>
+        {workspaces.length > 6 && (
+          <span 
+            className="view-all-link" 
+            style={{ cursor: "pointer" }}
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll ? "Show less" : "View all"}
           </span>
         )}
       </div>
@@ -189,14 +194,14 @@ export function WorkspacesPage() {
             </div>
           )}
 
-          {!loading && recent.length === 0 && (
+          {!loading && displayedWorkspaces.length === 0 && (
             <div className="canvas-empty">
               <FiHexagon size={36} className="canvas-empty-icon" style={{ opacity: 0.3 }} />
               <p>No canvases yet. Create one to get started.</p>
             </div>
           )}
 
-          {recent.map((ws, idx) => {
+          {displayedWorkspaces.map((ws, idx) => {
             const col = ICON_COLORS[idx % ICON_COLORS.length];
             const letter = ws.name.trim()[0]?.toUpperCase() || "C";
             return (
