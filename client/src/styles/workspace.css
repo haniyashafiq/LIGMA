@@ -132,6 +132,24 @@
   background: var(--color-interactive-hover);
 }
 
+.ws-members-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px var(--space-4);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+
+.ws-members-btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-interactive-hover);
+}
+
 .ws-role-badge {
   display: inline-flex;
   align-items: center;
@@ -767,7 +785,7 @@
   overflow: hidden;
 }
 
-.ws-modal-header {
+.ws-dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1158,22 +1176,35 @@
   }
 }
 
-/* ── Members Sidebar ─────────────────────────────────── */
-.ws-members-sidebar {
-  position: absolute;
-  top: 48px;
-  left: 0;
-  width: 340px;
-  height: calc(100dvh - 48px);
-  background: var(--color-bg-raised);
-  border-right: 1px solid var(--color-border);
-  z-index: 220;
+/* ── Members / Share Modals ──────────────────────────── */
+.ws-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.46);
   display: flex;
-  flex-direction: column;
-  box-shadow: 8px 0 18px rgba(0, 0, 0, 0.25);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
 }
 
-.ws-members-sidebar-header {
+.ws-modal {
+  width: min(560px, 100%);
+  max-height: min(82dvh, 720px);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.ws-share-modal {
+  width: min(520px, 100%);
+}
+
+.ws-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1181,12 +1212,12 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.ws-members-sidebar-header h2 {
+.ws-dialog-header h2 {
   margin: 0;
   font-size: var(--text-sm);
 }
 
-.ws-members-close-btn {
+.ws-dialog-close-btn {
   width: 28px;
   height: 28px;
   border: none;
@@ -1198,7 +1229,7 @@
   cursor: pointer;
 }
 
-.ws-members-close-btn:hover {
+.ws-dialog-close-btn:hover {
   color: var(--color-text);
   background: var(--color-interactive-hover);
 }
@@ -1311,7 +1342,6 @@
 }
 
 .ws-member-invite-form {
-  border-top: 1px solid var(--color-border);
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
@@ -1375,6 +1405,64 @@
 
 .ws-members-feedback.success {
   color: #86efac;
+}
+
+.ws-share-link-block {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ws-share-link-block label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ws-share-link-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ws-share-link-row input {
+  flex: 1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 8px;
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.ws-share-link-row button,
+.ws-secondary-btn {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 8px 10px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ws-share-link-row button:hover,
+.ws-secondary-btn:hover {
+  background: var(--color-interactive-hover);
+}
+
+.ws-share-footer-actions {
+  padding: 0 var(--space-4) var(--space-4);
 }
 
 /* ── Loading / Error states ──────────────────────────── */

@@ -27,6 +27,7 @@ import {
   FiShare2,
   FiMaximize,
   FiLogOut,
+  FiUsers,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
 import { AppContext } from "../utils/AppContext";
@@ -38,6 +39,7 @@ import {
   clearAccessToken,
 } from "../net/api";
 import MembersSidebar from "../workspace/MembersSidebar";
+import ShareWorkspaceModal from "../workspace/ShareWorkspaceModal";
 import RoleBadge from "../workspace/RoleBadge";
 import "../styles/workspace.css";
 
@@ -93,6 +95,7 @@ export function WorkspacePage() {
   const [layersVersion, setLayersVersion] = useState(0);
 
   const [showAddTask, setShowAddTask] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
@@ -316,9 +319,13 @@ export function WorkspacePage() {
             <FiHelpCircle size={15} />
           </button>
 
-          <button className="ws-share-btn" onClick={() => setMembersOpen((v) => !v)}>
+          <button className="ws-share-btn" onClick={() => setShareOpen(true)}>
             <FiShare2 size={12} style={{ marginRight: 4 }} />
             Share
+          </button>
+          <button className="ws-members-btn" onClick={() => setMembersOpen(true)}>
+            <FiUsers size={12} style={{ marginRight: 4 }} />
+            Members
           </button>
           <RoleBadge role={workspaceRole} />
 
@@ -648,8 +655,17 @@ export function WorkspacePage() {
         currentUserId={currentUser?.id || null}
         currentRole={workspaceRole}
         canManageMembers={canManageMembers}
-        onInvite={handleInviteMember}
         onChangeRole={handleChangeMemberRole}
+      />
+      <ShareWorkspaceModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        onInvite={handleInviteMember}
+        canManageMembers={canManageMembers}
+        onOpenMembers={() => {
+          setShareOpen(false);
+          setMembersOpen(true);
+        }}
       />
     </div>
   );
