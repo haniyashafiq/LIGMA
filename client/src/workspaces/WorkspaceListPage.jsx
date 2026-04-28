@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { clearAccessToken, getMe, logout } from '../net/api';
+import { clearAccessToken, createWorkspace, getMe, listWorkspaces, logout } from '../net/api';
 
 export function WorkspaceListPage() {
   const navigate = useNavigate();
   const [me, setMe] = useState(null);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [createName, setCreateName] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   const [status, setStatus] = useState({
     message: 'Server status: unknown',
     state: 'idle',
@@ -13,21 +19,33 @@ export function WorkspaceListPage() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadCurrentUser() {
+    async function loadPageData() {
       try {
-        const payload = await getMe();
+        setIsLoading(true);
+        setLoadError('');
+        const [mePayload, workspacesPayload] = await Promise.all([getMe(), listWorkspaces()]);
+
         if (isMounted) {
-          setMe(payload.user);
+          setMe(mePayload.user);
+          setWorkspaces(Array.isArray(workspacesPayload?.workspaces) ? workspacesPayload.workspaces : []);
         }
-      } catch (_error) {
+      } catch (error) {
         clearAccessToken();
         if (isMounted) {
-          navigate('/login', { replace: true });
+          if (error?.status === 401) {
+            navigate('/login', { replace: true });
+            return;
+          }
+          setLoadError(error?.message || 'Failed to load workspaces.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
         }
       }
     }
 
-    loadCurrentUser();
+    loadPageData();
 
     return () => {
       isMounted = false;
@@ -66,16 +84,55 @@ export function WorkspaceListPage() {
     navigate('/login', { replace: true });
   }
 
+  async function handleCreateWorkspace(event) {
+    event.preventDefault();
+    const trimmed = createName.trim();
+    if (!trimmed) {
+      setCreateError('Workspace name is required.');
+      return;
+    }
+
+    try {
+      setCreateError('');
+      setIsCreating(true);
+      const payload = await createWorkspace({ name: trimmed });
+      const created = payload?.workspace;
+      if (!created?.id) {
+        throw new Error('Workspace creation failed.');
+      }
+
+      setWorkspaces((current) => [created, ...current]);
+      setCreateName('');
+      navigate(`/workspace/${created.id}`);
+    } catch (error) {
+      setCreateError(error?.message || 'Failed to create workspace.');
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
   return (
     <main className="shell">
-      <section className="hero-card">
+      <section className="hero-card workspace-card">
         <p className="mono chip">Workspace Hub</p>
         <h1>{me?.displayName || me?.username ? `Welcome, ${me.displayName || me.username}` : 'Your Workspaces'}</h1>
-        <p className="subtitle">Phase 5 will replace this with the workspace list UI.</p>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => navigate('/workspace/demo-workspace')}>
-            Open Canvas Prototype
+        <p className="subtitle">Create a workspace or open one you are already a member of.</p>
+
+        <form className="workspace-create-form" onSubmit={handleCreateWorkspace}>
+          <input
+            type="text"
+            value={createName}
+            onChange={(event) => setCreateName(event.target.value)}
+            placeholder="New workspace name"
+            maxLength={200}
+          />
+          <button type="submit" disabled={isCreating}>
+            {isCreating ? 'Creating...' : 'Create Workspace'}
           </button>
+        </form>
+        {createError ? <p className="workspace-error">{createError}</p> : null}
+
+        <div className="workspace-actions">
           <button type="button" onClick={handleHealthCheck}>
             Check API Health
           </button>
@@ -83,6 +140,30 @@ export function WorkspaceListPage() {
             Logout
           </button>
         </div>
+
+        {isLoading ? <p className="workspace-muted">Loading workspaces...</p> : null}
+        {loadError ? <p className="workspace-error">{loadError}</p> : null}
+
+        {!isLoading && !loadError ? (
+          workspaces.length > 0 ? (
+            <div className="workspace-grid">
+              {workspaces.map((workspace) => (
+                <button
+                  key={workspace.id}
+                  type="button"
+                  className="workspace-item"
+                  onClick={() => navigate(`/workspace/${workspace.id}`)}
+                >
+                  <strong>{workspace.name}</strong>
+                  <span>{workspace.role || 'member'}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="workspace-muted">No workspaces yet. Create one to start collaborating.</p>
+          )
+        ) : null}
+
         <p id="health-status" className="health-status" data-state={status.state}>
           {status.message}
         </p>

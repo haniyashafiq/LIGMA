@@ -106,6 +106,13 @@ function normalizeNodeData(shape, metadata = {}) {
   };
 }
 
+function hasShape(editor, id) {
+  if (!editor || typeof editor.getShape !== 'function' || !id) {
+    return false;
+  }
+  return Boolean(editor.getShape(id));
+}
+
 export function createNodeManager({
   workspaceId,
   currentUserId = 'local-user',
@@ -115,9 +122,9 @@ export function createNodeManager({
   let editor = null;
   let remoteMutationDepth = 0;
   let unsubscribeStore = null;
+  let yNodes = yjsDoc?.getMap?.('nodes') || null;
 
   const nodeMetadata = new Map();
-  const yNodes = yjsDoc?.getMap?.('nodes') || null;
 
   function setMetadata(node) {
     const metadata = {
@@ -248,10 +255,13 @@ export function createNodeManager({
 
     try {
       if (eventType === 'canvas:node:delete') {
-        editor.deleteShapes([payload.id]);
-        nodeMetadata.delete(payload.id);
-        if (yNodes) {
-          yNodes.delete(payload.id);
+        const nodeId = payload.id || payload.nodeId;
+        if (nodeId && hasShape(editor, nodeId)) {
+          editor.deleteShapes([nodeId]);
+        }
+        nodeMetadata.delete(nodeId);
+        if (yNodes && nodeId) {
+          yNodes.delete(nodeId);
         }
         return;
       }
@@ -262,12 +272,26 @@ export function createNodeManager({
           workspaceId: payload.workspaceId || workspaceId,
         };
         setMetadata(node);
-        editor.createShapes([buildShapeRecord(node)]);
+        if (hasShape(editor, node.id)) {
+          editor.updateShapes([buildShapeRecord(node)]);
+        } else {
+          editor.createShapes([buildShapeRecord(node)]);
+        }
         return;
       }
 
       const existing = editor.getShape?.(payload.id);
       if (!existing) {
+        const fallbackNode = {
+          ...payload,
+          workspaceId: payload.workspaceId || workspaceId,
+          type: payload.type || 'rectangle',
+          width: payload.width ?? DEFAULT_NODE_SIZE.width,
+          height: payload.height ?? DEFAULT_NODE_SIZE.height,
+          content: payload.content ?? '',
+        };
+        setMetadata(fallbackNode);
+        editor.createShapes([buildShapeRecord(fallbackNode)]);
         return;
       }
 
@@ -302,6 +326,16 @@ export function createNodeManager({
     },
     createShape(shapeType = 'rectangle', partial = {}) {
       return createNode(shapeType, partial);
+    },
+    bindYjsDoc(nextDoc) {
+      yNodes = nextDoc?.getMap?.('nodes') || null;
+      if (!yNodes) {
+        return;
+      }
+
+      for (const [id, metadata] of nodeMetadata.entries()) {
+        yNodes.set(id, metadata);
+      }
     },
     serializeNode,
     getNodeSnapshot(id) {

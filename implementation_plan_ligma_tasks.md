@@ -36,14 +36,14 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 > **Goal**: Monorepo structure, dev tooling, all config files. Both `npm run dev` (server) and `npm run dev` (client) start without errors.
 
 ### Task 1.1 — Root Monorepo Setup
-- [ ] Create root `package.json` with npm workspaces: `["server", "client"]`
-- [ ] Add root scripts: `dev`, `dev:server`, `dev:client`, `build`, `start`
-- [ ] Add `.gitignore` (node_modules, .env, dist, pgdata)
+- [x] Create root `package.json` with npm workspaces: `["server", "client"]`
+- [x] Add root scripts: `dev`, `dev:server`, `dev:client`, `build`, `start`
+- [x] Add `.gitignore` (node_modules, .env, dist, pgdata)
 
 **File**: [package.json](file:///d:/Projects/LIGMA/package.json)
 
 ### Task 1.2 — Server Package Init
-- [ ] Create `server/package.json` with dependencies:
+- [x] Create `server/package.json` with dependencies:
   - `express`, `cors`, `cookie-parser`, `dotenv`
   - `pg` (PostgreSQL driver)
   - `socket.io`
@@ -51,10 +51,10 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
   - `jsonwebtoken`, `bcrypt`
   - `natural` (NLP)
   - `uuid`
-- [ ] Dev dependencies: `nodemon`
-- [ ] Add scripts: `dev` (nodemon), `start`, `migrate`
-- [ ] Create `server/src/index.js` — Minimal Express + Socket.IO startup (health check at `GET /api/health`)
-- [ ] Create `server/src/config.js` — Load and validate env vars (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CLIENT_URL`)
+- [x] Dev dependencies: `nodemon`
+- [x] Add scripts: `dev` (nodemon), `start`, `migrate`
+- [x] Create `server/src/index.js` — Minimal Express + Socket.IO startup (health check at `GET /api/health`)
+- [x] Create `server/src/config.js` — Load and validate env vars (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CLIENT_URL`)
 
 **Files**:
 - [server/package.json](file:///d:/Projects/LIGMA/server/package.json)
@@ -62,13 +62,13 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 - [server/src/config.js](file:///d:/Projects/LIGMA/server/src/config.js)
 
 ### Task 1.3 — Client Package Init (Vite + React)
-- [ ] Initialize Vite project in `client/` (React template)
-- [ ] Add dependencies: `react`, `react-dom`, `react-router-dom`, `yjs`, `socket.io-client`
-- [ ] Create minimal `index.html` with viewport meta and font imports (Inter, JetBrains Mono)
-- [ ] Create `client/src/styles/index.css` — Design system tokens (CSS custom properties for colors, spacing, typography, glassmorphism mixins)
-- [ ] Create `client/src/main.jsx` — React bootstrap entry
-- [ ] Create `client/src/App.jsx` — App shell with route and provider composition
-- [ ] Configure `vite.config.js` — Proxy `/api` and `/socket.io` to server in dev
+- [x] Initialize Vite project in `client/` (React template)
+- [x] Add dependencies: `react`, `react-dom`, `react-router-dom`, `yjs`, `socket.io-client`
+- [x] Create minimal `index.html` with viewport meta and font imports (Inter, JetBrains Mono)
+- [x] Create `client/src/styles/index.css` — Design system tokens (CSS custom properties for colors, spacing, typography, glassmorphism mixins)
+- [x] Create `client/src/main.jsx` — React bootstrap entry
+- [x] Create `client/src/App.jsx` — App shell with route and provider composition
+- [x] Configure `vite.config.js` — Proxy `/api` and `/socket.io` to server in dev
 
 **Files**:
 - [client/package.json](file:///d:/Projects/LIGMA/client/package.json)
@@ -101,22 +101,22 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 > **Goal**: PostgreSQL schema deployed, migration runner working. Can insert/query events and users programmatically.
 
 ### Task 2.1 — Database Connection Pool
-- [ ] Create `server/src/db/pool.js` — `pg.Pool` with connection from `DATABASE_URL`
-- [ ] Connection health check on startup (verify connectivity, log success/failure)
-- [ ] Graceful shutdown: `pool.end()` on `SIGTERM`/`SIGINT`
+- [x] Create `server/src/db/pool.js` — `pg.Pool` with connection from `DATABASE_URL`
+- [x] Connection health check on startup (verify connectivity, log success/failure)
+- [x] Graceful shutdown: `pool.end()` on `SIGTERM`/`SIGINT`
 
 **File**: [server/src/db/pool.js](file:///d:/Projects/LIGMA/server/src/db/pool.js)
 
 ### Task 2.2 — Migration System
-- [ ] Create `server/src/db/migrations/001_init.sql` — Full schema:
+- [x] Create `server/src/db/migrations/001_init.sql` — Full schema:
   - `users` — UUID PK, username, password_hash, display_name, color
   - `workspaces` — UUID PK, name, created_by
   - `workspace_roles` — RBAC junction table (lead/contributor/viewer)
   - `canvas_events` — Immutable event log with sequence numbers, JSONB payload, optional BYTEA Yjs update
   - `yjs_snapshots` — Binary Yjs doc snapshots with last sequence number
   - `tasks` — Extracted tasks linked to source canvas nodes
-- [ ] Create `server/src/db/migrations/migrate.js` — Reads `*.sql` files in order, executes within transaction, tracks applied migrations in a `_migrations` table
-- [ ] Add `npm run migrate` script to `server/package.json`
+- [x] Create `server/src/db/migrations/migrate.js` — Reads `*.sql` files in order, executes within transaction, tracks applied migrations in a `_migrations` table
+- [x] Add `npm run migrate` script to `server/package.json`
 
 **Files**:
 - [server/src/db/migrations/001_init.sql](file:///d:/Projects/LIGMA/server/src/db/migrations/001_init.sql)
@@ -136,7 +136,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 > **Goal**: Users can register, login, and receive JWT tokens. Refresh token flow works via httpOnly cookies. RBAC middleware blocks unauthorized mutations.
 
 ### Task 3.1 — Auth Service
-- [ ] Create `server/src/services/auth.service.js`:
+- [x] Create `server/src/services/auth.service.js`:
   - `register(username, password, displayName)` — Hash with bcrypt, insert user, return user object
   - `login(username, password)` — Verify credentials, sign JWT access token (15min) + refresh token (7d)
   - `refresh(refreshToken)` — Verify refresh token, issue new access token
@@ -145,7 +145,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [server/src/services/auth.service.js](file:///d:/Projects/LIGMA/server/src/services/auth.service.js)
 
 ### Task 3.2 — Auth Middleware
-- [ ] Create `server/src/middleware/auth.js`:
+- [x] Create `server/src/middleware/auth.js`:
   - Extract `Bearer` token from `Authorization` header
   - Verify JWT, attach `req.user = { id, username }` to request
   - Support WebSocket auth via `socket.handshake.auth.token`
@@ -153,7 +153,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [server/src/middleware/auth.js](file:///d:/Projects/LIGMA/server/src/middleware/auth.js)
 
 ### Task 3.3 — Auth Routes
-- [ ] Create `server/src/routes/auth.routes.js`:
+- [x] Create `server/src/routes/auth.routes.js`:
   - `POST /api/auth/register` — Validate input, call auth service, set refresh cookie, return access token + user
   - `POST /api/auth/login` — Same flow with credential check
   - `POST /api/auth/refresh` — Read httpOnly cookie, return new access token
@@ -293,16 +293,16 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 > **Why tldraw**: The instructor requires using an open-source canvas project adapted for distributed collaboration. tldraw is a React-friendly infinite-canvas/editor SDK with built-in support for shapes, text, drawing tools, camera controls, selection, and collaborative editor semantics. We will adapt its editor/store change model so all authoritative multi-user mutations still flow through our WebSocket, RBAC, event-store, and Yjs architecture rather than replacing that backend with a tldraw-managed service.
 
 ### Task 5.1 — tldraw Setup & Infinite Viewport
-- [ ] Install `tldraw` in client: `npm install tldraw`
-- [ ] Create `client/src/canvas/CanvasWorkspace.jsx` — React container that mounts the canvas, toolbar, overlays, and workspace-scoped providers
-- [ ] Create `client/src/canvas/EditorAdapter.js` — Wrapper around the `tldraw` editor instance:
+- [x] Install `tldraw` in client: `npm install tldraw`
+- [x] Create `client/src/canvas/CanvasWorkspace.jsx` — React container that mounts the canvas, toolbar, overlays, and workspace-scoped providers
+- [x] Create `client/src/canvas/EditorAdapter.js` — Wrapper around the `tldraw` editor instance:
   - Mount the `Tldraw` editor on a full-viewport workspace surface
   - **Infinite pan/zoom**: use tldraw camera/viewport APIs for drag pan, wheel zoom, and touch gestures
   - **Coordinate helpers**: expose `screenToWorld(sx, sy)` and `worldToScreen(wx, wy)` using editor coordinate transforms
   - **Animated navigation**: `animateTo(x, y, zoom)` uses editor camera controls for "Jump to Canvas" from task board
   - **Viewport change event**: emit editor/camera updates for cursor layer, overlays, and culling-dependent UI
   - **Custom integration points**: expose hooks for store observation, remote patch application, and replay hydration
-- [ ] Create `client/src/styles/canvas.css` — Canvas container, layer stacking (editor → cursor overlay → React panels), toolbar positioning
+- [x] Create `client/src/styles/canvas.css` — Canvas container, layer stacking (editor → cursor overlay → React panels), toolbar positioning
 
 **Files**:
 - [client/src/canvas/CanvasWorkspace.jsx](file:///d:/Projects/LIGMA/client/src/canvas/CanvasWorkspace.jsx)
@@ -310,7 +310,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 - [client/src/styles/canvas.css](file:///d:/Projects/LIGMA/client/src/styles/canvas.css)
 
 ### Task 5.2 — Node Manager (Sticky Notes, Text, Shapes) + WebSocket Sync
-- [ ] Create `client/src/canvas/NodeManager.js` — Maps LIGMA node types to `tldraw` shapes and metadata:
+- [x] Create `client/src/canvas/NodeManager.js` — Maps LIGMA node types to `tldraw` shapes and metadata:
   - **Sticky note** → note-like tldraw shape with custom metadata for `createdBy`, workspace ownership, and task linkage
   - **Text block** → text shape for plain editable content
   - **Shape** → rectangle, ellipse, or diamond-equivalent shape with configurable fill/stroke
@@ -349,7 +349,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
 **File**: [client/src/canvas/DrawingLayer.js](file:///d:/Projects/LIGMA/client/src/canvas/DrawingLayer.js)
 
 ### Task 5.4 — WebSocket ↔ tldraw Sync Bridge
-- [ ] Create `client/src/canvas/SyncBridge.js` — Central module wiring tldraw editor/store changes to WebSocket transport:
+- [x] Create `client/src/canvas/SyncBridge.js` — Central module wiring tldraw editor/store changes to WebSocket transport:
   - **Outbound** (local → server):
     - Observes local editor/store changes for shape create/update/move/delete events
     - Filters out remote updates and replay-applied patches
@@ -411,7 +411,7 @@ This plan translates the [approved architecture](file:///C:/Users/DC/.gemini/ant
   - `/workspaces` → Workspace list (create/join)
   - `/workspace/:id` → tldraw canvas + Task Board view
   - Auth guard: redirect to `/login` if no token
-- [ ] Create `client/src/workspaces/WorkspaceListPage.jsx`:
+- [x] Create `client/src/workspaces/WorkspaceListPage.jsx`:
   - Card grid of user's workspaces
   - "Create Workspace" button with name input modal
   - Click workspace card → navigate to canvas

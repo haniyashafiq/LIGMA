@@ -53,6 +53,7 @@
 
 .canvas-surface {
   min-height: 70dvh;
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
@@ -62,6 +63,33 @@
 
 .canvas-surface .tl-container {
   border-radius: inherit;
+}
+
+.cursor-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  pointer-events: none;
+  transition: transform 80ms linear;
+  z-index: 20;
+}
+
+.cursor-dot span {
+  display: inline-flex;
+  margin-top: 12px;
+  margin-left: 8px;
+  padding: 0.2rem 0.45rem;
+  border-radius: 8px;
+  background: rgba(8, 20, 38, 0.88);
+  color: #e8f2ff;
+  border: 1px solid rgba(171, 200, 255, 0.25);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  white-space: nowrap;
 }
 
 .canvas-overlay-card {
@@ -128,6 +156,22 @@
   font-family: var(--font-mono);
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+.canvas-connection-state {
+  text-transform: capitalize;
+}
+
+.canvas-connection-state--connected {
+  color: #afffdb;
+}
+
+.canvas-connection-state--reconnecting {
+  color: #f7e4a5;
+}
+
+.canvas-connection-state--disconnected {
+  color: #ffb5b4;
 }
 
 @media (max-width: 980px) {

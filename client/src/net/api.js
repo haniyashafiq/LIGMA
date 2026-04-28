@@ -146,6 +146,17 @@ export async function getMe() {
   return request('/api/auth/me', { method: 'GET' });
 }
 
+export async function listWorkspaces() {
+  return request('/api/workspaces', { method: 'GET' });
+}
+
+export async function createWorkspace({ name }) {
+  return request('/api/workspaces', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
 export async function apiFetch(path, options = {}) {
   return request(path, options);
 }
