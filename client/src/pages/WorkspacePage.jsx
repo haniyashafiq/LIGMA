@@ -25,7 +25,6 @@ import {
   FiLink,
   FiZap,
   FiFilter,
-  FiZoomIn,
   FiZoomOut,
   FiShare2,
   FiMaximize,
