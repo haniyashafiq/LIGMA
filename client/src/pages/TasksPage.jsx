@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { apiFetch } from "../net/api";
-import { FiLink, FiCheckCircle, FiClock, FiAlertCircle, FiPlus } from "react-icons/fi";
+import { FiLink, FiCheckCircle, FiClock, FiAlertCircle, FiPlus, FiChevronDown } from "react-icons/fi";
 import "../styles/workspace.css";
 
 export function TasksPage({ user }) {
@@ -63,7 +63,7 @@ export function TasksPage({ user }) {
             >
               <span style={{ opacity: 0.5, marginRight: '4px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Project:</span>
               {filterWorkspace === 'all' ? 'All Workspaces' : workspaces.find(w => w.id === filterWorkspace)?.name || 'Select Workspace'}
-              <FiPlus size={12} style={{ transform: showWsDropdown ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s', opacity: 0.5 }} />
+              <FiChevronDown size={14} style={{ transform: showWsDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', opacity: 0.5 }} />
             </button>
             
             {showWsDropdown && (
@@ -153,10 +153,6 @@ export function TasksPage({ user }) {
                     <div className="ws-kanban-empty">No tasks in this column</div>
                   )}
                 </div>
-                <button className="ws-kanban-add-btn">
-                  <FiPlus size={14} />
-                  Add Issue
-                </button>
               </div>
             ))}
           </div>
