@@ -24,8 +24,13 @@ import {
   FiActivity,
   FiLink,
   FiZap,
+  FiFilter,
+  FiZoomOut,
+  FiMoon,
+  FiSun,
   FiShare2,
   FiMaximize,
+  FiCrosshair,
   FiLogOut,
   FiUsers,
 } from "react-icons/fi";
@@ -94,11 +99,13 @@ export function WorkspacePage() {
   const [layersOpen, setLayersOpen] = useState(false);
   const [gridEnabled, setGridEnabled] = useState(true);
   const [layersVersion, setLayersVersion] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   const [showAddTask, setShowAddTask] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
+  const [newTaskPriority, setNewTaskPriority] = useState("medium");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [inviteLinkError, setInviteLinkError] = useState("");
 
@@ -117,6 +124,14 @@ export function WorkspacePage() {
         : "#6366f1";
     return { id: uid, name, color };
   }, [currentUser, workspaceMembers]);
+
+  const [events, setEvents] = useState([]);
+  const [execTab, setExecTab] = useState("dashboard"); // "dashboard" | "timeline"
+
+  const [taskFilter, setTaskFilter] = useState("all");
+  const [showTaskFilter, setShowTaskFilter] = useState(false);
+  const [activityFilter, setActivityFilter] = useState("all");
+  const [showActivityFilter, setShowActivityFilter] = useState(false);
 
   // Load workspace metadata
   useEffect(() => {
@@ -185,9 +200,34 @@ export function WorkspacePage() {
       .catch(() => {});
   }, [workspaceId]);
 
+  const loadEvents = useCallback(() => {
+    apiFetch(`/api/workspaces/${workspaceId}/events`)
+      .then((res) => {
+        if (res.events) {
+          const sorted = [...res.events].sort((a, b) => b.sequenceNum - a.sequenceNum);
+          setEvents(sorted);
+        }
+      })
+      .catch(() => {});
+  }, [workspaceId]);
+
+  const getUsername = useCallback((userId) => {
+    if (!userId) return "System";
+    if (currentUser?.id === userId) return "You";
+    const member = workspaceMembers.find(m => m.user?.id === userId || m.userId === userId);
+    return member?.user?.username || member?.username || `User ${userId.substring(0, 4)}`;
+  }, [currentUser, workspaceMembers]);
+
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]);
+    loadEvents();
+  }, [loadTasks, loadEvents]);
+
+  // Poll events every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(loadEvents, 5000);
+    return () => clearInterval(interval);
+  }, [loadEvents]);
   const reloadWorkspaceMembers = useCallback(async () => {
     const res = await apiFetch(`/api/workspaces/${workspaceId}`);
     if (res?.workspace?.role) setWorkspaceRole(res.workspace.role);
@@ -253,16 +293,30 @@ export function WorkspacePage() {
         body: JSON.stringify({
           title: newTaskTitle.trim(),
           status: newTaskStatus,
+          priority: newTaskPriority,
         }),
       });
       setNewTaskTitle("");
       setNewTaskStatus("todo");
+      setNewTaskPriority("medium");
       setShowAddTask(false);
       loadTasks();
     } catch (err) {
       console.error("Failed to add task:", err);
     } finally {
       setIsSubmittingTask(false);
+    }
+  };
+
+  const handleUpdateTask = async (taskId, data) => {
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to update task:", err);
     }
   };
 
@@ -277,6 +331,27 @@ export function WorkspacePage() {
 
     editorInstance.on("change", handleChange);
   }, []);
+
+  const jumpToNode = useCallback((nodeId) => {
+    if (!editor || !nodeId) return;
+    try {
+      const shape = editor.getShape(nodeId);
+      if (!shape) return;
+      const bounds = editor.getShapePageBounds(shape);
+      if (bounds) {
+        editor.zoomToBounds(bounds, { animation: { duration: 500 } });
+        editor.select(nodeId);
+      }
+    } catch (e) {
+      console.error("Jump to node failed:", e);
+    }
+  }, [editor]);
+
+  useEffect(() => {
+    if (editor) {
+      editor.user.updateUserPreferences({ colorScheme: isDarkMode ? 'dark' : 'light' });
+    }
+  }, [editor, isDarkMode]);
 
   const connectionDot =
     connectionStatus === "online"
@@ -400,176 +475,308 @@ export function WorkspacePage() {
 
       {/* ── Workspace Body ──────────────────────────── */}
       <div className="workspace-body">
-        {/* Left Tool Panel */}
-        <div className="ws-tool-panel">
-          <span className="ws-tool-panel-label">Tools</span>
-
-          {TOOLS.map(({ id, Icon, label }) => (
-            <button
-              key={id}
-              className={`ws-tool-btn${activeTool === id ? " active" : ""}`}
-              onClick={() => handleToolSelect(id)}
-              title={label}
-              aria-label={label}
-                disabled={isViewer}
-            >
-              <Icon size={16} />
-              <span>{label}</span>
-            </button>
-          ))}
-
-          <div className="ws-tool-divider" />
-
-          {TOOL_EXTRAS.map(({ id, Icon, label }) => (
-            <button
-              key={id}
-              className={`ws-tool-btn${id === "layers" && layersOpen ? " active" : ""}`}
-              title={label}
-              aria-label={label}
-              onClick={() => {
-                if (id === "layers") setLayersOpen(!layersOpen);
-              }}
-              disabled={isViewer}
-            >
-              <Icon size={16} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Canvas Area */}
-        <div className="ws-canvas-area">
-          <CanvasView
-            workspaceId={workspaceId}
-            onMount={onCanvasMount}
-            gridMode={gridEnabled}
-            readOnly={isViewer}
-            currentUserId={currentUser?.id || null}
-            currentUserRole={workspaceRole}
-            collabUser={collabUser}
-          />
-
-          {layersOpen && (
-            <div className="ws-layers-panel">
-              <div className="ws-layers-header">
-                <span>Layers</span>
-                <button onClick={() => setLayersOpen(false)}><FiPlus style={{ transform: "rotate(45deg)" }} /></button>
-              </div>
-              <div className="ws-layers-list">
-                {!editor && <div className="ws-layers-empty">Loading editor...</div>}
-                {editor && editor.getCurrentPageShapes().length === 0 && (
-                  <div className="ws-layers-empty">No layers yet</div>
+        {activeTab === 'timeline' ? (
+          <div className="ws-full-timeline" style={{ flex: 1, padding: 'var(--space-8)', overflowY: 'auto', background: 'var(--color-bg-base)' }}>
+            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+              <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Workspace Timeline</h2>
+              <p style={{ color: 'var(--color-text-subtle)', marginBottom: '32px' }}>A complete, append-only history of all events in this workspace.</p>
+              
+              <div className="ws-timeline-track" style={{ position: 'relative', borderLeft: '2px solid var(--color-border)', marginLeft: '14px', paddingLeft: '32px' }}>
+                {events.map((event) => {
+                  let action = "modified the canvas";
+                  let details = "";
+                  if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
+                    const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
+                    if (payloadStr.includes('camera') || payloadStr.includes('pointer') || payloadStr.includes('presence')) {
+                      action = "moved around the canvas";
+                    } else if (payloadStr.includes('added')) {
+                      action = "added elements";
+                    } else if (payloadStr.includes('removed')) {
+                      action = "removed elements";
+                    }
+                  }
+                  
+                  return (
+                    <div key={event.id} className="ws-timeline-item" style={{ position: 'relative', marginBottom: '32px' }}>
+                      <div style={{ position: 'absolute', left: '-39px', top: '4px', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid var(--color-bg-base)' }} />
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-subtle)', marginBottom: '4px' }}>
+                        Seq: {event.sequenceNum} • {new Date(event.createdAt).toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '15px', color: 'var(--color-text)' }}>
+                        <strong>{getUsername(event.userId)}</strong> {action}
+                      </div>
+                    </div>
+                  );
+                })}
+                {events.length === 0 && (
+                  <div style={{ color: 'var(--color-text-subtle)' }}>No events recorded.</div>
                 )}
-                {editor && [...editor.getCurrentPageShapes()]
-                  .sort((a, b) => (a.index < b.index ? 1 : -1))
-                  .map(shape => (
-                  <div 
-                    key={shape.id} 
-                    className="ws-layer-item"
-                    onClick={() => {
-                      editor.select(shape.id);
-                      editor.zoomToSelection();
-                    }}
-                  >
-                    <FiSquare size={12} />
-                    <span>{shape.type} - {shape.id.split(':')[1].substring(0, 4)}</span>
-                  </div>
-                ))}
               </div>
             </div>
-          )}
-
-          {/* Bottom Toolbar */}
-          <div className="ws-bottom-bar">
-            <div className="ws-zoom-display">
-              <FiSearch size={12} />
-              100%
-            </div>
-            <div className="ws-bottom-divider" />
-            <button className="ws-bottom-btn" title="Undo">
-              <FiRotateCcw size={14} />
-            </button>
-            <button className="ws-bottom-btn" title="Redo">
-              <FiRotateCw size={14} />
-            </button>
-            <div className="ws-bottom-divider" />
-            <button 
-              className={`ws-bottom-btn${gridEnabled ? " active" : ""}`} 
-              title="Toggle Grid"
-              onClick={() => setGridEnabled(!gridEnabled)}
-            >
-              <FiSquare size={14} />
-            </button>
-            <button 
-              className="ws-bottom-btn" 
-              title="Toggle Fullscreen"
-              onClick={toggleFullScreen}
-            >
-              <FiMaximize size={14} />
-            </button>
-            <button className="ws-bottom-btn" title="History">
-              <FiClock size={14} />
-            </button>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Left Tool Panel */}
+            <div className="ws-tool-panel">
+              <span className="ws-tool-panel-label">Tools</span>
 
-        {/* Execution Panel (Right Sidebar) */}
-        {execOpen && (
-          <aside className="ws-exec-panel">
-            <div className="ws-exec-header">
-              <h2>Execution Panel</h2>
-              <button
-                className="ws-exec-more-btn"
-                aria-label="Panel options"
-              >
-                <FiMoreHorizontal size={14} />
-              </button>
+              {TOOLS.map(({ id, Icon, label }) => (
+                <button
+                  key={id}
+                  className={`ws-tool-btn${activeTool === id ? " active" : ""}`}
+                  onClick={() => handleToolSelect(id)}
+                  title={label}
+                  aria-label={label}
+                    disabled={isViewer}
+                >
+                  <Icon size={16} />
+                  <span>{label}</span>
+                </button>
+              ))}
+
+              <div className="ws-tool-divider" />
+
+              {TOOL_EXTRAS.map(({ id, Icon, label }) => (
+                <button
+                  key={id}
+                  className={`ws-tool-btn${id === "layers" && layersOpen ? " active" : ""}`}
+                  title={label}
+                  aria-label={label}
+                  onClick={() => {
+                    if (id === "layers") setLayersOpen(!layersOpen);
+                  }}
+                  disabled={isViewer}
+                >
+                  <Icon size={16} />
+                  <span>{label}</span>
+                </button>
+              ))}
             </div>
 
-            <div className="ws-exec-scroll">
-              {/* Activity Log Section */}
-              <div className="ws-section-toggle">
-                <h3>
-                  <FiActivity size={12} />
-                  Activity Log
-                </h3>
-                <button className="ws-section-add-btn" aria-label="Add entry">
-                  <FiPlus size={12} />
+            {/* Canvas Area */}
+            <div className="ws-canvas-area">
+              <CanvasView
+                workspaceId={workspaceId}
+                onMount={onCanvasMount}
+                gridMode={gridEnabled}
+                readOnly={isViewer}
+                currentUserId={currentUser?.id || null}
+                currentUserRole={workspaceRole}
+              />
+
+              {layersOpen && (
+                <div className="ws-layers-panel">
+                  <div className="ws-layers-header">
+                    <span>Layers</span>
+                    <button onClick={() => setLayersOpen(false)}><FiPlus style={{ transform: "rotate(45deg)" }} /></button>
+                  </div>
+                  <div className="ws-layers-list">
+                    {!editor && <div className="ws-layers-empty">Loading editor...</div>}
+                    {editor && editor.getCurrentPageShapes().length === 0 && (
+                      <div className="ws-layers-empty">No layers yet</div>
+                    )}
+                    {editor && [...editor.getCurrentPageShapes()]
+                      .sort((a, b) => (a.index < b.index ? 1 : -1))
+                      .map(shape => (
+                      <div 
+                        key={shape.id} 
+                        className="ws-layer-item"
+                        onClick={() => {
+                          editor.select(shape.id);
+                          editor.zoomToSelection();
+                        }}
+                      >
+                        <FiSquare size={12} />
+                        <span>{shape.type} - {shape.id.split(':')[1].substring(0, 4)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Toolbar */}
+              <div className="ws-bottom-bar">
+                <button className="ws-bottom-btn" title="Undo">
+                  <FiRotateCcw size={14} />
+                </button>
+                <button className="ws-bottom-btn" title="Redo">
+                  <FiRotateCw size={14} />
+                </button>
+                <div className="ws-bottom-divider" />
+                <button 
+                  className={`ws-bottom-btn${gridEnabled ? " active" : ""}`} 
+                  title="Toggle Grid"
+                  onClick={() => setGridEnabled(!gridEnabled)}
+                >
+                  <FiSquare size={14} />
+                </button>
+                <button 
+                  className="ws-bottom-btn" 
+                  title="Toggle Fullscreen"
+                  onClick={toggleFullScreen}
+                >
+                  <FiMaximize size={14} />
+                </button>
+                <button 
+                  className={`ws-bottom-btn${isDarkMode ? " active" : ""}`} 
+                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                >
+                  {isDarkMode ? <FiMoon size={14} /> : <FiSun size={14} />}
+                </button>
+                <button 
+                  className="ws-bottom-btn" 
+                  title="Zoom Out"
+                  onClick={() => editor?.zoomOut()}
+                >
+                  <FiZoomOut size={14} />
+                </button>
+                <button 
+                  className="ws-bottom-btn" 
+                  title="Zoom to Fit"
+                  onClick={() => {
+                    if (!editor) return;
+                    try {
+                      editor.zoomToFit({ animation: { duration: 500 } });
+                    } catch (e) {
+                      editor.resetZoom();
+                    }
+                  }}
+                >
+                  <FiCrosshair size={14} />
+                </button>
+                <button 
+                  className="ws-bottom-btn" 
+                  title="Zoom In"
+                  onClick={() => editor?.zoomIn()}
+                >
+                  <FiZoomIn size={14} />
                 </button>
               </div>
+            </div>
 
-              <ul className="ws-activity-list">
-                {MOCK_ACTIVITY.map((item) => (
-                  <li key={item.id} className="ws-activity-item">
-                    <div
-                      className="ws-activity-avatar"
-                      style={{ background: item.color }}
+            {/* Execution Panel (Right Sidebar) */}
+        {execOpen && (
+          <aside className="ws-exec-panel">
+            <div className="ws-exec-scroll">
+                  {/* Activity Log Section (Recent) */}
+                  <div className="ws-section-toggle" style={{ position: 'relative' }}>
+                    <h3>
+                      <FiActivity size={12} />
+                      Recent Activity
+                    </h3>
+                    <button 
+                      className="ws-section-add-btn" 
+                      aria-label="Filter events" 
+                      title="Filter events"
+                      onClick={() => setShowActivityFilter(!showActivityFilter)}
+                      style={{ 
+                        display: 'flex', alignItems: 'center', gap: '4px', 
+                        width: 'auto', height: 'auto',
+                        background: activityFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent', 
+                        padding: activityFilter !== 'all' ? '4px 8px' : '4px', 
+                        borderRadius: '4px' 
+                      }}
                     >
-                      {item.user[0]}
-                    </div>
-                    <div className="ws-activity-body">
-                      <p>
-                        <strong>{item.user}</strong> {item.action}
-                      </p>
-                      <div className="ws-activity-time">{item.time}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                      {activityFilter !== 'all' && (
+                        <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{activityFilter}</span>
+                      )}
+                      {activityFilter !== 'all' ? <FiFilter size={12} color="var(--color-primary)" /> : <FiMoreHorizontal size={12} />}
+                    </button>
+                    {showActivityFilter && (
+                      <div className="ws-dropdown-menu">
+                        {['all', 'mine', 'others'].map(filter => (
+                          <button 
+                            key={filter}
+                            className={`ws-dropdown-item ${activityFilter === filter ? 'active' : ''}`}
+                            onClick={() => { setActivityFilter(filter); setShowActivityFilter(false); }}
+                          >
+                            {filter}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-              {/* Task Board Section */}
-              <div className="ws-section-toggle">
+                  <ul className="ws-activity-list">
+                    {events.filter(e => {
+                      if (activityFilter === 'all') return true;
+                      if (activityFilter === 'mine') return e.userId === currentUser?.id;
+                      if (activityFilter === 'others') return e.userId !== currentUser?.id;
+                      return true;
+                    }).slice(0, 3).map((event) => {
+                      let action = "modified the canvas";
+                      if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
+                        const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
+                        if (payloadStr.includes('added')) action = "added elements";
+                        else if (payloadStr.includes('removed')) action = "removed elements";
+                      }
+                      return (
+                        <li key={event.id} className="ws-activity-item">
+                          <div
+                            className="ws-activity-avatar"
+                            style={{ background: "#A259FF" }}
+                          >
+                            {getUsername(event.userId).charAt(0).toUpperCase()}
+                          </div>
+                          <div className="ws-activity-body">
+                            <p>
+                              <strong>{getUsername(event.userId)}</strong> {action}
+                            </p>
+                            <div className="ws-activity-time">{new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                    {events.length === 0 && (
+                      <li className="ws-activity-item">
+                        <div className="ws-activity-body">
+                          <p style={{ color: 'var(--color-text-subtle)' }}>No activity yet.</p>
+                        </div>
+                      </li>
+                    )}
+                  </ul>
+
+                  {/* Task Board Section */}
+              <div className="ws-section-toggle" style={{ position: 'relative' }}>
                 <h3>
                   <FiFileText size={12} />
                   Task Board
                 </h3>
-                <button className="ws-section-add-btn" aria-label="Sort tasks">
-                  <FiMoreHorizontal size={12} />
+                <button 
+                  className="ws-section-add-btn" 
+                  aria-label="Filter tasks"
+                  onClick={() => setShowTaskFilter(!showTaskFilter)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '4px', 
+                    width: 'auto', height: 'auto',
+                    background: taskFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent', 
+                    padding: taskFilter !== 'all' ? '4px 8px' : '4px', 
+                    borderRadius: '4px' 
+                  }}
+                >
+                  {taskFilter !== 'all' && (
+                    <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{taskFilter}</span>
+                  )}
+                  {taskFilter !== 'all' ? <FiFilter size={12} color="var(--color-primary)" /> : <FiMoreHorizontal size={12} />}
                 </button>
+                {showTaskFilter && (
+                  <div className="ws-dropdown-menu">
+                    {['all', 'todo', 'doing', 'done'].map(filter => (
+                      <button 
+                        key={filter}
+                        className={`ws-dropdown-item ${taskFilter === filter ? 'active' : ''}`}
+                        onClick={() => { setTaskFilter(filter); setShowTaskFilter(false); }}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="ws-task-section">
-                {tasks.length === 0 && (
+              <div className="ws-task-section" style={{ paddingTop: '16px' }}>
+                {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).length === 0 && (
                   <div
                     style={{
                       textAlign: "center",
@@ -583,31 +790,77 @@ export function WorkspacePage() {
                   </div>
                 )}
 
-                {tasks.map((task) => (
-                  <div key={task.id} className="ws-task-card">
+                {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).map((task) => (
+                  <div 
+                    key={task.id} 
+                    className="ws-task-card"
+                    onClick={() => {
+                      if (task.source_node_id) {
+                        if (activeTab !== 'workspace') {
+                          setActiveTab('workspace');
+                          setTimeout(() => jumpToNode(task.source_node_id), 100);
+                        } else {
+                          jumpToNode(task.source_node_id);
+                        }
+                      }
+                    }}
+                    style={{ 
+                      cursor: task.source_node_id ? 'pointer' : 'default',
+                      transition: 'transform 0.2s, border-color 0.2s'
+                    }}
+                  >
                     <div className="ws-task-card-header">
                       <div className="ws-task-header-left">
-                        <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
-                          {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
-                        </span>
+                        {task.priority && (
+                          <span className={`ws-task-priority-badge ${task.priority}`}>
+                            {task.priority}
+                          </span>
+                        )}
+                        {task.authorName ? (
+                          <span className="ws-task-added-by">{task.authorName}</span>
+                        ) : null}
                       </div>
-                      <span className="ws-task-added-by">
-                        {task.authorName || "Direct Entry"}
+                      <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
+                        {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
                       </span>
                     </div>
                     <p className="ws-task-title">{task.title}</p>
                     <div className="ws-task-footer">
-                      <span className={`ws-task-status ${task.status}`}>
+                      <span 
+                        className={`ws-task-status ${task.status}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const states = ['todo', 'doing', 'done'];
+                          const current = task.status === 'in_progress' ? 'doing' : task.status;
+                          const idx = states.indexOf(current);
+                          const next = states[(idx + 1) % states.length];
+                          handleUpdateTask(task.id, { status: next });
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        title="Click to cycle status"
+                      >
                         {task.status === 'in_progress' ? 'Doing' : task.status}
                       </span>
                       <div className="ws-task-footer-actions">
                         {task.source_node_id && (
-                          <button className="ws-task-link-btn" title="View on canvas">
+                          <button 
+                            className="ws-task-link-btn" 
+                            title="View on canvas"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (activeTab !== 'workspace') {
+                                setActiveTab('workspace');
+                                setTimeout(() => jumpToNode(task.source_node_id), 100);
+                              } else {
+                                jumpToNode(task.source_node_id);
+                              }
+                            }}
+                          >
                             <FiLink size={10} />
                           </button>
                         )}
-                        <div className="ws-task-user-pip">
-                          {(task.authorName || "U")[0]}
+                        <div className="ws-task-user-pip" title={getUsername(task.assignee_id)}>
+                          {getUsername(task.assignee_id).charAt(0).toUpperCase()}
                         </div>
                       </div>
                     </div>
@@ -655,6 +908,24 @@ export function WorkspacePage() {
                         </div>
                       </div>
                     </div>
+
+                    <div className="ws-form-row" style={{ marginTop: '16px' }}>
+                      <div className="ws-field-group">
+                        <label>Priority</label>
+                        <div className="ws-status-toggle priority">
+                          {['low', 'medium', 'high', 'urgent'].map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              className={`${newTaskPriority === p ? 'active' : ''} ${p}`}
+                              onClick={() => setNewTaskPriority(p)}
+                            >
+                              {p.charAt(0).toUpperCase() + p.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="ws-form-footer">
@@ -685,6 +956,8 @@ export function WorkspacePage() {
               </button>
             </div>
           </aside>
+        )}
+      </>
         )}
       </div>
       <MembersSidebar
