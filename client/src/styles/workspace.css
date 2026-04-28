@@ -1428,6 +1428,22 @@
   }
 }
 
+.ws-task-priority-badge {
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-right: 6px;
+  letter-spacing: 0.02em;
+}
+
+.ws-task-priority-badge.urgent { background: rgba(242, 72, 34, 0.2); color: #ff6b6b; border: 1px solid rgba(242, 72, 34, 0.3); }
+.ws-task-priority-badge.high { background: rgba(242, 121, 34, 0.15); color: #ffa06b; border: 1px solid rgba(242, 121, 34, 0.2); }
+.ws-task-priority-badge.medium { background: rgba(13, 153, 255, 0.1); color: var(--color-primary); border: 1px solid rgba(13, 153, 255, 0.2); }
+.ws-task-priority-badge.low { background: rgba(255, 255, 255, 0.05); color: var(--color-text-muted); border: 1px solid rgba(255, 255, 255, 0.1); }
+
+
 /* ── Task Board Styles ──────────────────────────────── */
 .ws-task-card {
   background: var(--color-bg-raised);
@@ -1551,3 +1567,8 @@
   place-items: center;
   text-transform: uppercase;
 }
+
+.ws-status-toggle.priority button.active.urgent { background: #ff6b6b !important; color: white !important; border-color: #ff6b6b !important; }
+.ws-status-toggle.priority button.active.high { background: #ffa06b !important; color: white !important; border-color: #ffa06b !important; }
+.ws-status-toggle.priority button.active.medium { background: var(--color-primary) !important; color: white !important; border-color: var(--color-primary) !important; }
+.ws-status-toggle.priority button.active.low { background: #666 !important; color: white !important; border-color: #666 !important; }

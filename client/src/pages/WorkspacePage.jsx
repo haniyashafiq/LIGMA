@@ -98,6 +98,7 @@ export function WorkspacePage() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskStatus, setNewTaskStatus] = useState("todo");
+  const [newTaskPriority, setNewTaskPriority] = useState("medium");
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
   const [events, setEvents] = useState([]);
@@ -234,16 +235,30 @@ export function WorkspacePage() {
         body: JSON.stringify({
           title: newTaskTitle.trim(),
           status: newTaskStatus,
+          priority: newTaskPriority,
         }),
       });
       setNewTaskTitle("");
       setNewTaskStatus("todo");
+      setNewTaskPriority("medium");
       setShowAddTask(false);
       loadTasks();
     } catch (err) {
       console.error("Failed to add task:", err);
     } finally {
       setIsSubmittingTask(false);
+    }
+  };
+
+  const handleUpdateTask = async (taskId, data) => {
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to update task:", err);
     }
   };
 
@@ -716,6 +731,11 @@ export function WorkspacePage() {
                   >
                     <div className="ws-task-card-header">
                       <div className="ws-task-header-left">
+                        {task.priority && (
+                          <span className={`ws-task-priority-badge ${task.priority}`}>
+                            {task.priority}
+                          </span>
+                        )}
                         {task.authorName ? (
                           <span className="ws-task-added-by">{task.authorName}</span>
                         ) : null}
@@ -726,7 +746,19 @@ export function WorkspacePage() {
                     </div>
                     <p className="ws-task-title">{task.title}</p>
                     <div className="ws-task-footer">
-                      <span className={`ws-task-status ${task.status}`}>
+                      <span 
+                        className={`ws-task-status ${task.status}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const states = ['todo', 'doing', 'done'];
+                          const current = task.status === 'in_progress' ? 'doing' : task.status;
+                          const idx = states.indexOf(current);
+                          const next = states[(idx + 1) % states.length];
+                          handleUpdateTask(task.id, { status: next });
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        title="Click to cycle status"
+                      >
                         {task.status === 'in_progress' ? 'Doing' : task.status}
                       </span>
                       <div className="ws-task-footer-actions">
@@ -791,6 +823,24 @@ export function WorkspacePage() {
                               onClick={() => setNewTaskStatus(s)}
                             >
                               {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="ws-form-row" style={{ marginTop: '16px' }}>
+                      <div className="ws-field-group">
+                        <label>Priority</label>
+                        <div className="ws-status-toggle priority">
+                          {['low', 'medium', 'high', 'urgent'].map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              className={`${newTaskPriority === p ? 'active' : ''} ${p}`}
+                              onClick={() => setNewTaskPriority(p)}
+                            >
+                              {p.charAt(0).toUpperCase() + p.slice(1)}
                             </button>
                           ))}
                         </div>
