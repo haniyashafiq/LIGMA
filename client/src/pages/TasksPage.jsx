@@ -14,7 +14,10 @@ export function TasksPage({ user }) {
 
   const loadTasks = useCallback(() => {
     apiFetch("/api/workspaces/all/tasks")
-      .then((res) => setTasks(res.tasks || []))
+      .then((res) => {
+        console.log("DEBUG: Global Tasks Response:", res);
+        setTasks(res.tasks || []);
+      })
       .catch((err) => console.error("Failed to load global tasks:", err))
       .finally(() => setLoading(false));
   }, []);
