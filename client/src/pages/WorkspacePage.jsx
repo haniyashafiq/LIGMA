@@ -357,177 +357,181 @@ export function WorkspacePage() {
 
       {/* ── Workspace Body ──────────────────────────── */}
       <div className="workspace-body">
-        {/* Left Tool Panel */}
-        <div className="ws-tool-panel">
-          <span className="ws-tool-panel-label">Tools</span>
-
-          {TOOLS.map(({ id, Icon, label }) => (
-            <button
-              key={id}
-              className={`ws-tool-btn${activeTool === id ? " active" : ""}`}
-              onClick={() => handleToolSelect(id)}
-              title={label}
-              aria-label={label}
-                disabled={isViewer}
-            >
-              <Icon size={16} />
-              <span>{label}</span>
-            </button>
-          ))}
-
-          <div className="ws-tool-divider" />
-
-          {TOOL_EXTRAS.map(({ id, Icon, label }) => (
-            <button
-              key={id}
-              className={`ws-tool-btn${id === "layers" && layersOpen ? " active" : ""}`}
-              title={label}
-              aria-label={label}
-              onClick={() => {
-                if (id === "layers") setLayersOpen(!layersOpen);
-              }}
-              disabled={isViewer}
-            >
-              <Icon size={16} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Canvas Area */}
-        <div className="ws-canvas-area">
-          <CanvasView
-            workspaceId={workspaceId}
-            onMount={onCanvasMount}
-            gridMode={gridEnabled}
-            readOnly={isViewer}
-            currentUserId={currentUser?.id || null}
-            currentUserRole={workspaceRole}
-          />
-
-          {layersOpen && (
-            <div className="ws-layers-panel">
-              <div className="ws-layers-header">
-                <span>Layers</span>
-                <button onClick={() => setLayersOpen(false)}><FiPlus style={{ transform: "rotate(45deg)" }} /></button>
-              </div>
-              <div className="ws-layers-list">
-                {!editor && <div className="ws-layers-empty">Loading editor...</div>}
-                {editor && editor.getCurrentPageShapes().length === 0 && (
-                  <div className="ws-layers-empty">No layers yet</div>
+        {activeTab === 'timeline' ? (
+          <div className="ws-full-timeline" style={{ flex: 1, padding: 'var(--space-8)', overflowY: 'auto', background: 'var(--color-bg-base)' }}>
+            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+              <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Workspace Timeline</h2>
+              <p style={{ color: 'var(--color-text-subtle)', marginBottom: '32px' }}>A complete, append-only history of all events in this workspace.</p>
+              
+              <div className="ws-timeline-track" style={{ position: 'relative', borderLeft: '2px solid var(--color-border)', marginLeft: '14px', paddingLeft: '32px' }}>
+                {events.map((event) => {
+                  let action = "modified the canvas";
+                  let details = "";
+                  if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
+                    const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
+                    if (payloadStr.includes('camera') || payloadStr.includes('pointer') || payloadStr.includes('presence')) {
+                      action = "moved around the canvas";
+                    } else if (payloadStr.includes('added')) {
+                      action = "added elements";
+                    } else if (payloadStr.includes('removed')) {
+                      action = "removed elements";
+                    }
+                  }
+                  
+                  return (
+                    <div key={event.id} className="ws-timeline-item" style={{ position: 'relative', marginBottom: '32px' }}>
+                      <div style={{ position: 'absolute', left: '-39px', top: '4px', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid var(--color-bg-base)' }} />
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-subtle)', marginBottom: '4px' }}>
+                        Seq: {event.sequenceNum} • {new Date(event.createdAt).toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '15px', color: 'var(--color-text)' }}>
+                        <strong>User {(event.userId || "System").substring(0, 4)}</strong> {action}
+                      </div>
+                    </div>
+                  );
+                })}
+                {events.length === 0 && (
+                  <div style={{ color: 'var(--color-text-subtle)' }}>No events recorded.</div>
                 )}
-                {editor && [...editor.getCurrentPageShapes()]
-                  .sort((a, b) => (a.index < b.index ? 1 : -1))
-                  .map(shape => (
-                  <div 
-                    key={shape.id} 
-                    className="ws-layer-item"
-                    onClick={() => {
-                      editor.select(shape.id);
-                      editor.zoomToSelection();
-                    }}
-                  >
-                    <FiSquare size={12} />
-                    <span>{shape.type} - {shape.id.split(':')[1].substring(0, 4)}</span>
-                  </div>
-                ))}
               </div>
             </div>
-          )}
-
-          {/* Bottom Toolbar */}
-          <div className="ws-bottom-bar">
-            <div className="ws-zoom-display">
-              <FiSearch size={12} />
-              100%
-            </div>
-            <div className="ws-bottom-divider" />
-            <button className="ws-bottom-btn" title="Undo">
-              <FiRotateCcw size={14} />
-            </button>
-            <button className="ws-bottom-btn" title="Redo">
-              <FiRotateCw size={14} />
-            </button>
-            <div className="ws-bottom-divider" />
-            <button 
-              className={`ws-bottom-btn${gridEnabled ? " active" : ""}`} 
-              title="Toggle Grid"
-              onClick={() => setGridEnabled(!gridEnabled)}
-            >
-              <FiSquare size={14} />
-            </button>
-            <button 
-              className="ws-bottom-btn" 
-              title="Toggle Fullscreen"
-              onClick={toggleFullScreen}
-            >
-              <FiMaximize size={14} />
-            </button>
-            <button className="ws-bottom-btn" title="History">
-              <FiClock size={14} />
-            </button>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Left Tool Panel */}
+            <div className="ws-tool-panel">
+              <span className="ws-tool-panel-label">Tools</span>
 
-        {/* Execution Panel (Right Sidebar) */}
+              {TOOLS.map(({ id, Icon, label }) => (
+                <button
+                  key={id}
+                  className={`ws-tool-btn${activeTool === id ? " active" : ""}`}
+                  onClick={() => handleToolSelect(id)}
+                  title={label}
+                  aria-label={label}
+                    disabled={isViewer}
+                >
+                  <Icon size={16} />
+                  <span>{label}</span>
+                </button>
+              ))}
+
+              <div className="ws-tool-divider" />
+
+              {TOOL_EXTRAS.map(({ id, Icon, label }) => (
+                <button
+                  key={id}
+                  className={`ws-tool-btn${id === "layers" && layersOpen ? " active" : ""}`}
+                  title={label}
+                  aria-label={label}
+                  onClick={() => {
+                    if (id === "layers") setLayersOpen(!layersOpen);
+                  }}
+                  disabled={isViewer}
+                >
+                  <Icon size={16} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Canvas Area */}
+            <div className="ws-canvas-area">
+              <CanvasView
+                workspaceId={workspaceId}
+                onMount={onCanvasMount}
+                gridMode={gridEnabled}
+                readOnly={isViewer}
+                currentUserId={currentUser?.id || null}
+                currentUserRole={workspaceRole}
+              />
+
+              {layersOpen && (
+                <div className="ws-layers-panel">
+                  <div className="ws-layers-header">
+                    <span>Layers</span>
+                    <button onClick={() => setLayersOpen(false)}><FiPlus style={{ transform: "rotate(45deg)" }} /></button>
+                  </div>
+                  <div className="ws-layers-list">
+                    {!editor && <div className="ws-layers-empty">Loading editor...</div>}
+                    {editor && editor.getCurrentPageShapes().length === 0 && (
+                      <div className="ws-layers-empty">No layers yet</div>
+                    )}
+                    {editor && [...editor.getCurrentPageShapes()]
+                      .sort((a, b) => (a.index < b.index ? 1 : -1))
+                      .map(shape => (
+                      <div 
+                        key={shape.id} 
+                        className="ws-layer-item"
+                        onClick={() => {
+                          editor.select(shape.id);
+                          editor.zoomToSelection();
+                        }}
+                      >
+                        <FiSquare size={12} />
+                        <span>{shape.type} - {shape.id.split(':')[1].substring(0, 4)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Toolbar */}
+              <div className="ws-bottom-bar">
+                <div className="ws-zoom-display">
+                  <FiSearch size={12} />
+                  100%
+                </div>
+                <div className="ws-bottom-divider" />
+                <button className="ws-bottom-btn" title="Undo">
+                  <FiRotateCcw size={14} />
+                </button>
+                <button className="ws-bottom-btn" title="Redo">
+                  <FiRotateCw size={14} />
+                </button>
+                <div className="ws-bottom-divider" />
+                <button 
+                  className={`ws-bottom-btn${gridEnabled ? " active" : ""}`} 
+                  title="Toggle Grid"
+                  onClick={() => setGridEnabled(!gridEnabled)}
+                >
+                  <FiSquare size={14} />
+                </button>
+                <button 
+                  className="ws-bottom-btn" 
+                  title="Toggle Fullscreen"
+                  onClick={toggleFullScreen}
+                >
+                  <FiMaximize size={14} />
+                </button>
+                <button className="ws-bottom-btn" title="History">
+                  <FiClock size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Execution Panel (Right Sidebar) */}
         {execOpen && (
           <aside className="ws-exec-panel">
-            <div className="ws-exec-header" style={{ paddingBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <h2>Execution Panel</h2>
-                <button
-                  className="ws-exec-more-btn"
-                  aria-label="Panel options"
-                >
-                  <FiMoreHorizontal size={14} />
-                </button>
-              </div>
-              <div className="ws-exec-tabs" style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--color-border)' }}>
-                <button 
-                  style={{ 
-                    background: 'none', border: 'none', padding: '8px 0', cursor: 'pointer',
-                    color: execTab === 'dashboard' ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    borderBottom: execTab === 'dashboard' ? '2px solid var(--color-primary)' : '2px solid transparent',
-                    fontWeight: execTab === 'dashboard' ? 600 : 400,
-                    fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em'
-                  }}
-                  onClick={() => setExecTab("dashboard")}
-                >
-                  Dashboard
-                </button>
-                <button 
-                  style={{ 
-                    background: 'none', border: 'none', padding: '8px 0', cursor: 'pointer',
-                    color: execTab === 'timeline' ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    borderBottom: execTab === 'timeline' ? '2px solid var(--color-primary)' : '2px solid transparent',
-                    fontWeight: execTab === 'timeline' ? 600 : 400,
-                    fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em'
-                  }}
-                  onClick={() => setExecTab("timeline")}
-                >
-                  Timeline
-                </button>
-              </div>
-            </div>
-
             <div className="ws-exec-scroll">
-              {execTab === "dashboard" ? (
-                <>
                   {/* Activity Log Section (Recent) */}
                   <div className="ws-section-toggle">
                     <h3>
                       <FiActivity size={12} />
                       Recent Activity
                     </h3>
+                    <button className="ws-section-add-btn" aria-label="Filter events" title="Filter events">
+                      <FiMoreHorizontal size={12} />
+                    </button>
                   </div>
 
                   <ul className="ws-activity-list">
                     {events.slice(0, 3).map((event) => {
                       let action = "modified the canvas";
-                      if (event.eventType === "tldraw_update" && event.payload?.updates?.[0]) {
-                        const u = event.payload.updates[0];
-                        if (u.added && Object.keys(u.added).length > 0) action = "added elements";
-                        else if (u.removed && Object.keys(u.removed).length > 0) action = "removed elements";
+                      if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
+                        const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
+                        if (payloadStr.includes('added')) action = "added elements";
+                        else if (payloadStr.includes('removed')) action = "removed elements";
                       }
                       return (
                         <li key={event.id} className="ws-activity-item">
@@ -539,7 +543,7 @@ export function WorkspacePage() {
                           </div>
                           <div className="ws-activity-body">
                             <p>
-                              <strong>User</strong> {action}
+                              <strong>User {(event.userId || "").substring(0,4)}</strong> {action}
                             </p>
                             <div className="ws-activity-time">{new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                           </div>
@@ -566,7 +570,7 @@ export function WorkspacePage() {
                 </button>
               </div>
 
-              <div className="ws-task-section">
+              <div className="ws-task-section" style={{ paddingTop: '16px' }}>
                 {tasks.length === 0 && (
                   <div
                     style={{
@@ -585,12 +589,12 @@ export function WorkspacePage() {
                   <div key={task.id} className="ws-task-card">
                     <div className="ws-task-card-header">
                       <div className="ws-task-header-left">
-                        <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
-                          {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
-                        </span>
+                        {task.authorName ? (
+                          <span className="ws-task-added-by">{task.authorName}</span>
+                        ) : null}
                       </div>
-                      <span className="ws-task-added-by">
-                        {task.authorName || "Direct Entry"}
+                      <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
+                        {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
                       </span>
                     </div>
                     <p className="ws-task-title">{task.title}</p>
@@ -612,54 +616,6 @@ export function WorkspacePage() {
                   </div>
                 ))}
               </div>
-            </>
-            ) : (
-              /* Timeline View */
-              <div className="ws-timeline-view" style={{ padding: 'var(--space-4)' }}>
-                <div className="ws-timeline-header" style={{ marginBottom: 'var(--space-4)' }}>
-                  <h3 style={{ fontSize: '12px', color: 'var(--color-text)', margin: 0 }}>Full Event Log</h3>
-                  <p style={{ fontSize: '10px', color: 'var(--color-text-subtle)', margin: '4px 0 0 0' }}>Append-only history of all canvas mutations.</p>
-                </div>
-                
-                <div className="ws-timeline-track" style={{ position: 'relative', borderLeft: '1px solid var(--color-border)', marginLeft: '14px', paddingLeft: '20px' }}>
-                  {events.map((event) => {
-                    let action = "modified the canvas";
-                    let details = "";
-                    if (event.eventType === "tldraw_update" && event.payload?.updates?.[0]) {
-                      const u = event.payload.updates[0];
-                      if (u.added && Object.keys(u.added).length > 0) {
-                        action = "added elements";
-                        details = Object.keys(u.added).join(', ');
-                      }
-                      else if (u.removed && Object.keys(u.removed).length > 0) {
-                        action = "removed elements";
-                        details = Object.keys(u.removed).join(', ');
-                      }
-                    }
-
-                    return (
-                      <div key={event.id} className="ws-timeline-item" style={{ position: 'relative', marginBottom: '24px' }}>
-                        <div style={{ position: 'absolute', left: '-25px', top: '2px', width: '9px', height: '9px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid var(--color-bg-raised)' }} />
-                        <div style={{ fontSize: '10px', color: 'var(--color-text-subtle)', marginBottom: '2px' }}>
-                          Seq: {event.sequenceNum} • {new Date(event.createdAt).toLocaleString()}
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text)' }}>
-                          <strong>User</strong> {action}
-                        </div>
-                        {details && (
-                          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px', background: 'var(--color-bg-deep)', padding: '4px 8px', borderRadius: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {details}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {events.length === 0 && (
-                    <div style={{ color: 'var(--color-text-subtle)', fontSize: '11px' }}>No events recorded.</div>
-                  )}
-                </div>
-              </div>
-            )}
             </div>
 
             {/* Add Task Overlay */}
@@ -731,6 +687,8 @@ export function WorkspacePage() {
               </button>
             </div>
           </aside>
+        )}
+      </>
         )}
       </div>
       <MembersSidebar
