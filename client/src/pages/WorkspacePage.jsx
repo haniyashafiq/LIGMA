@@ -457,35 +457,27 @@ export function WorkspacePage() {
                 {tasks.map((task) => (
                   <div key={task.id} className="ws-task-card">
                     <div className="ws-task-card-header">
-                      <span
-                        className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}
-                      >
-                        {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
-                      </span>
+                      <div className="ws-task-header-left">
+                        <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
+                          {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
+                        </span>
+                      </div>
                       <span className="ws-task-added-by">
-                        {task.authorName ? `Added by ${task.authorName}` : "Direct Entry"}
+                        {task.authorName || "Direct Entry"}
                       </span>
                     </div>
                     <p className="ws-task-title">{task.title}</p>
                     <div className="ws-task-footer">
-                      <span
-                        className={`ws-task-status ${task.status}`}
-                      >
+                      <span className={`ws-task-status ${task.status}`}>
                         {task.status === 'in_progress' ? 'Doing' : task.status}
                       </span>
                       <div className="ws-task-footer-actions">
                         {task.source_node_id && (
-                          <button
-                            className="ws-task-link-btn"
-                            title="View on canvas"
-                          >
-                            <FiLink size={12} />
+                          <button className="ws-task-link-btn" title="View on canvas">
+                            <FiLink size={10} />
                           </button>
                         )}
-                        <div
-                          className="ws-task-user-pip"
-                          style={{ background: "#0D99FF" }}
-                        >
+                        <div className="ws-task-user-pip">
                           {(task.authorName || "U")[0]}
                         </div>
                       </div>
@@ -499,46 +491,50 @@ export function WorkspacePage() {
             {showAddTask && (
               <div className="ws-add-task-overlay">
                 <form className="ws-add-task-form" onSubmit={handleAddTask}>
-                  <h3>Create New Task</h3>
-                  <div className="ws-form-field">
-                    <label>Description</label>
-                    <textarea
-                      autoFocus
-                      placeholder="What needs to be done?"
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      required
-                    />
+                  <div className="ws-modal-header">
+                    <h3>New Task</h3>
+                    <button type="button" className="ws-close-btn" onClick={() => setShowAddTask(false)}>
+                      <FiPlus size={18} style={{ transform: 'rotate(45deg)' }} />
+                    </button>
                   </div>
-                  <div className="ws-form-field">
-                    <label>Status</label>
-                    <div className="ws-status-toggle">
-                      {['todo', 'doing', 'done'].map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          className={newTaskStatus === s ? 'active' : ''}
-                          onClick={() => setNewTaskStatus(s)}
-                        >
-                          {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
-                        </button>
-                      ))}
+                  
+                  <div className="ws-form-content">
+                    <div className="ws-form-field">
+                      <textarea
+                        autoFocus
+                        placeholder="Task description..."
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="ws-form-row">
+                      <div className="ws-field-group">
+                        <label>Status</label>
+                        <div className="ws-status-toggle">
+                          {['todo', 'doing', 'done'].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              className={newTaskStatus === s ? 'active' : ''}
+                              onClick={() => setNewTaskStatus(s)}
+                            >
+                              {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="ws-form-actions">
-                    <button
-                      type="button"
-                      className="ws-cancel-btn"
-                      onClick={() => setShowAddTask(false)}
-                    >
-                      Cancel
-                    </button>
+
+                  <div className="ws-form-footer">
                     <button
                       type="submit"
-                      className="ws-submit-btn"
+                      className="ws-submit-btn creative-glow"
                       disabled={isSubmittingTask || !newTaskTitle.trim()}
                     >
-                      {isSubmittingTask ? "Creating..." : "Add Task"}
+                      {isSubmittingTask ? "Creating..." : "Create Task"}
                     </button>
                   </div>
                 </form>
@@ -551,10 +547,10 @@ export function WorkspacePage() {
                 className="ws-add-task-btn"
                 onClick={() => setShowAddTask(true)}
               >
-                <FiPlus size={13} />
+                <FiPlus size={14} />
                 Add Task
               </button>
-              <button className="ws-sprint-btn">
+              <button className="ws-sprint-btn creative-glow">
                 <FiZap size={13} />
                 Execute Sprint
               </button>
