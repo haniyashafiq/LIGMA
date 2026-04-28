@@ -311,8 +311,7 @@ export default function CanvasView({
   const handleMount = (editor) => {
     if (onMount) onMount(editor);
 
-    // Apply Figma Dark preferences
-    editor.user.updateUserPreferences({ colorScheme: 'dark' });
+    // theme is now controlled by WorkspacePage toggle via editor instance
     
     // Ensure grid is visible (dotted grid pattern)
     editor.updateInstanceState({ isGridMode: true });

@@ -26,6 +26,8 @@ import {
   FiZap,
   FiFilter,
   FiZoomOut,
+  FiMoon,
+  FiSun,
   FiShare2,
   FiMaximize,
   FiCrosshair,
@@ -94,6 +96,7 @@ export function WorkspacePage() {
   const [layersOpen, setLayersOpen] = useState(false);
   const [gridEnabled, setGridEnabled] = useState(true);
   const [layersVersion, setLayersVersion] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -288,6 +291,12 @@ export function WorkspacePage() {
       console.error("Jump to node failed:", e);
     }
   }, [editor]);
+
+  useEffect(() => {
+    if (editor) {
+      editor.user.updateUserPreferences({ colorScheme: isDarkMode ? 'dark' : 'light' });
+    }
+  }, [editor, isDarkMode]);
 
   const connectionDot =
     connectionStatus === "online"
@@ -543,6 +552,13 @@ export function WorkspacePage() {
                   onClick={toggleFullScreen}
                 >
                   <FiMaximize size={14} />
+                </button>
+                <button 
+                  className={`ws-bottom-btn${isDarkMode ? " active" : ""}`} 
+                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                >
+                  {isDarkMode ? <FiMoon size={14} /> : <FiSun size={14} />}
                 </button>
                 <button 
                   className="ws-bottom-btn" 
