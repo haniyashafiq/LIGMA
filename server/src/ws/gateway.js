@@ -3,7 +3,7 @@ const config = require("../config");
 const { pool } = require("../db/pool");
 const { authenticateSocket } = require("../middleware/auth");
 const { getUserWorkspaceRole } = require("../middleware/rbac");
-const { createTldrawSyncManager } = require("./tldraw-sync");
+const { createCanvasSyncManager } = require("./canvas-sync");
 
 const connections = new Map();
 
@@ -38,7 +38,7 @@ function attachGateway(server) {
       credentials: true,
     },
   });
-  const tldrawSyncManager = createTldrawSyncManager(io);
+  const canvasSyncManager = createCanvasSyncManager(io);
 
   io.use(authenticateSocket);
 
@@ -93,9 +93,9 @@ function attachGateway(server) {
     const workspaceId = socket.workspaceId;
     const room = `room:${workspaceId}`;
 
-    // Attach the tldraw sync room immediately so the client's initial connect
-    // message cannot arrive before the room listener is ready.
-    await tldrawSyncManager.handleWorkspaceJoin(socket);
+    // Attach the canvas sync handlers before presence so early client messages
+    // cannot arrive before the room listener is ready.
+    await canvasSyncManager.handleWorkspaceJoin(socket);
 
     const profile = await getUserPresenceProfile(socket.user.id).catch(
       () => null,
@@ -131,7 +131,7 @@ function attachGateway(server) {
         user: disconnectedPresence || presence,
       });
 
-      await tldrawSyncManager.cleanupWorkspaceIfUnused(workspaceId);
+      await canvasSyncManager.cleanupWorkspaceIfUnused(workspaceId);
     });
   });
 

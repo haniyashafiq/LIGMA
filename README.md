@@ -2,70 +2,57 @@
 
 Let's Integrate Groups, Manage Anything.
 
-LIGMA is a real-time collaborative workspace project that connects ideation on an infinite canvas with team execution workflows.  
-This repository currently includes the monorepo foundation, authentication, workspace management, and real-time event sync infrastructure.
+LIGMA is a real-time collaborative workspace that connects ideation on an infinite canvas with execution on a task board. The canvas is implemented with React Konva for rendering, Yjs for CRDT convergence, Socket.IO for authenticated realtime transport, PostgreSQL for event sourcing, and server-side RBAC for every mutation.
 
-## What Collaborators Should Know First
+## Architecture
 
-- **Repo style:** npm workspaces monorepo (`server` + `client`)
-- **Backend:** Node.js + Express + Socket.IO + PostgreSQL + Yjs
-- **Frontend:** Vite + vanilla JS + Socket.IO client + Yjs
-- **Auth model:** JWT access token + httpOnly refresh cookie
-- **Data model approach:** Event sourcing for canvas events
-- **Current UI state:** Auth flow and a basic workspace shell are implemented; full canvas/task board UI is planned
+```mermaid
+flowchart LR
+  clientCanvas["React Konva Canvas"] -->|"semantic op"| socketGateway["Socket.IO Gateway"]
+  socketGateway --> rbacGuard["Server RBAC + Node ACL"]
+  rbacGuard --> eventLog["canvas_events Append Only Log"]
+  eventLog --> ydoc["Server Y.Doc Projector"]
+  ydoc -->|"Yjs delta + sequence"| clients["Connected Clients"]
+  eventLog --> extractor["Intent Classifier"]
+  extractor --> taskBoard["Task Board"]
+  clients -->|"lastSequenceNum"| recovery["Missed Event Replay"]
+  recovery --> clients
+```
 
-## Current Implementation Snapshot
+The important design choice is that clients do not submit trusted raw document state. They submit semantic operations such as `node:create`, `node:update`, `node:delete`, `node:lock`, and `node:permission:update`. The server validates workspace role and node-level ACL, appends an immutable event, applies it to the server-owned Yjs document, then broadcasts only the resulting delta.
 
-This reflects the code in the repository today:
+## Constraint Strategy
 
-### Implemented
-
-- Server bootstrapping with health endpoint (`GET /api/health`)
-- PostgreSQL connection and migration system
-- Auth routes (`register`, `login`, `refresh`, `logout`, `me`)
-- Workspace routes (create/list/get/invite/update roles)
-- RBAC middleware for role-based workspace access
-- Socket gateway + handlers + Yjs sync modules
-- Client auth UI and API client wrapper
-- Client socket and Yjs provider modules
-
-### Planned / In Progress
-
-- Full infinite canvas experience (fabric.js integration)
-- Task extraction and Kanban board
-- Time-travel UI
-- Full role-aware UI controls and deployment polish
-
-For detailed scope and sequencing, see `implementation_plan_ligma_tasks.md`.
+- **Conflict resolution:** Yjs is the CRDT layer. All accepted operations are projected into a server-owned Y.Doc and clients converge by applying Yjs deltas.
+- **Event sourcing:** `canvas_events` is the append-only source of truth. Events carry semantic payloads, node ids, sequence numbers, and optional binary Yjs updates.
+- **Delta-only realtime:** Socket.IO broadcasts `canvas:delta` updates, not full canvas state, during normal collaboration.
+- **Recovery:** clients reconnect with `lastSequenceNum`; the server replays only missed event deltas. Fresh clients receive a Yjs snapshot update.
+- **Server-side RBAC:** viewers cannot mutate, contributors can create and edit their own unlocked nodes, and leads can lock/unlock nodes or change node permissions.
+- **Intent extraction:** a local zero-paid classifier maps text nodes to `action_item`, `decision`, `open_question`, or `reference`.
+- **Task sync:** action-item nodes upsert task-board entries with original author metadata and `source_node_id` links back to the canvas node.
 
 ## Repository Structure
 
 ```text
 .
-├─ client/                 # Vite frontend app
-│  ├─ src/auth/            # Login/Register UI
-│  ├─ src/net/             # API, Socket.IO, Yjs provider
-│  └─ src/styles/          # Shared + auth styles
+├─ client/                 # Vite + React frontend
+│  ├─ src/components/      # React Konva canvas
+│  ├─ src/pages/           # Workspace, task board, auth pages
+│  └─ src/styles/          # UI and canvas styles
 ├─ server/                 # Express + Socket.IO backend
 │  └─ src/
 │     ├─ db/               # PostgreSQL pool + migrations
-│     ├─ middleware/        # auth + RBAC
-│     ├─ routes/            # auth/workspace APIs
-│     ├─ services/          # business logic + event services
-│     └─ ws/                # websocket gateway/handlers/yjs sync
-├─ docker-compose.yml      # Local PostgreSQL (+ optional pgAdmin)
-└─ implementation_plan_ligma_tasks.md
+│     ├─ middleware/       # auth + RBAC
+│     ├─ routes/           # auth/workspace/task APIs
+│     ├─ services/         # event log, tasks, intent classifier
+│     └─ ws/               # canvas sync gateway
+├─ docker-compose.yml      # Local PostgreSQL
+└─ render.yaml             # Render Blueprint
 ```
 
-## Prerequisites
+## Local Setup
 
-- Node.js 20+ (recommended)
-- npm 10+
-- Docker Desktop (for local PostgreSQL)
-
-## Local Setup (Fast Path)
-
-1. Install dependencies from repo root:
+1. Install dependencies:
 
 ```bash
 npm install
@@ -73,108 +60,42 @@ npm install
 
 2. Create your local env file:
 
-```bash
-cp .env.example .env
-```
-
-On Windows PowerShell:
-
 ```powershell
 Copy-Item .env.example .env
 ```
 
-3. Start PostgreSQL:
+3. Start PostgreSQL and run migrations:
 
 ```bash
 docker compose up -d
-```
-
-4. Run database migrations:
-
-```bash
 npm run migrate --workspace server
 ```
 
-5. Start backend + frontend together:
+4. Start the app:
 
 ```bash
 npm run dev
 ```
 
-6. Open the app:
-
 - Client: `http://localhost:5173`
 - Server health: `http://localhost:3000/api/health`
 
-## Environment Variables
-
-Defined in `.env.example`:
-
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - signing secret for JWTs
-- `PORT` - backend port (default `3000`)
-- `CLIENT_URL` - frontend origin for CORS (default `http://localhost:5173`)
-
 ## Common Commands
 
-From repo root:
+- `npm run dev` - run server, client, and chatbot dev processes.
+- `npm run dev:server` - run the API only.
+- `npm run dev:client` - run the Vite client only.
+- `npm run build` - build the client.
+- `npm run migrate --workspace server` - apply DB migrations.
+- `npm run test --workspace server` - run server unit tests.
 
-- `npm run dev` - run server + client concurrently
-- `npm run dev:server` - run backend only
-- `npm run dev:client` - run frontend only
-- `npm run build` - build client
-- `npm run start` - start backend in non-dev mode
-- `npm run migrate --workspace server` - run DB migrations
+## Deployment
 
-## API Surface (Current)
+The included `render.yaml` defines a Render PostgreSQL database, Node web service, and static client. The server start command runs migrations before booting, and the client gets `VITE_SERVER_URL` / `VITE_SOCKET_URL` values pointing at the Render API service.
 
-### Health
+After deployment, verify:
 
-- `GET /api/health`
-
-### Auth
-
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/refresh`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-
-### Workspaces
-
-- `POST /api/workspaces`
-- `GET /api/workspaces`
-- `GET /api/workspaces/:id`
-- `POST /api/workspaces/:id/invite`
-- `PATCH /api/workspaces/:id/roles/:userId`
-
-## Collaboration Notes
-
-- Main planning document: `implementation_plan_ligma_tasks.md`
-- Keep features aligned with phase checkpoints in the plan
-- Prefer additive PRs scoped to one phase or sub-phase
-- Avoid committing generated build artifacts unless explicitly required
-
-## Troubleshooting
-
-### Database auth failure on startup
-
-If the server reports PostgreSQL credential mismatch:
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-Then rerun migration and server startup commands.
-
-### Missing env vars
-
-If server startup fails with "Missing required environment variables", verify `.env` exists at repo root and includes all keys from `.env.example`.
-
-## Next Recommended Contribution Areas
-
-- Build the Phase 5 canvas modules (`CanvasEngine`, `NodeManager`, `SyncBridge`)
-- Wire the workspace list page to live `workspaces` API
-- Add smoke tests for auth, workspace APIs, and websocket handshake
-
+- `GET /api/health` returns `ok: true`.
+- Two browser sessions connected to the same workspace converge after canvas edits.
+- Reconnect resumes from missed sequence numbers.
+- Text nodes classified as action items appear on the task board within 3 seconds.

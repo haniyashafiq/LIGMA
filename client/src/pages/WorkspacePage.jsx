@@ -218,10 +218,29 @@ export function WorkspacePage() {
     return member?.user?.username || member?.username || `User ${userId.substring(0, 4)}`;
   }, [currentUser, workspaceMembers]);
 
+  const getEventAction = useCallback((event) => {
+    const actions = {
+      "canvas:node:create": "created a canvas node",
+      "canvas:node:update": "updated a canvas node",
+      "canvas:node:delete": "deleted a canvas node",
+      "canvas:node:lock": "locked a canvas node",
+      "canvas:node:unlock": "unlocked a canvas node",
+      "canvas:node:permission:update": "changed node permissions",
+      "canvas:intent:classified": `classified a node as ${event?.payload?.intent || "reference"}`,
+    };
+
+    return actions[event?.eventType] || "modified the workspace";
+  }, []);
+
   useEffect(() => {
     loadTasks();
     loadEvents();
   }, [loadTasks, loadEvents]);
+
+  useEffect(() => {
+    window.addEventListener("ligma:tasks-sync", loadTasks);
+    return () => window.removeEventListener("ligma:tasks-sync", loadTasks);
+  }, [loadTasks]);
 
   // Poll events every 5 seconds
   useEffect(() => {
@@ -486,18 +505,8 @@ export function WorkspacePage() {
               
               <div className="ws-timeline-track" style={{ position: 'relative', borderLeft: '2px solid var(--color-border)', marginLeft: '14px', paddingLeft: '32px' }}>
                 {events.map((event) => {
-                  let action = "modified the canvas";
-                  if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
-                    const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
-                    if (payloadStr.includes('camera') || payloadStr.includes('pointer') || payloadStr.includes('presence')) {
-                      action = "moved around the canvas";
-                    } else if (payloadStr.includes('added')) {
-                      action = "added elements";
-                    } else if (payloadStr.includes('removed')) {
-                      action = "removed elements";
-                    }
-                  }
-                  
+                  const action = getEventAction(event);
+
                   return (
                     <div key={event.id} className="ws-timeline-item" style={{ position: 'relative', marginBottom: '32px' }}>
                       <div style={{ position: 'absolute', left: '-39px', top: '4px', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid var(--color-bg-base)' }} />
@@ -634,10 +643,12 @@ export function WorkspacePage() {
               <CanvasView
                 workspaceId={workspaceId}
                 onMount={onCanvasMount}
+                activeTool={activeTool}
                 gridMode={gridEnabled}
                 readOnly={isViewer}
                 currentUserId={currentUser?.id || null}
                 currentUserRole={workspaceRole}
+                collabUser={collabUser}
               />
 
               {layersOpen && (
@@ -652,7 +663,7 @@ export function WorkspacePage() {
                       <div className="ws-layers-empty">No layers yet</div>
                     )}
                     {editor && [...editor.getCurrentPageShapes()]
-                      .sort((a, b) => (a.index < b.index ? 1 : -1))
+                      .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
                       .map(shape => (
                       <div 
                         key={shape.id} 
@@ -663,7 +674,7 @@ export function WorkspacePage() {
                         }}
                       >
                         <FiSquare size={12} />
-                        <span>{shape.type} - {shape.id.split(':')[1].substring(0, 4)}</span>
+                        <span>{shape.type} - {(shape.id.split(':')[1] || shape.id).substring(0, 4)}</span>
                       </div>
                     ))}
                   </div>
@@ -781,12 +792,7 @@ export function WorkspacePage() {
                       if (activityFilter === 'others') return e.userId !== currentUser?.id;
                       return true;
                     }).slice(0, 3).map((event) => {
-                      let action = "modified the canvas";
-                      if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
-                        const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
-                        if (payloadStr.includes('added')) action = "added elements";
-                        else if (payloadStr.includes('removed')) action = "removed elements";
-                      }
+                      const action = getEventAction(event);
                       return (
                         <li key={event.id} className="ws-activity-item">
                           <div

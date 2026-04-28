@@ -50,18 +50,20 @@
   white-space: nowrap;
 }
 
-/* tldraw token overrides (Figma Dark) */
-:root {
-  --tl-background: var(--color-bg);
-  --tl-color-primary: var(--color-primary);
-  --tl-color-on-primary: #ffffff;
-  --tl-panel-bg: var(--color-bg-raised);
-  --tl-accent: var(--color-role-lead);
-}
-
-/* Hide tldraw's own UI since we provide the shell */
-.tl-container .tl-ui {
-  display: none !important;
+.canvas-empty-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  pointer-events: none;
+  padding: 10px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+  backdrop-filter: blur(10px);
 }
 
 /* Loading Canvas */

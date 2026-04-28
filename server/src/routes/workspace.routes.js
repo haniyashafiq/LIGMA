@@ -1,8 +1,10 @@
 const express = require('express');
 const config = require('../config');
 const workspaceService = require('../services/workspace.service');
+const taskService = require('../services/task.service');
+const eventService = require('../services/event.service');
 const { authenticateRequest } = require('../middleware/auth');
-const { requireRole } = require('../middleware/rbac');
+const { requireRole, checkNodePermission } = require('../middleware/rbac');
 
 const router = express.Router();
 
@@ -111,10 +113,7 @@ router.patch('/:id/roles/:userId', requireRole('lead'), async (req, res) => {
   }
 });
 
-// ── Tasks ───────────────────────────────────────────
-const taskService = require('../services/task.service');
-
-router.get('/:id/tasks', async (req, res) => {
+router.get('/:id/tasks', requireRole('lead', 'contributor', 'viewer'), async (req, res) => {
   try {
     const tasks = await taskService.listWorkspaceTasks(req.params.id);
     return res.status(200).json({ tasks });
@@ -138,6 +137,16 @@ router.post('/:id/tasks', requireRole('lead', 'contributor'), async (req, res) =
 
 router.put('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), async (req, res) => {
   try {
+    const canEditNode = await checkNodePermission(
+      'edit',
+      req.params.nodeId,
+      req.user.id,
+      req.params.id
+    );
+    if (!canEditNode) {
+      return res.status(403).json({ message: 'You cannot modify tasks linked to this canvas node.' });
+    }
+
     const task = await taskService.upsertTaskByNodeId(req.params.id, req.params.nodeId, req.body);
     
     const io = req.app.get('io');
@@ -160,6 +169,16 @@ router.put('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), async 
 
 router.delete('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), async (req, res) => {
   try {
+    const canEditNode = await checkNodePermission(
+      'edit',
+      req.params.nodeId,
+      req.user.id,
+      req.params.id
+    );
+    if (!canEditNode) {
+      return res.status(403).json({ message: 'You cannot modify tasks linked to this canvas node.' });
+    }
+
     const deletedRows = await taskService.deleteTaskByNodeId(req.params.id, req.params.nodeId);
     
     if (deletedRows && deletedRows.length > 0) {
@@ -182,6 +201,25 @@ router.delete('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), asy
 
 router.patch('/:id/tasks/:taskId', requireRole('lead', 'contributor'), async (req, res) => {
   try {
+    const existingTask = await taskService.getTask(req.params.id, req.params.taskId);
+    if (!existingTask) {
+      return res.status(404).json({
+        message: 'Task not found in this workspace.',
+      });
+    }
+
+    if (existingTask.source_node_id) {
+      const canEditNode = await checkNodePermission(
+        'edit',
+        existingTask.source_node_id,
+        req.user.id,
+        req.params.id
+      );
+      if (!canEditNode) {
+        return res.status(403).json({ message: 'You cannot modify tasks linked to this canvas node.' });
+      }
+    }
+
     const task = await taskService.updateTask(req.params.id, req.params.taskId, req.body);
     if (!task) {
       return res.status(404).json({
@@ -207,9 +245,7 @@ router.patch('/:id/tasks/:taskId', requireRole('lead', 'contributor'), async (re
   }
 });
 
-const eventService = require('../services/event.service');
-
-router.get('/:id/events', async (req, res) => {
+router.get('/:id/events', requireRole('lead', 'contributor', 'viewer'), async (req, res) => {
   try {
     const events = await eventService.getAllEvents(req.params.id);
     
@@ -224,6 +260,25 @@ router.get('/:id/events', async (req, res) => {
 
 router.delete('/:id/tasks/:taskId', requireRole('lead', 'contributor'), async (req, res) => {
   try {
+    const existingTask = await taskService.getTask(req.params.id, req.params.taskId);
+    if (!existingTask) {
+      return res.status(404).json({
+        message: 'Task not found in this workspace.',
+      });
+    }
+
+    if (existingTask.source_node_id) {
+      const canEditNode = await checkNodePermission(
+        'edit',
+        existingTask.source_node_id,
+        req.user.id,
+        req.params.id
+      );
+      if (!canEditNode) {
+        return res.status(403).json({ message: 'You cannot modify tasks linked to this canvas node.' });
+      }
+    }
+
     const deleted = await taskService.deleteTask(req.params.id, req.params.taskId);
     if (!deleted) {
       return res.status(404).json({

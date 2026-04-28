@@ -17,14 +17,6 @@
   "devDependencies": {
     "concurrently": "^9.0.1"
   },
-  "overrides": {
-    "@tldraw/state": "4.5.10",
-    "@tldraw/state-react": "4.5.10",
-    "@tldraw/utils": "4.5.10",
-    "@tldraw/store": "4.5.10",
-    "@tldraw/validate": "4.5.10",
-    "@tldraw/tlschema": "4.5.10"
-  },
   "dependencies": {
     "react-icons": "^4.12.0"
   }

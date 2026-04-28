@@ -2,11 +2,15 @@ const { pool } = require('../db/pool');
 
 async function listUserTasks(userId) {
   const result = await pool.query(
-    `SELECT t.*, u.display_name as "authorName", w.name as "workspaceName"
+    `SELECT
+       t.*,
+       COALESCE(t.source_author_name, source_user.display_name, source_user.username, assignee.display_name, assignee.username) as "authorName",
+       w.name as "workspaceName"
      FROM tasks t
      JOIN workspaces w ON t.workspace_id = w.id
      JOIN workspace_roles wr ON w.id = wr.workspace_id
-     LEFT JOIN users u ON t.assignee_id = u.id
+     LEFT JOIN users assignee ON t.assignee_id = assignee.id
+     LEFT JOIN users source_user ON t.source_author_id = source_user.id
      WHERE wr.user_id = $1
      ORDER BY t.created_at DESC`,
     [userId]
@@ -16,9 +20,12 @@ async function listUserTasks(userId) {
 
 async function listWorkspaceTasks(workspaceId) {
   const result = await pool.query(
-    `SELECT t.*, u.display_name as "authorName" 
+    `SELECT
+       t.*,
+       COALESCE(t.source_author_name, source_user.display_name, source_user.username, assignee.display_name, assignee.username) as "authorName"
      FROM tasks t
-     LEFT JOIN users u ON t.assignee_id = u.id
+     LEFT JOIN users assignee ON t.assignee_id = assignee.id
+     LEFT JOIN users source_user ON t.source_author_id = source_user.id
      WHERE t.workspace_id = $1
      ORDER BY t.created_at DESC`,
     [workspaceId]
@@ -34,14 +41,47 @@ async function createTask(workspaceId, data) {
     sourceNodeId = null,
     assigneeId = null,
     source = null,
+    intent = null,
+    sourceAuthorId = null,
+    sourceAuthorName = null,
   } = data;
   const result = await pool.query(
-    `INSERT INTO tasks (workspace_id, title, status, priority, source_node_id, assignee_id, source)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO tasks (
+       workspace_id,
+       title,
+       status,
+       priority,
+       source_node_id,
+       assignee_id,
+       source,
+       intent,
+       source_author_id,
+       source_author_name
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
-    [workspaceId, title, status, priority, sourceNodeId, assigneeId, source]
+    [
+      workspaceId,
+      title,
+      status,
+      priority,
+      sourceNodeId,
+      assigneeId,
+      source,
+      intent,
+      sourceAuthorId,
+      sourceAuthorName,
+    ]
   );
   return result.rows[0];
+}
+
+async function getTask(workspaceId, taskId) {
+  const result = await pool.query(
+    `SELECT * FROM tasks WHERE workspace_id = $1 AND id = $2 LIMIT 1`,
+    [workspaceId, taskId]
+  );
+  return result.rows[0] || null;
 }
 
 async function deleteTaskByNodeId(workspaceId, sourceNodeId) {
@@ -67,6 +107,9 @@ async function upsertTaskByNodeId(workspaceId, sourceNodeId, data) {
     priority = 'medium',
     assigneeId = null,
     source = 'ai',
+    intent = null,
+    sourceAuthorId = null,
+    sourceAuthorName = null,
   } = data;
 
   const existing = await pool.query(
@@ -82,10 +125,24 @@ async function upsertTaskByNodeId(workspaceId, sourceNodeId, data) {
            priority = COALESCE($3, priority),
            assignee_id = COALESCE($4, assignee_id),
            source = COALESCE($5, source),
+           intent = COALESCE($6, intent),
+           source_author_id = COALESCE($7, source_author_id),
+           source_author_name = COALESCE($8, source_author_name),
            updated_at = NOW()
-       WHERE workspace_id = $6 AND source_node_id = $7
+       WHERE workspace_id = $9 AND source_node_id = $10
        RETURNING *`,
-      [title, status, priority, assigneeId, source, workspaceId, sourceNodeId]
+      [
+        title,
+        status,
+        priority,
+        assigneeId,
+        source,
+        intent,
+        sourceAuthorId,
+        sourceAuthorName,
+        workspaceId,
+        sourceNodeId,
+      ]
     );
     return result.rows[0];
   }
@@ -97,6 +154,9 @@ async function upsertTaskByNodeId(workspaceId, sourceNodeId, data) {
     sourceNodeId,
     assigneeId,
     source,
+    intent,
+    sourceAuthorId,
+    sourceAuthorName,
   });
 }
 
@@ -116,6 +176,10 @@ async function updateTask(workspaceId, taskId, data) {
   if (data.priority) {
     fields.push(`priority = $${i++}`);
     values.push(data.priority);
+  }
+  if (data.intent) {
+    fields.push(`intent = $${i++}`);
+    values.push(data.intent);
   }
 
   if (fields.length === 0) return null;
@@ -137,6 +201,7 @@ async function deleteTask(workspaceId, taskId) {
 module.exports = {
   listWorkspaceTasks,
   listUserTasks,
+  getTask,
   createTask,
   deleteTaskByNodeId,
   updateTaskStatus,
