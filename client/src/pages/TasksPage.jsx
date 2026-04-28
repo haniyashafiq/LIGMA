@@ -11,6 +11,7 @@ export function TasksPage({ user }) {
   const [filterWorkspace, setFilterWorkspace] = useState("all");
   const [loading, setLoading] = useState(true);
   const [showWsDropdown, setShowWsDropdown] = useState(false);
+  const [draggingTask, setDraggingTask] = useState(null);
 
   const loadTasks = useCallback(() => {
     apiFetch("/api/workspaces/all/tasks")
@@ -30,15 +31,41 @@ export function TasksPage({ user }) {
   }, [loadTasks]);
 
   const handleUpdateTask = async (workspaceId, taskId, data) => {
+    // Optimistic Update
+    const oldTasks = [...tasks];
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...data } : t));
+
     try {
       await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       });
-      loadTasks();
+      // Optionally reload to ensure sync
+      // loadTasks(); 
     } catch (err) {
       console.error("Failed to update task:", err);
+      setTasks(oldTasks); // Rollback
+      alert("Failed to update task status. Please try again.");
     }
+  };
+
+  const onDragStart = (task) => {
+    setDraggingTask(task);
+  };
+
+  const onDragOver = (e) => {
+    e.preventDefault(); // Allow drop
+  };
+
+  const onDrop = (newStatus) => {
+    if (!draggingTask) return;
+    if (draggingTask.status.toLowerCase() === newStatus) {
+      setDraggingTask(null);
+      return;
+    }
+
+    handleUpdateTask(draggingTask.workspace_id, draggingTask.id, { status: newStatus });
+    setDraggingTask(null);
   };
 
   const getInitials = (name) => {
@@ -98,7 +125,13 @@ export function TasksPage({ user }) {
       ) : (
         <div className="ws-kanban-view" style={{ background: 'transparent', padding: '24px 0', height: 'calc(100vh - 200px)' }}>
             {['todo', 'doing', 'done'].map((status) => (
-              <div key={status} className="ws-kanban-column" style={{ background: 'rgba(20, 20, 20, 0.4)', borderRadius: '16px' }}>
+              <div 
+                key={status} 
+                className={`ws-kanban-column column-${status}`} 
+                style={{ background: 'rgba(20, 20, 20, 0.4)', borderRadius: '16px' }}
+                onDragOver={onDragOver}
+                onDrop={() => onDrop(status)}
+              >
                 <div className="ws-kanban-column-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h3>{status === 'doing' ? 'IN PROGRESS' : status.toUpperCase()}</h3>
@@ -112,7 +145,12 @@ export function TasksPage({ user }) {
                   {tasks
                     .filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status)
                     .map((task) => (
-                      <div key={task.id} className={`ws-task-card kanban-card status-border-${task.status}`}>
+                      <div 
+                        key={task.id} 
+                        className={`ws-task-card kanban-card status-border-${task.status.toLowerCase()} ${draggingTask?.id === task.id ? 'dragging' : ''}`}
+                        draggable
+                        onDragStart={() => onDragStart(task)}
+                      >
                         <div className="ws-task-card-header">
                           <div className="ws-task-header-left">
                             {task.priority && (

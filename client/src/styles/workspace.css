@@ -1778,4 +1778,10 @@
   transition: width 0.4s ease-out;
 }
 
+.kanban-card.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+
 
