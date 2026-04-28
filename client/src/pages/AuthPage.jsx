@@ -150,7 +150,11 @@ export function AuthPage({ mode }) {
             {error}
           </p>
 
-          <button type="submit" disabled={submitting}>
+          <button
+            type="submit"
+            className="btn-primary creative-glow"
+            disabled={submitting}
+          >
             {submitting
               ? isRegister
                 ? "Creating..."
