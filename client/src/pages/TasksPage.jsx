@@ -101,14 +101,14 @@ export function TasksPage({ user }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h3>{status === 'doing' ? 'IN PROGRESS' : status.toUpperCase()}</h3>
                     <span className="ws-kanban-count-pill">
-                      {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status === status).length}
+                      {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status).length}
                     </span>
                   </div>
                   <button className="ws-kanban-more"><FiPlus size={14} /></button>
                 </div>
                 <div className="ws-kanban-tasks">
                   {tasks
-                    .filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status === status)
+                    .filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status)
                     .map((task) => (
                       <div key={task.id} className={`ws-task-card kanban-card status-border-${task.status}`}>
                         <div className="ws-task-card-header">
@@ -147,7 +147,7 @@ export function TasksPage({ user }) {
                         </div>
                       </div>
                     ))}
-                  {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status === status).length === 0 && (
+                  {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status).length === 0 && (
                     <div className="ws-kanban-empty">No tasks in this column</div>
                   )}
                 </div>
