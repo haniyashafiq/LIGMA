@@ -259,6 +259,21 @@ export function WorkspacePage() {
     editorInstance.on("change", handleChange);
   }, []);
 
+  const jumpToNode = useCallback((nodeId) => {
+    if (!editor || !nodeId) return;
+    try {
+      const shape = editor.getShape(nodeId);
+      if (!shape) return;
+      const bounds = editor.getShapePageBounds(shape);
+      if (bounds) {
+        editor.zoomToBounds(bounds, { animation: { duration: 500 } });
+        editor.select(nodeId);
+      }
+    } catch (e) {
+      console.error("Jump to node failed:", e);
+    }
+  }, [editor]);
+
   const connectionDot =
     connectionStatus === "online"
       ? "online"
@@ -681,7 +696,24 @@ export function WorkspacePage() {
                 )}
 
                 {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).map((task) => (
-                  <div key={task.id} className="ws-task-card">
+                  <div 
+                    key={task.id} 
+                    className="ws-task-card"
+                    onClick={() => {
+                      if (task.source_node_id) {
+                        if (activeTab !== 'workspace') {
+                          setActiveTab('workspace');
+                          setTimeout(() => jumpToNode(task.source_node_id), 100);
+                        } else {
+                          jumpToNode(task.source_node_id);
+                        }
+                      }
+                    }}
+                    style={{ 
+                      cursor: task.source_node_id ? 'pointer' : 'default',
+                      transition: 'transform 0.2s, border-color 0.2s'
+                    }}
+                  >
                     <div className="ws-task-card-header">
                       <div className="ws-task-header-left">
                         {task.authorName ? (
@@ -699,7 +731,19 @@ export function WorkspacePage() {
                       </span>
                       <div className="ws-task-footer-actions">
                         {task.source_node_id && (
-                          <button className="ws-task-link-btn" title="View on canvas">
+                          <button 
+                            className="ws-task-link-btn" 
+                            title="View on canvas"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (activeTab !== 'workspace') {
+                                setActiveTab('workspace');
+                                setTimeout(() => jumpToNode(task.source_node_id), 100);
+                              } else {
+                                jumpToNode(task.source_node_id);
+                              }
+                            }}
+                          >
                             <FiLink size={10} />
                           </button>
                         )}
