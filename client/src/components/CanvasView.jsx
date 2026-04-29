@@ -189,7 +189,7 @@ function makeNode(type, pointer, currentUser, zIndex) {
     x: pointer.x,
     y: pointer.y,
     width: type === "text" ? 280 : 200,
-    height: type === "text" ? 56 : 200,
+    height: type === "text" ? 64 : 200,
     rotation: 0,
     zIndex,
     text: "",
