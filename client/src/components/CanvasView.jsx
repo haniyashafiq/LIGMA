@@ -213,6 +213,7 @@ export default function CanvasView({
   const selectedIdRef = useRef(null);
   const activeToolRef = useRef(activeTool);
   const isDrawingRef = useRef(false);
+  const isErasingRef = useRef(false);
   const drawingNodeRef = useRef(null);
   const drawingStartPosRef = useRef(null);
   const lastPointerRef = useRef(null);
@@ -879,14 +880,34 @@ export default function CanvasView({
       return;
     }
 
-    if (tool === "eraser" && event.target?.attrs?.nodeId) {
-      emitOp({ type: "node:delete", nodeId: event.target.attrs.nodeId });
-      setSelectedId(null);
+    if (tool === "eraser") {
+      isErasingRef.current = true;
+      const target = event.target;
+      if (target?.attrs?.nodeId) {
+        emitOp({ type: "node:delete", nodeId: target.attrs.nodeId });
+        setSelectedId(null);
+      }
     }
   }
 
   function handleStageMouseMove() {
     emitCursorPosition();
+
+    // Eraser sweep logic
+    if (isErasingRef.current && activeToolRef.current === "eraser") {
+      const stage = stageRef.current;
+      const pos = stage?.getPointerPosition();
+      if (pos) {
+        const intersected = stage.getIntersection(pos);
+        if (intersected?.attrs?.nodeId) {
+          emitOp({ type: "node:delete", nodeId: intersected.attrs.nodeId });
+          if (selectedIdRef.current === intersected.attrs.nodeId) {
+            setSelectedId(null);
+          }
+        }
+      }
+    }
+
     if (!isDrawingRef.current || !drawingNodeRef.current) return;
     const pointer = getStagePointer();
     if (!pointer) return;
@@ -913,6 +934,7 @@ export default function CanvasView({
 
   function handleStageMouseUp() {
     isDrawingRef.current = false;
+    isErasingRef.current = false;
     drawingNodeRef.current = null;
   }
 
@@ -1117,6 +1139,7 @@ export default function CanvasView({
       className="canvas-container"
       onPointerMove={capturePointerForToast}
       onPointerDown={capturePointerForToast}
+      style={{ cursor: activeTool === "eraser" ? "cell" : "default" }}
     >
       {rbacToast ? (
         <div
