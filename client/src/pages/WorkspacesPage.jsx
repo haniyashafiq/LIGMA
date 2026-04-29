@@ -13,6 +13,8 @@ import {
   FiArrowRight,
   FiTrash2,
   FiLink2,
+  FiSearch,
+  FiX,
 } from "react-icons/fi";
 import {
   apiFetch,
@@ -86,6 +88,7 @@ export function WorkspacesPage() {
   const [joinError, setJoinError] = useState("");
   const [joinSuccess, setJoinSuccess] = useState("");
   const [showJoinPanel, setShowJoinPanel] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const handleGlobalClick = () => setOpenMenuId(null);
@@ -183,9 +186,12 @@ export function WorkspacesPage() {
     }
   }
 
-  const myWorkspaces = workspaces.filter(ws => String(ws.createdBy) === String(user?.id));
-  const invitedWorkspaces = workspaces.filter(ws => String(ws.createdBy) !== String(user?.id));
+  const filteredWorkspaces = workspaces.filter(ws => 
+    ws.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
+  const myWorkspaces = filteredWorkspaces.filter(ws => String(ws.createdBy) === String(user?.id));
+  const invitedWorkspaces = filteredWorkspaces.filter(ws => String(ws.createdBy) !== String(user?.id));
   const displayedWorkspaces = showAll ? myWorkspaces : myWorkspaces.slice(0, 6);
 
   return (
@@ -203,7 +209,22 @@ export function WorkspacesPage() {
           <p>Infinite workspaces for your team's architectural designs, flowcharts, and system mapping.</p>
         </div>
 
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div className="canvas-search-box">
+            <FiSearch className="search-icon" size={14} />
+            <input 
+              type="text" 
+              placeholder="Search your canvases..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="clear-search" onClick={() => setSearchQuery("")}>
+                <FiX size={12} />
+              </button>
+            )}
+          </div>
+
           <button
             className="btn-primary creative-glow"
             onClick={() => setShowJoinPanel(!showJoinPanel)}
