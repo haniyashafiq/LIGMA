@@ -254,10 +254,18 @@ export function WorkspacePage() {
     setActiveTool(toolId);
   }, [workspaceRole]);
 
+  const [previousToolBeforeSpace, setPreviousToolBeforeSpace] = useState(null);
+
   useEffect(() => {
     function handleGlobalKeyDown(e) {
       if (workspaceRole === "viewer") return;
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) {
+        return;
+      }
+
+      if (e.code === "Space" && activeTool !== "hand" && !previousToolBeforeSpace) {
+        setPreviousToolBeforeSpace(activeTool);
+        setActiveTool("hand");
         return;
       }
 
@@ -279,9 +287,20 @@ export function WorkspacePage() {
       }
     }
 
+    function handleGlobalKeyUp(e) {
+      if (e.code === "Space" && previousToolBeforeSpace) {
+        setActiveTool(previousToolBeforeSpace);
+        setPreviousToolBeforeSpace(null);
+      }
+    }
+
     window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [workspaceRole, handleToolSelect]);
+    window.addEventListener("keyup", handleGlobalKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+      window.removeEventListener("keyup", handleGlobalKeyUp);
+    };
+  }, [workspaceRole, handleToolSelect, activeTool, previousToolBeforeSpace]);
 
   const handleAddTask = async (e) => {
     e.preventDefault();
