@@ -49,7 +49,7 @@ const TOOLS = [
 
 const TOOL_EXTRAS = [
   { id: "layers", Icon: FiLayers, label: "Layers" },
-  { id: "settings", Icon: FiSettings, label: "Config" },
+  { id: "clear_all", Icon: FiTrash2, label: "Clear All" },
 ];
 
 export function WorkspacePage() {
@@ -439,6 +439,8 @@ export function WorkspacePage() {
               isReadOnlyMode={isReadOnlyMode} 
               layersOpen={layersOpen}
               setLayersOpen={setLayersOpen}
+              workspaceRole={workspaceRole}
+              editor={editor}
             />
 
             <div className="ws-canvas-area">

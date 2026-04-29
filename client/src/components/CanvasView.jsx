@@ -605,6 +605,14 @@ export default function CanvasView({
         window.addEventListener("ligma:canvas-change", callback);
         return () => window.removeEventListener("ligma:canvas-change", callback);
       },
+      clearAll() {
+        if (readOnly) return;
+        const currentNodes = nodesRef.current;
+        currentNodes.forEach(node => {
+          emitOp({ type: "node:delete", nodeId: node.id });
+        });
+        setSelectedId(null);
+      },
       user: { updateUserPreferences() {} },
     }),
     [jumpToNode],
