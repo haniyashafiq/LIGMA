@@ -8,7 +8,8 @@ export function TaskCard({
   onJumpToNode, 
   isReadOnlyMode, 
   getUsername, 
-  getIntentLabel 
+  getIntentLabel,
+  onDragStart
 }) {
   const getPriorityIcon = (priority) => {
     switch (priority?.toLowerCase()) {
@@ -31,6 +32,11 @@ export function TaskCard({
   return (
     <div 
       className="ws-new-task-card"
+      draggable={!isReadOnlyMode}
+      onDragStart={(e) => {
+        if (isReadOnlyMode) return;
+        if (onDragStart) onDragStart(task);
+      }}
       onClick={() => {
         if (task.source_node_id) {
           onJumpToNode(task.source_node_id);

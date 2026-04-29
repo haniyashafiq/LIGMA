@@ -10,7 +10,26 @@ export function KanbanBoard({
   getUsername, 
   getIntentLabel 
 }) {
+  const [draggingTask, setDraggingTask] = React.useState(null);
   const columns = ['todo', 'in_progress', 'done'];
+
+  const onDragStart = (task) => {
+    setDraggingTask(task);
+  };
+
+  const onDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const onDrop = (newStatus) => {
+    if (!draggingTask) return;
+    if (draggingTask.status?.toLowerCase() === newStatus.toLowerCase()) {
+      setDraggingTask(null);
+      return;
+    }
+    onUpdateTask(draggingTask.id, { status: newStatus });
+    setDraggingTask(null);
+  };
 
   // Map status for display
   const getColumnTitle = (status) => {
@@ -21,7 +40,12 @@ export function KanbanBoard({
   return (
     <div className="ws-kanban-view">
       {columns.map((status) => (
-        <div key={status} className="ws-kanban-column">
+        <div 
+          key={status} 
+          className={`ws-kanban-column column-${status}`}
+          onDragOver={onDragOver}
+          onDrop={() => onDrop(status)}
+        >
           <div className="ws-kanban-column-header">
             <h3>{getColumnTitle(status)}</h3>
             <span className="ws-kanban-count">
@@ -41,6 +65,7 @@ export function KanbanBoard({
                   isReadOnlyMode={isReadOnlyMode}
                   getUsername={getUsername}
                   getIntentLabel={getIntentLabel}
+                  onDragStart={onDragStart}
                 />
               ))}
             {tasks.filter(t => t.status === status).length === 0 && (

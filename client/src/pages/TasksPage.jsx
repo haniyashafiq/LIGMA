@@ -184,6 +184,7 @@ export function TasksPage({ user }) {
                         getUsername={(id) => task.authorName || 'User'}
                         getIntentLabel={getIntentLabel}
                         isReadOnlyMode={false}
+                        onDragStart={onDragStart}
                       />
                     ))}
                   {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status).length === 0 && (
