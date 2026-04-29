@@ -294,11 +294,13 @@ function applyOperationToDoc(doc, op, socket, role) {
 }
 
 async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
-  if (!isTextBearingNode(node)) return;
+  if (!node?.id) return;
+  const resolved = getNodeWithText(room.doc, node.id) || node;
+  if (!isTextBearingNode(resolved)) return;
 
-  const classification = classifyIntentForNode(node.text, node.type);
-  const metadata = { ...getMeta(node), intent: classification.intent };
-  const classifiedNode = { ...node, metadata };
+  const classification = classifyIntentForNode(resolved.text, resolved.type);
+  const metadata = { ...getMeta(resolved), intent: classification.intent };
+  const classifiedNode = { ...resolved, metadata };
 
   let update = null;
   const onUpdate = (nextUpdate) => {
@@ -307,7 +309,7 @@ async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
 
   room.doc.on("update", onUpdate);
   room.doc.transact(() => {
-    getNodesMap(room.doc).set(node.id, classifiedNode);
+    getNodesMap(room.doc).set(resolved.id, classifiedNode);
   }, "intent-classifier");
   room.doc.off("update", onUpdate);
 
@@ -315,9 +317,9 @@ async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
     workspaceId,
     userId,
     "canvas:intent:classified",
-    node.id,
+    resolved.id,
     {
-      nodeId: node.id,
+      nodeId: resolved.id,
       intent: classification.intent,
       confidence: classification.confidence,
       reason: classification.reason,
@@ -331,13 +333,13 @@ async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
   io.to(`room:${workspaceId}`).emit("canvas:delta", {
     sequenceNum: room.lastSequenceNum,
     eventType: "canvas:intent:classified",
-    nodeId: node.id,
+    nodeId: resolved.id,
     update,
   });
 
   if (classification.intent === "action_item") {
-    const task = await taskService.upsertTaskByNodeId(workspaceId, node.id, {
-      title: node.text.trim(),
+    const task = await taskService.upsertTaskByNodeId(workspaceId, resolved.id, {
+      title: resolved.text.trim(),
       status: "todo",
       priority: "medium",
       assigneeId: null,
