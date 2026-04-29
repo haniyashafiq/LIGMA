@@ -12,6 +12,7 @@ import {
   FiHexagon,
   FiArrowRight,
   FiTrash2,
+  FiLink2,
 } from "react-icons/fi";
 import {
   apiFetch,
@@ -20,6 +21,7 @@ import {
   getMe,
 } from "../net/api";
 import { DashboardLayout } from "../layouts/DashboardLayout";
+import { parseWorkspaceInviteInput } from "../utils/invites";
 
 const TEMPLATES = [
   {
@@ -79,6 +81,10 @@ export function WorkspacesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showAll, setShowAll]       = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [joinInviteInput, setJoinInviteInput] = useState("");
+  const [joinBusy, setJoinBusy] = useState(false);
+  const [joinError, setJoinError] = useState("");
+  const [joinSuccess, setJoinSuccess] = useState("");
 
   useEffect(() => {
     const handleGlobalClick = () => setOpenMenuId(null);
@@ -131,6 +137,38 @@ export function WorkspacesPage() {
     }
   }
 
+  async function handleJoinWithInvite(event) {
+    event.preventDefault();
+    setJoinError("");
+    setJoinSuccess("");
+    const parsed = parseWorkspaceInviteInput(joinInviteInput);
+    if (!parsed?.token) {
+      setJoinError("Paste a valid invite link or token.");
+      return;
+    }
+    setJoinBusy(true);
+    try {
+      const res = await apiFetch("/api/workspaces/invite-links/accept", {
+        method: "POST",
+        body: JSON.stringify({ token: parsed.token }),
+      });
+      const wid = res?.accepted?.workspaceId;
+      if (!wid) {
+        setJoinError("Could not read workspace from that invite. Check the link and try again.");
+        return;
+      }
+      const listRes = await apiFetch("/api/workspaces");
+      setWorkspaces(listRes.workspaces || []);
+      setJoinInviteInput("");
+      setJoinSuccess("Joined successfully. Opening workspace…");
+      navigate(`/workspace/${wid}`);
+    } catch (err) {
+      setJoinError(err?.message || "Could not join with that invite.");
+    } finally {
+      setJoinBusy(false);
+    }
+  }
+
   async function handleDeleteWorkspace(workspaceId) {
     if (!window.confirm("Are you sure you want to delete this workspace? This cannot be undone.")) return;
     
@@ -179,6 +217,46 @@ export function WorkspacesPage() {
           </button>
         </div>
       </div>
+
+      <section className="dashboard-invite-panel" aria-label="Join workspace with invite link">
+        <div className="dashboard-invite-panel-header">
+          <FiLink2 size={16} className="dashboard-invite-panel-icon" aria-hidden />
+          <div>
+            <h3 className="dashboard-invite-panel-title">Join with invite link</h3>
+            <p className="dashboard-invite-panel-hint">
+              Paste the full link from your teammate or the invite token only.
+            </p>
+          </div>
+        </div>
+        <form className="dashboard-invite-form" onSubmit={handleJoinWithInvite}>
+          <input
+            type="text"
+            className="dashboard-invite-input"
+            value={joinInviteInput}
+            onChange={(e) => {
+              setJoinInviteInput(e.target.value);
+              setJoinError("");
+              setJoinSuccess("");
+            }}
+            placeholder="https://…/workspace/…?invite=…"
+            disabled={joinBusy}
+            aria-label="Invite link or token"
+            autoComplete="off"
+          />
+          <button type="submit" className="btn-primary" disabled={joinBusy || !joinInviteInput.trim()}>
+            {joinBusy ? (
+              <>
+                <FiLoader size={15} className="dashboard-invite-spinner" />
+                Joining…
+              </>
+            ) : (
+              "Join workspace"
+            )}
+          </button>
+        </form>
+        {joinError ? <p className="dashboard-invite-feedback error">{joinError}</p> : null}
+        {joinSuccess ? <p className="dashboard-invite-feedback success">{joinSuccess}</p> : null}
+      </section>
 
        {/* ── Your Canvases ─────────────────────── */}
       <div className="section-header">
