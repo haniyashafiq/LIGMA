@@ -35,6 +35,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
+import CanvasReplay from "../components/CanvasReplay";
 import { AppContext } from "../utils/AppContext";
 import {
   apiFetch,
@@ -100,6 +101,7 @@ export function WorkspacePage() {
   const [gridEnabled, setGridEnabled] = useState(true);
   const [layersVersion, setLayersVersion] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [replayActive, setReplayActive] = useState(false);
 
   const [showAddTask, setShowAddTask] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -187,7 +189,11 @@ export function WorkspacePage() {
   useEffect(() => {
     if (editor && activeTool) {
       try {
-        editor.setCurrentTool(activeTool);
+        if (typeof editor.setTool === "function") {
+          editor.setTool(activeTool);
+        } else if (typeof editor.setCurrentTool === "function") {
+          editor.setCurrentTool(activeTool);
+        }
       } catch (err) {
         console.warn("[Workspace] Failed to set tool:", activeTool, err);
       }
@@ -274,6 +280,18 @@ export function WorkspacePage() {
     setWorkspaceMembers(res?.members || []);
   }, [workspaceId]);
 
+  useEffect(() => {
+    function handleRoleUpdated(event) {
+      if (event?.detail?.workspaceId && String(event.detail.workspaceId) !== String(workspaceId)) {
+        return;
+      }
+      reloadWorkspaceMembers().catch(() => {});
+    }
+
+    window.addEventListener("ligma:role-updated", handleRoleUpdated);
+    return () => window.removeEventListener("ligma:role-updated", handleRoleUpdated);
+  }, [reloadWorkspaceMembers, workspaceId]);
+
   const handleInviteMember = useCallback(
     async ({ username, role }) => {
       await apiFetch(`/api/workspaces/${workspaceId}/invite`, {
@@ -307,6 +325,7 @@ export function WorkspacePage() {
   );
 
   const isViewer = workspaceRole === "viewer";
+  const isReadOnlyMode = isViewer || replayActive;
   const canManageMembers = workspaceRole === "lead";
 
   const onlineUsers = Array.isArray(presenceMembers) ? presenceMembers : [];
@@ -318,12 +337,13 @@ export function WorkspacePage() {
     .filter(Boolean);
 
   const handleToolSelect = useCallback((toolId) => {
-    if (isViewer) return;
+    if (isReadOnlyMode) return;
     setActiveTool(toolId);
-  }, [isViewer]);
+  }, [isReadOnlyMode]);
 
   const handleAddTask = async (e) => {
     e.preventDefault();
+    if (isReadOnlyMode) return;
     if (!newTaskTitle.trim()) return;
 
     setIsSubmittingTask(true);
@@ -349,6 +369,7 @@ export function WorkspacePage() {
   };
 
   const handleUpdateTask = async (taskId, data) => {
+    if (isReadOnlyMode) return;
     try {
       await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
         method: "PATCH",
@@ -375,6 +396,10 @@ export function WorkspacePage() {
   const jumpToNode = useCallback((nodeId) => {
     if (!editor || !nodeId) return;
     try {
+      if (typeof editor.jumpToNode === "function") {
+        editor.jumpToNode(nodeId);
+        return;
+      }
       const shape = editor.getShape(nodeId);
       if (!shape) return;
       const bounds = editor.getShapePageBounds(shape);
@@ -600,13 +625,15 @@ export function WorkspacePage() {
                             className={`ws-task-status ${task.status}`}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (isReadOnlyMode) return;
                               const states = ['todo', 'doing', 'done'];
                               const current = task.status === 'in_progress' ? 'doing' : task.status;
                               const idx = states.indexOf(current);
                               const next = states[(idx + 1) % states.length];
                               handleUpdateTask(task.id, { status: next });
                             }}
-                            style={{ cursor: 'pointer' }}
+                            style={{ cursor: isReadOnlyMode ? 'not-allowed' : 'pointer' }}
+                            title={isReadOnlyMode ? "Read-only mode" : "Click to cycle status"}
                           >
                             {task.status === 'in_progress' ? 'Doing' : task.status}
                           </span>
@@ -638,7 +665,7 @@ export function WorkspacePage() {
                   onClick={() => handleToolSelect(id)}
                   title={label}
                   aria-label={label}
-                    disabled={isViewer}
+                  disabled={isReadOnlyMode}
                 >
                   <Icon size={16} />
                   <span>{label}</span>
@@ -656,7 +683,7 @@ export function WorkspacePage() {
                   onClick={() => {
                     if (id === "layers") setLayersOpen(!layersOpen);
                   }}
-                  disabled={isViewer}
+                  disabled={isReadOnlyMode}
                 >
                   <Icon size={16} />
                   <span>{label}</span>
@@ -671,13 +698,18 @@ export function WorkspacePage() {
                 onMount={onCanvasMount}
                 activeTool={activeTool}
                 gridMode={gridEnabled}
-                readOnly={isViewer}
+                readOnly={isReadOnlyMode}
                 currentUserId={currentUser?.id || null}
                 currentUserRole={workspaceRole}
                 collabUser={collabUser}
               />
+              <CanvasReplay
+                workspaceId={workspaceId}
+                gridMode={gridEnabled}
+                onReplayActiveChange={setReplayActive}
+              />
 
-              {layersOpen && (
+              {layersOpen && !replayActive && (
                 <div className="ws-layers-panel">
                   <div className="ws-layers-header">
                     <span>Layers</span>
@@ -942,14 +974,15 @@ export function WorkspacePage() {
                         className={`ws-task-status ${task.status}`}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (isReadOnlyMode) return;
                           const states = ['todo', 'doing', 'done'];
                           const current = task.status === 'in_progress' ? 'doing' : task.status;
                           const idx = states.indexOf(current);
                           const next = states[(idx + 1) % states.length];
                           handleUpdateTask(task.id, { status: next });
                         }}
-                        style={{ cursor: 'pointer' }}
-                        title="Click to cycle status"
+                        style={{ cursor: isReadOnlyMode ? 'not-allowed' : 'pointer' }}
+                        title={isReadOnlyMode ? "Read-only mode" : "Click to cycle status"}
                       >
                         {task.status === 'in_progress' ? 'Doing' : task.status}
                       </span>
@@ -1000,6 +1033,7 @@ export function WorkspacePage() {
                         placeholder="Task description..."
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
+                        disabled={isReadOnlyMode}
                         required
                       />
                     </div>
@@ -1014,6 +1048,7 @@ export function WorkspacePage() {
                               type="button"
                               className={newTaskStatus === s ? 'active' : ''}
                               onClick={() => setNewTaskStatus(s)}
+                              disabled={isReadOnlyMode}
                             >
                               {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
                             </button>
@@ -1032,6 +1067,7 @@ export function WorkspacePage() {
                               type="button"
                               className={`${newTaskPriority === p ? 'active' : ''} ${p}`}
                               onClick={() => setNewTaskPriority(p)}
+                              disabled={isReadOnlyMode}
                             >
                               {p.charAt(0).toUpperCase() + p.slice(1)}
                             </button>
@@ -1045,7 +1081,7 @@ export function WorkspacePage() {
                     <button
                       type="submit"
                       className="ws-submit-btn creative-glow"
-                      disabled={isSubmittingTask || !newTaskTitle.trim()}
+                      disabled={isReadOnlyMode || isSubmittingTask || !newTaskTitle.trim()}
                     >
                       {isSubmittingTask ? "Creating..." : "Create Task"}
                     </button>
@@ -1059,11 +1095,13 @@ export function WorkspacePage() {
               <button
                 className="ws-add-task-btn"
                 onClick={() => setShowAddTask(true)}
+                disabled={isReadOnlyMode}
+                title={isReadOnlyMode ? "Read-only mode" : "Add Task"}
               >
                 <FiPlus size={14} />
                 Add Task
               </button>
-              <button className="ws-sprint-btn creative-glow">
+              <button className="ws-sprint-btn creative-glow" disabled={isReadOnlyMode}>
                 <FiZap size={13} />
                 Execute Sprint
               </button>

@@ -105,6 +105,15 @@ router.patch('/:id/roles/:userId', requireRole('lead'), async (req, res) => {
       req.params.userId,
       role
     );
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`room:${req.params.id}`).emit('workspace:role_updated', {
+        workspaceId: req.params.id,
+        userId: req.params.userId,
+        role: updatedRole.role,
+        reloadMembers: true,
+      });
+    }
     return res.status(200).json({ role: updatedRole });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -254,6 +263,37 @@ router.get('/:id/events', requireRole('lead', 'contributor', 'viewer'), async (r
   } catch (error) {
     return res.status(500).json({
       message: error.message || 'Failed to list events.',
+    });
+  }
+});
+
+function serializeYjsUpdate(update) {
+  if (!update) return null;
+  return Array.from(new Uint8Array(update));
+}
+
+router.get('/:id/canvas-history', requireRole('lead', 'contributor', 'viewer'), async (req, res) => {
+  try {
+    const events = await eventService.getAllEvents(req.params.id);
+    const history = events.map((event) => ({
+      id: event.id,
+      userId: event.userId,
+      eventType: event.eventType,
+      nodeId: event.nodeId,
+      payload: event.payload || {},
+      sequenceNum: event.sequenceNum,
+      createdAt: event.createdAt,
+      yjsUpdate: serializeYjsUpdate(event.yjsUpdate),
+    }));
+
+    return res.status(200).json({
+      minSequence: history.length ? history[0].sequenceNum : 0,
+      maxSequence: history.length ? history[history.length - 1].sequenceNum : 0,
+      events: history,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || 'Failed to load canvas history.',
     });
   }
 });

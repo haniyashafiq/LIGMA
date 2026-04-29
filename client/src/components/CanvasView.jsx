@@ -582,6 +582,9 @@ export default function CanvasView({
         }),
       );
     });
+    socket.on("workspace:role_updated", (payload) => {
+      window.dispatchEvent(new CustomEvent("ligma:role-updated", { detail: payload || {} }));
+    });
     socket.on("task:sync", () => {
       window.dispatchEvent(new CustomEvent("ligma:tasks-sync"));
     });

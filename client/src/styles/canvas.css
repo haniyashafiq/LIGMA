@@ -86,6 +86,110 @@
   backdrop-filter: blur(10px);
 }
 
+.canvas-replay-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: min(720px, calc(100% - 32px));
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.86);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+}
+
+.canvas-replay-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.84);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.canvas-replay-controls button.active {
+  border-color: rgba(13, 153, 255, 0.7);
+  background: rgba(13, 153, 255, 0.2);
+  color: #bfdbfe;
+}
+
+.canvas-replay-controls button:disabled,
+.canvas-replay-controls input:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.canvas-replay-controls input[type="range"] {
+  flex: 1;
+  min-width: 120px;
+  accent-color: var(--color-primary);
+}
+
+.canvas-replay-meta {
+  min-width: 88px;
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.canvas-replay-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top, rgba(13, 153, 255, 0.1), transparent 34%),
+    rgba(2, 6, 23, 0.88);
+}
+
+.canvas-replay-banner,
+.canvas-replay-error {
+  position: absolute;
+  left: 18px;
+  z-index: 95;
+  max-width: min(520px, calc(100% - 36px));
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--radius-md);
+  background: rgba(15, 23, 42, 0.88);
+  color: var(--color-text);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(14px);
+}
+
+.canvas-replay-banner {
+  top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: var(--text-xs);
+}
+
+.canvas-replay-banner span {
+  color: var(--color-text-subtle);
+}
+
+.canvas-replay-error {
+  bottom: 70px;
+  padding: 8px 10px;
+  color: var(--color-danger);
+  font-size: var(--text-xs);
+}
+
 /* Loading Canvas */
 .loading-canvas {
   display: flex;

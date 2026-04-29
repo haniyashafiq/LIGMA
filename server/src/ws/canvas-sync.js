@@ -385,14 +385,26 @@ async function sendRecovery(socket, room, sinceSequence = 0) {
   }
 
   for (const event of missed) {
-    if (!event.yjsUpdate) continue;
+    if (event.yjsUpdate) {
+      socket.emit("canvas:delta", {
+        sequenceNum: event.sequenceNum,
+        eventType: event.eventType,
+        nodeId: event.nodeId,
+        update: event.yjsUpdate,
+        replay: true,
+      });
+      continue;
+    }
+
+    // Semantic-only events depend on existing document state. Fall back to the
+    // authoritative room snapshot rather than letting incremental recovery drift.
     socket.emit("canvas:delta", {
-      sequenceNum: event.sequenceNum,
-      eventType: event.eventType,
-      nodeId: event.nodeId,
-      update: event.yjsUpdate,
-      replay: true,
+      sequenceNum: room.lastSequenceNum,
+      eventType: "canvas:snapshot",
+      update: Buffer.from(Y.encodeStateAsUpdate(room.doc)),
+      snapshot: true,
     });
+    return;
   }
 }
 

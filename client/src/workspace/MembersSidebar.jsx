@@ -20,13 +20,17 @@ export default function MembersSidebar({
   onlineUsernames,
   currentUserId,
   currentRole,
+  canManageMembers: canManageMembersProp,
   onChangeRole,
 }) {
   const [actionMessage, setActionMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [busyRoleUserId, setBusyRoleUserId] = useState(null);
 
-  const canManageMembers = normalizeRole(currentRole) === "lead";
+  const canManageMembers =
+    typeof canManageMembersProp === "boolean"
+      ? canManageMembersProp
+      : normalizeRole(currentRole) === "lead";
   const safeMembers = Array.isArray(members) ? members : [];
 
   const normalizedOnlineUserIds = useMemo(() => {
@@ -99,7 +103,16 @@ export default function MembersSidebar({
             (username && normalizedOnlineUsernames.has(username));
           const isSelf = String(currentUserId || "") === userId;
           const memberRole = normalizeRole(member.role);
-          const roleLocked = !canManageMembers || isSelf || busyRoleUserId === userId;
+          const isLeadMember = memberRole === "lead";
+          const canChangeRole = canManageMembers && !isSelf && !isLeadMember;
+          const roleLocked = !canChangeRole || busyRoleUserId === userId;
+          const roleTitle = isSelf
+            ? "You cannot change your own role."
+            : isLeadMember
+              ? "Lead role transfer is not available here."
+              : canManageMembers
+                ? "Change member role"
+                : "Only workspace leads can change roles.";
 
           return (
             <div key={keyForMember(member)} className="ws-member-row">
@@ -128,11 +141,12 @@ export default function MembersSidebar({
               </div>
               <div className="ws-member-role-col">
                 <RoleBadge role={memberRole} compact />
-                {canManageMembers && !isSelf ? (
+                {canChangeRole ? (
                   <select
                     className="ws-member-role-select"
                     value={memberRole}
                     disabled={roleLocked}
+                    title={roleTitle}
                     onChange={(event) => handleRoleChange(member, event.target.value)}
                   >
                     {MANAGEABLE_ROLES.map((role) => (
@@ -141,7 +155,11 @@ export default function MembersSidebar({
                       </option>
                     ))}
                   </select>
-                ) : null}
+                ) : (
+                  <span className="ws-member-role-note" title={roleTitle}>
+                    {isSelf ? "You" : isLeadMember ? "Lead locked" : "Locked"}
+                  </span>
+                )}
               </div>
             </div>
           );
