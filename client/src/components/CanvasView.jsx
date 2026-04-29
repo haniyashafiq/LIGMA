@@ -306,6 +306,7 @@ export default function CanvasView({
   const [textEditor, setTextEditor] = useState(null);
   const [textEditLayout, setTextEditLayout] = useState(null);
   const [isDrawingState, setIsDrawingState] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState(null);
 
   useEffect(() => {
     textEditorRef.current = textEditor;
@@ -1029,9 +1030,24 @@ export default function CanvasView({
       setSelectedId(null);
     }
 
+    function handleEnterKey(event) {
+      if (event.target?.closest?.(".canvas-text-edit")) return;
+      if (event.key === "Enter" && selectedId && !readOnly) {
+        const node = nodesRef.current.find(n => n.id === selectedId);
+        if (node && (node.type === "text" || node.type === "note")) {
+          event.preventDefault();
+          beginTextEdit(node);
+        }
+      }
+    }
+
     window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [currentUserId, currentUserRole, emitOp, readOnly, selectedId]);
+    window.addEventListener("keydown", handleEnterKey);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keydown", handleEnterKey);
+    };
+  }, [currentUserId, currentUserRole, emitOp, readOnly, selectedId, beginTextEdit]);
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -1212,6 +1228,8 @@ export default function CanvasView({
       draggable: !readOnly && activeToolRef.current === "select",
       onClick: () => setSelectedId(node.id),
       onTap: () => setSelectedId(node.id),
+      onMouseEnter: () => !readOnly && setHoveredNodeId(node.id),
+      onMouseLeave: () => setHoveredNodeId(null),
       onDragStart: (e) => {
         e.cancelBubble = true;
       },
@@ -1561,12 +1579,33 @@ export default function CanvasView({
             display: "block",
             visibility: "visible",
             opacity: 1,
+            background: textEditor.surface === "note" ? "transparent" : "transparent",
+            border: "none",
+            outline: "none",
+            padding: 0,
+            margin: 0,
+            color: textEditor.surface === "note" ? "#0f172a" : "#f8fafc",
           }}
         />
       ) : null}
       {nodes.length === 0 && connectionState === "online" ? (
         <div className="canvas-empty-hint">Choose a tool and click the canvas to create your first node.</div>
       ) : null}
+      {hoveredNodeId && !textEditor && !readOnly && !isDrawingState && (
+        <div 
+          className="canvas-hover-hint"
+          style={{
+            position: "absolute",
+            left: (nodes.find(n => n.id === hoveredNodeId)?.x || 0) * viewport.scale + viewport.x,
+            top: (nodes.find(n => n.id === hoveredNodeId)?.y || 0) * viewport.scale + viewport.y - 30,
+            transform: "translateX(-50%)",
+            pointerEvents: "none",
+            zIndex: 50,
+          }}
+        >
+          Press Enter to edit
+        </div>
+      )}
     </div>
   );
 }
