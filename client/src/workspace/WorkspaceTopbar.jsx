@@ -118,13 +118,11 @@ export function WorkspaceTopbar({
           )}
         </div>
 
-        <button className="ws-share-btn" onClick={() => setShareOpen(true)}>
-          <FiShare2 size={12} style={{ marginRight: 4 }} />
-          Share
+        <button className="ws-share-btn" onClick={() => setShareOpen(true)} title="Share Workspace">
+          <FiShare2 size={16} />
         </button>
-        <button className="ws-members-btn" onClick={() => setMembersOpen(true)}>
-          <FiUsers size={12} style={{ marginRight: 4 }} />
-          Members
+        <button className="ws-members-btn" onClick={() => setMembersOpen(true)} title="Workspace Members">
+          <FiUsers size={16} />
         </button>
         <RoleBadge role={workspaceRole} />
 
