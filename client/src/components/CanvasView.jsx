@@ -208,6 +208,7 @@ export default function CanvasView({
   const docRef = useRef(null);
   const nodesMapRef = useRef(null);
   const nodesRef = useRef([]);
+  const remoteCursorsRef = useRef({});
   const selectedIdRef = useRef(null);
   const activeToolRef = useRef(activeTool);
   const isDrawingRef = useRef(false);
@@ -240,6 +241,10 @@ export default function CanvasView({
   useEffect(() => {
     textEditorRef.current = textEditor;
   }, [textEditor]);
+
+  useEffect(() => {
+    remoteCursorsRef.current = remoteCursors;
+  }, [remoteCursors]);
 
   const capturePointerForToast = useCallback((event) => {
     lastPointerRef.current = { x: event.clientX, y: event.clientY };
@@ -586,6 +591,20 @@ export default function CanvasView({
         if (selectedIdRef.current) jumpToNode(selectedIdRef.current);
       },
       jumpToNode,
+      jumpToUser(userId) {
+        const cursors = Object.values(remoteCursorsRef.current);
+        const cursor = cursors.find(c => String(c.userId) === String(userId));
+        if (!cursor) return;
+        
+        const rect = canvasShellRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        
+        setViewport(current => ({
+          ...current,
+          x: rect.width / 2 - cursor.x * current.scale,
+          y: rect.height / 2 - cursor.y * current.scale
+        }));
+      },
       selectNode(nodeId) {
         setSelectedId(nodeId);
       },

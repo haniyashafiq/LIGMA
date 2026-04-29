@@ -25,7 +25,8 @@ export function WorkspaceTopbar({
   setExecOpen, 
   handleLogout,
   presenceMembers = [],
-  currentUserId
+  currentUserId,
+  canvasController
 }) {
   const { visibleMembers, remainingCount } = React.useMemo(() => {
     const MAX_VISIBLE_AVATARS = 5;
@@ -109,8 +110,16 @@ export function WorkspaceTopbar({
               <div 
                 key={member.id || member.socketId} 
                 className={`ws-presence-avatar${isMe ? " is-me" : ""}`} 
-                style={{ backgroundColor: member.color || "var(--color-primary)" }}
+                style={{ 
+                  backgroundColor: member.color || "var(--color-primary)",
+                  cursor: isMe ? "default" : "pointer"
+                }}
                 title={isMe ? "You" : (member.username || `User ${member.userId || member.id}`)}
+                onClick={() => {
+                  if (!isMe && canvasController?.jumpToUser) {
+                    canvasController.jumpToUser(member.userId || member.id);
+                  }
+                }}
               >
                 {getInitials(member.username, member.userId || member.id, isMe)}
               </div>
