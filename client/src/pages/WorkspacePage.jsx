@@ -9,7 +9,8 @@ import {
   FiEdit2,
   FiArrowUpRight,
   FiFileText,
-  FiTrash2,
+  FiX,
+  FiTrash,
   FiLayers,
   FiSettings,
 } from "react-icons/fi";
@@ -44,12 +45,12 @@ const TOOLS = [
   { id: "draw", Icon: FiEdit2, label: "Pen" },
   { id: "arrow", Icon: FiArrowUpRight, label: "Arrow" },
   { id: "note", Icon: FiFileText, label: "Notes" },
-  { id: "eraser", Icon: FiTrash2, label: "Eraser" },
+  { id: "eraser", Icon: FiTrash, label: "Eraser" },
 ];
 
 const TOOL_EXTRAS = [
   { id: "layers", Icon: FiLayers, label: "Layers" },
-  { id: "settings", Icon: FiSettings, label: "Config" },
+  { id: "clear_all", Icon: FiX, label: "Clear All" },
 ];
 
 export function WorkspacePage() {
@@ -439,6 +440,8 @@ export function WorkspacePage() {
               isReadOnlyMode={isReadOnlyMode} 
               layersOpen={layersOpen}
               setLayersOpen={setLayersOpen}
+              workspaceRole={workspaceRole}
+              editor={editor}
             />
 
             <div className="ws-canvas-area">
