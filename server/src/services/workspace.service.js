@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { pool } = require('../db/pool');
 
+const templateService = require('./template.service');
+
 const VALID_ROLES = new Set(['lead', 'contributor', 'viewer']);
 const INVITE_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
@@ -39,7 +41,7 @@ function mapMember(row) {
   };
 }
 
-async function createWorkspace(name, creatorId) {
+async function createWorkspace(name, creatorId, templateId = null) {
   const trimmedName = typeof name === 'string' ? name.trim() : '';
   if (!trimmedName) {
     throw createHttpError('Workspace name is required.', 400);
@@ -70,6 +72,14 @@ async function createWorkspace(name, creatorId) {
     );
 
     await client.query('COMMIT');
+
+    // Seed if template provided
+    if (templateId) {
+      await templateService.seedWorkspace(workspace.id, templateId, creatorId).catch(err => {
+        console.error('[workspace.service] Template seeding failed', err);
+      });
+    }
+
     return {
       ...mapWorkspace(workspace),
       role: 'lead',
@@ -305,6 +315,27 @@ async function acceptInviteToken(token, userId) {
   };
 }
 
+async function deleteWorkspace(workspaceId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Delete roles first
+    await client.query('DELETE FROM workspace_roles WHERE workspace_id = $1', [workspaceId]);
+    
+    // Delete the workspace
+    const result = await client.query('DELETE FROM workspaces WHERE id = $1 RETURNING id', [workspaceId]);
+    
+    await client.query('COMMIT');
+    return result.rows[0] || null;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   VALID_ROLES,
   createWorkspace,
@@ -314,4 +345,5 @@ module.exports = {
   updateUserRole,
   createInviteToken,
   acceptInviteToken,
+  deleteWorkspace,
 };
