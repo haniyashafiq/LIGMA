@@ -68,7 +68,7 @@ export function WorkspaceTopbar({
         </div>
 
         <div className="workspace-topbar-tabs">
-          {["Workspace", "Board", "Timeline"].map((tab) => (
+          {["Workspace", "Board", "Timeline", "Chat"].map((tab) => (
             <button
               key={tab}
               className={
@@ -88,20 +88,6 @@ export function WorkspaceTopbar({
       </div>
 
       <div className="workspace-topbar-right">
-        <button
-          className="ws-topbar-icon-btn"
-          aria-label="Notifications"
-          title="Notifications"
-        >
-          <FiBell size={15} />
-        </button>
-        <button
-          className="ws-topbar-icon-btn"
-          aria-label="Help"
-          title="Help"
-        >
-          <FiHelpCircle size={15} />
-        </button>
         
         <div className="ws-presence-stack">
           {visibleMembers.map((member, idx) => {
