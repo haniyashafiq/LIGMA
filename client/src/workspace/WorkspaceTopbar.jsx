@@ -24,20 +24,28 @@ export function WorkspaceTopbar({
   connectionStatus, 
   setExecOpen, 
   handleLogout,
-  presenceMembers = []
+  presenceMembers = [],
+  currentUserId
 }) {
-  const getInitials = (name) => {
-    if (!name) return "?";
-    const parts = name.trim().split(/\s+/);
+  const { visibleMembers, remainingCount } = React.useMemo(() => {
+    const MAX_VISIBLE_AVATARS = 5;
+    return {
+      visibleMembers: presenceMembers.slice(0, MAX_VISIBLE_AVATARS),
+      remainingCount: Math.max(0, presenceMembers.length - MAX_VISIBLE_AVATARS)
+    };
+  }, [presenceMembers]);
+
+  const getInitials = React.useCallback((username, id, isMe) => {
+    if (isMe) return "Y";
+    const fallback = id ? String(id).slice(-2).toUpperCase() : "?";
+    if (!username) return fallback;
+    const parts = username.trim().split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
-  };
-
-  const MAX_VISIBLE_AVATARS = 5;
-  const visibleMembers = presenceMembers.slice(0, MAX_VISIBLE_AVATARS);
-  const remainingCount = presenceMembers.length - MAX_VISIBLE_AVATARS;
+    const cleanName = username.trim();
+    return cleanName ? cleanName.slice(0, 2).toUpperCase() : fallback;
+  }, []);
 
   return (
     <header className="workspace-topbar">
@@ -95,16 +103,19 @@ export function WorkspaceTopbar({
         </button>
         
         <div className="ws-presence-stack">
-          {visibleMembers.map((member) => (
-            <div 
-              key={member.id} 
-              className="ws-presence-avatar" 
-              style={{ backgroundColor: member.color || "var(--color-primary)" }}
-              title={member.name}
-            >
-              {getInitials(member.name)}
-            </div>
-          ))}
+          {visibleMembers.map((member) => {
+            const isMe = String(member.userId) === String(currentUserId);
+            return (
+              <div 
+                key={member.id || member.socketId} 
+                className={`ws-presence-avatar${isMe ? " is-me" : ""}`} 
+                style={{ backgroundColor: member.color || "var(--color-primary)" }}
+                title={isMe ? "You" : (member.username || `User ${member.userId || member.id}`)}
+              >
+                {getInitials(member.username, member.userId || member.id, isMe)}
+              </div>
+            );
+          })}
           {remainingCount > 0 && (
             <div className="ws-presence-avatar more" title={`${remainingCount} more users`}>
               +{remainingCount}
