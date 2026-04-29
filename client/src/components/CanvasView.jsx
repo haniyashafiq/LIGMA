@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, us
 import { io } from "socket.io-client";
 import * as Y from "yjs";
 import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
-import { apiFetch } from "../net/api";
 import { AppContext } from "../utils/AppContext";
 import { getAccessToken, refreshAccessToken } from "../net/api";
 import "../styles/canvas.css";
@@ -202,36 +201,11 @@ function makeNode(type, pointer, currentUser, zIndex) {
   if (type === "draw") {
     node.width = 0;
     node.height = 0;
-    node.points = [0, 0];
+    node.points = [pointer.x, pointer.y];
     node.style.stroke = "#e2e8f0";
   }
 
-  if (type === "circle") {
-    node.width = 0;
-    node.height = 0;
-  }
-
-  if (type === "triangle") {
-    node.width = 0;
-    node.height = 0;
-  }
-
   return node;
-}
-
-function classifyIntent(text, nodeType = "note") {
-  return apiFetch("/api/ai/classify", {
-    method: "POST",
-    body: JSON.stringify({ message: text, nodeType }),
-  })
-    .then((data) => ({
-      intent: data.intent || "general",
-      status: data.status || "todo",
-    }))
-    .catch((err) => {
-      console.error("AI classification failed:", err);
-      return { intent: "general", status: "todo" };
-    });
 }
 
 export default function CanvasView({
@@ -244,7 +218,7 @@ export default function CanvasView({
   currentUserRole = "viewer",
   collabUser = null,
 }) {
-  const { token, exposeJump, setConnectionStatus, user } = useContext(AppContext);
+  const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
   const canvasShellRef = useRef(null);
   const stageRef = useRef(null);
   const transformerRef = useRef(null);
@@ -254,17 +228,13 @@ export default function CanvasView({
   const nodesMapRef = useRef(null);
   const nodeTextsMapRef = useRef(null);
   const nodesRef = useRef([]);
-  const remoteCursorsRef = useRef({});
   const selectedIdRef = useRef(null);
   const activeToolRef = useRef(activeTool);
   const isDrawingRef = useRef(false);
-  const isErasingRef = useRef(false);
   const drawingNodeRef = useRef(null);
-  const drawingStartPosRef = useRef(null);
   const lastPointerRef = useRef(null);
   const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
   const lastCursorEmitRef = useRef(0);
-  const lastDrawEmitRef = useRef(0);
   const localSocketIdRef = useRef(null);
   const lastPlacedTextRef = useRef(null);
   const textAreaRef = useRef(null);
@@ -282,15 +252,10 @@ export default function CanvasView({
   const [remoteCursors, setRemoteCursors] = useState({});
   const [textEditor, setTextEditor] = useState(null);
   const [textEditLayout, setTextEditLayout] = useState(null);
-  const [isDrawingState, setIsDrawingState] = useState(false);
 
   useEffect(() => {
     textEditorRef.current = textEditor;
   }, [textEditor]);
-
-  useEffect(() => {
-    remoteCursorsRef.current = remoteCursors;
-  }, [remoteCursors]);
 
   const capturePointerForToast = useCallback((event) => {
     lastPointerRef.current = { x: event.clientX, y: event.clientY };
@@ -330,22 +295,6 @@ export default function CanvasView({
 
     window.addEventListener("ligma:rbac-toast", handleRbacToastEvent);
     return () => window.removeEventListener("ligma:rbac-toast", handleRbacToastEvent);
-  }, []);
-
-  // Handle Resize
-  useEffect(() => {
-    const shell = canvasShellRef.current;
-    if (!shell) return undefined;
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        setStageSize({ width, height });
-      }
-    });
-
-    observer.observe(shell);
-    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -490,51 +439,6 @@ export default function CanvasView({
     };
   }, [resolveTextNode]);
 
-  const handleAITrigger = useCallback(async (nodeId, text) => {
-    if (!text || text.length < 2) return;
-    
-    // Check if it's a note or text node
-    const node = resolveTextNode(nodeId);
-    if (!node || (node.type !== 'note' && node.type !== 'text')) return;
-
-    const cleanText = text.replace(/^\[.*?\]\s*/, '').trim();
-    const result = await classifyIntent(cleanText, node.type);
-    const { intent, status } = result;
-
-    // Normalize intent for display (e.g. "action item" -> "Action Item")
-    const displayIntent = intent.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    const tag = `[${displayIntent}]`;
-    
-    // Normalize intent for database (e.g. "action item" -> "action_item")
-    const dbIntent = intent.toLowerCase().replace(/\s+/g, '_');
-    
-    // Update node with intent tag if changed
-    if (!text.startsWith(tag)) {
-      emitOp({ type: "node:update", nodeId, patch: { text: `${tag}\n${cleanText}` } });
-    }
-
-    if (dbIntent === 'action_item') {
-      await apiFetch(`/api/workspaces/${workspaceId}/tasks/node/${nodeId}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          title: cleanText,
-          status: status || 'todo',
-          intent: 'action_item',
-          source: 'ai',
-          sourceAuthorId: user?.id,
-          sourceAuthorName: user?.displayName || user?.username
-        })
-      });
-      window.dispatchEvent(new CustomEvent('ligma:tasks-sync'));
-    } else {
-      // If it was a task but now it's something else, remove it
-      await apiFetch(`/api/workspaces/${workspaceId}/tasks/node/${nodeId}`, {
-        method: 'DELETE'
-      });
-      window.dispatchEvent(new CustomEvent('ligma:tasks-sync'));
-    }
-  }, [emitOp, resolveTextNode, workspaceId, user]);
-
   const commitTextEditor = useCallback(() => {
     setTextEditor((current) => {
       if (!current) return null;
@@ -667,20 +571,6 @@ export default function CanvasView({
         if (selectedIdRef.current) jumpToNode(selectedIdRef.current);
       },
       jumpToNode,
-      jumpToUser(userId) {
-        const cursors = Object.values(remoteCursorsRef.current);
-        const cursor = cursors.find(c => String(c.userId) === String(userId));
-        if (!cursor) return;
-        
-        const rect = canvasShellRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        
-        setViewport(current => ({
-          ...current,
-          x: rect.width / 2 - cursor.x * current.scale,
-          y: rect.height / 2 - cursor.y * current.scale
-        }));
-      },
       selectNode(nodeId) {
         setSelectedId(nodeId);
       },
@@ -697,14 +587,6 @@ export default function CanvasView({
         if (event !== "change") return () => {};
         window.addEventListener("ligma:canvas-change", callback);
         return () => window.removeEventListener("ligma:canvas-change", callback);
-      },
-      clearAll() {
-        if (readOnly) return;
-        const currentNodes = nodesRef.current;
-        currentNodes.forEach(node => {
-          emitOp({ type: "node:delete", nodeId: node.id });
-        });
-        setSelectedId(null);
       },
       user: { updateUserPreferences() {} },
     }),
@@ -853,12 +735,8 @@ export default function CanvasView({
     socket.on("workspace:role_updated", (payload) => {
       window.dispatchEvent(new CustomEvent("ligma:role-updated", { detail: payload || {} }));
     });
-    socket.on("task:sync", (payload) => {
+    socket.on("task:sync", () => {
       window.dispatchEvent(new CustomEvent("ligma:tasks-sync"));
-      if (payload?.deleted && payload.sourceNodeId) {
-        // If a task linked to a canvas node was deleted, remove the note too
-        emitOp({ type: "node:delete", nodeId: payload.sourceNodeId });
-      }
     });
 
     return () => {
@@ -950,51 +828,35 @@ export default function CanvasView({
     const pointer = getStagePointer();
     if (!pointer) return;
 
-    const isGeo = tool.startsWith("geo:");
-    const baseTool = isGeo ? "geo" : tool;
-
-    if (["geo", "text", "note", "arrow", "draw"].includes(baseTool)) {
+    if (["geo", "text", "note", "arrow"].includes(tool)) {
       if ((tool === "text" || tool === "note") && closedTextEditorOnThisDown) {
         return;
       }
-
-      const nodeType = isGeo ? tool.split(":")[1] : tool;
-      const node = makeNode(nodeType, pointer, collabUser, nodes.length + 1);
-      
+      const node = makeNode(tool === "geo" ? "rect" : tool, pointer, collabUser, nodes.length + 1);
       if (tool === "text") {
         lastPlacedTextRef.current = node;
         setTextEditor({ nodeId: node.id, value: "", baseline: "", surface: "text" });
-        emitOp({ type: "node:create", node });
-      } else if (tool === "note") {
+      }
+      if (tool === "note") {
         lastPlacedTextRef.current = node;
         setTextEditor({ nodeId: node.id, value: "", baseline: "", surface: "note" });
-        emitOp({ type: "node:create", node });
-      } else {
-        // Drag-to-create tools
-        isDrawingRef.current = true;
-        setIsDrawingState(true);
-        drawingNodeRef.current = node;
-        drawingStartPosRef.current = pointer;
-        
-        if (tool === "geo" || tool === "arrow") {
-          node.width = 0;
-          node.height = 0;
-          if (tool === "arrow") node.points = [0, 0, 0, 0];
-        }
-        
-        lastDrawEmitRef.current = Date.now() + 50;
-        emitOp({ type: "node:create", node });
       }
-      
+      emitOp({ type: "node:create", node });
       setSelectedId(node.id);
       return;
     }
 
-    if (tool === "eraser") {
-      isErasingRef.current = true;
-      const target = event.target;
-      if (target?.attrs?.nodeId) {
-        const eraseId = target.attrs.nodeId;
+    if (tool === "draw") {
+      const node = makeNode("draw", pointer, collabUser, nodes.length + 1);
+      isDrawingRef.current = true;
+      drawingNodeRef.current = node;
+      emitOp({ type: "node:create", node });
+      setSelectedId(node.id);
+      return;
+    }
+
+    if (tool === "eraser" && event.target?.attrs?.nodeId) {
+      const eraseId = event.target.attrs.nodeId;
       const targetNode = nodesMapRef.current?.get(eraseId);
       const ownerId = targetNode?.metadata?.ownerId || targetNode?.metadata?.authorId;
       if (currentUserRole === "contributor" && ownerId && String(ownerId) !== String(currentUserId)) {
@@ -1012,73 +874,16 @@ export default function CanvasView({
 
   function handleStageMouseMove() {
     emitCursorPosition();
-
-    // Eraser sweep logic
-    if (isErasingRef.current && activeToolRef.current === "eraser") {
-      const stage = stageRef.current;
-      const pos = stage?.getPointerPosition();
-      if (pos) {
-        const intersected = stage.getIntersection(pos);
-        if (intersected?.attrs?.nodeId) {
-          emitOp({ type: "node:delete", nodeId: intersected.attrs.nodeId });
-          if (selectedIdRef.current === intersected.attrs.nodeId) {
-            setSelectedId(null);
-          }
-        }
-      }
-    }
-
     if (!isDrawingRef.current || !drawingNodeRef.current) return;
     const pointer = getStagePointer();
     if (!pointer) return;
     const node = drawingNodeRef.current;
-    const start = drawingStartPosRef.current;
-
-    if (node.type === "draw") {
-      const relX = pointer.x - node.x;
-      const relY = pointer.y - node.y;
-      const newPoints = [...node.points, relX, relY];
-      node.points = newPoints;
-
-      // 1. Direct Konva update for zero-lag local feedback
-      const konvaNode = nodeRefs.current.get(node.id);
-      if (konvaNode) {
-        konvaNode.points(newPoints);
-      }
-
-      // 2. Throttled emit for collaboration sync (approx 30fps)
-      const now = Date.now();
-      if (now - lastDrawEmitRef.current > 32) {
-        lastDrawEmitRef.current = now;
-        emitOp({ type: "node:update", nodeId: node.id, patch: { points: newPoints } });
-      }
-    } else if (node.type === "arrow") {
-      const dx = pointer.x - node.x;
-      const dy = pointer.y - node.y;
-      node.points = [0, 0, dx, dy];
-      emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
-    } else {
-      // Shape (Rect, etc.)
-      const width = pointer.x - node.x;
-      const height = pointer.y - node.y;
-      node.width = width;
-      node.height = height;
-      emitOp({ type: "node:update", nodeId: node.id, patch: { width, height } });
-    }
+    node.points = [...node.points, pointer.x, pointer.y];
+    emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
   }
 
   function handleStageMouseUp() {
-    if (isDrawingRef.current && drawingNodeRef.current?.type === "draw") {
-      // Final sync on release to ensure all points are sent
-      emitOp({ 
-        type: "node:update", 
-        nodeId: drawingNodeRef.current.id, 
-        patch: { points: drawingNodeRef.current.points } 
-      });
-    }
     isDrawingRef.current = false;
-    setIsDrawingState(false);
-    isErasingRef.current = false;
     drawingNodeRef.current = null;
   }
 
@@ -1218,45 +1023,14 @@ export default function CanvasView({
         <Line
           key={key}
           {...konvaProps}
+          x={0}
+          y={0}
           points={node.points || []}
           stroke={node.style?.stroke || "#e2e8f0"}
           strokeWidth={node.style?.strokeWidth || 2}
           tension={0.35}
           lineCap="round"
           lineJoin="round"
-        />
-      );
-    }
-
-    if (node.type === "circle") {
-      return (
-        <Circle
-          key={key}
-          {...konvaProps}
-          x={node.x + node.width / 2}
-          y={node.y + node.height / 2}
-          radius={Math.abs(node.width) / 2}
-          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
-          stroke={node.style?.stroke || "#818cf8"}
-          strokeWidth={node.style?.strokeWidth || 2}
-        />
-      );
-    }
-
-    if (node.type === "triangle") {
-      return (
-        <Line
-          key={key}
-          {...konvaProps}
-          points={[
-            node.width / 2, 0,
-            node.width, node.height,
-            0, node.height
-          ]}
-          closed
-          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
-          stroke={node.style?.stroke || "#818cf8"}
-          strokeWidth={node.style?.strokeWidth || 2}
         />
       );
     }
@@ -1281,11 +1055,6 @@ export default function CanvasView({
       className="canvas-container"
       onPointerMove={capturePointerForToast}
       onPointerDown={capturePointerForToast}
-      style={{ 
-        cursor: activeTool === "eraser" ? "cell" : 
-                activeTool === "draw" ? "crosshair" : 
-                "default" 
-      }}
     >
       {rbacToast ? (
         <div
@@ -1344,15 +1113,11 @@ export default function CanvasView({
         </Layer>
         <Layer>
           {nodes.map(renderNode)}
-          {selectedId && !textEditor && !isDrawingState ? (
+          {selectedId && !textEditor ? (
             <Transformer
               ref={transformerRef}
-              rotateEnabled={nodes.find(n => n.id === selectedId)?.type !== "draw"}
-              enabledAnchors={
-                nodes.find(n => n.id === selectedId)?.type === "draw"
-                  ? []
-                  : ["top-left", "top-right", "bottom-left", "bottom-right"]
-              }
+              rotateEnabled
+              enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
             />
           ) : null}
           {nodes
