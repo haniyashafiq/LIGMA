@@ -28,6 +28,11 @@ function decodeYjsUpdate(update) {
 function createCanvasSocket({ workspaceId, token }) {
   const socket = io(getSocketBaseUrl(), {
     auth: (cb) => cb({ token: getAccessToken() || token, workspaceId }),
+    reconnection: true,
+    reconnectionAttempts: 30,
+    reconnectionDelay: 500,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
   });
 
   const presenceMembers = new Map();
@@ -101,6 +106,13 @@ function nextNodeId() {
 
 const CURSOR_EMIT_MS = 32;
 const CURSOR_STALE_MS = 5000;
+const CONNECTION_MESSAGES = {
+  waking: "Waking up server...",
+  reconnecting: "Reconnecting to workspace...",
+  error: "Connection interrupted. Retrying...",
+  offline: "Workspace offline. Retrying...",
+  disconnected: "Connecting to workspace...",
+};
 
 // Remote pointer: tip at (0,0) in local coords (classic triangular arrow, down-right).
 const REMOTE_CURSOR_ARROW = [0, 0, 0, 20, 5, 15, 9, 24, 12, 22, 8, 13, 15, 13];
@@ -149,6 +161,16 @@ function makeNode(type, pointer, currentUser, zIndex) {
     node.style.stroke = "#e2e8f0";
   }
 
+  if (type === "circle") {
+    node.width = 0;
+    node.height = 0;
+  }
+
+  if (type === "triangle") {
+    node.width = 0;
+    node.height = 0;
+  }
+
   return node;
 }
 
@@ -192,6 +214,7 @@ export default function CanvasView({
   const activeToolRef = useRef(activeTool);
   const isDrawingRef = useRef(false);
   const drawingNodeRef = useRef(null);
+  const drawingStartPosRef = useRef(null);
   const lastPointerRef = useRef(null);
   const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
   const lastCursorEmitRef = useRef(0);
@@ -200,10 +223,12 @@ export default function CanvasView({
   const textAreaRef = useRef(null);
   const skipNextTextBlurCommitRef = useRef(false);
   const textEditorRef = useRef(null);
+  const reconnectAttemptRef = useRef(0);
 
   const [nodes, setNodes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [connectionState, setConnectionState] = useState("disconnected");
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [rbacToast, setRbacToast] = useState(null);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
@@ -253,6 +278,22 @@ export default function CanvasView({
 
     window.addEventListener("ligma:rbac-toast", handleRbacToastEvent);
     return () => window.removeEventListener("ligma:rbac-toast", handleRbacToastEvent);
+  }, []);
+
+  // Handle Resize
+  useEffect(() => {
+    const shell = canvasShellRef.current;
+    if (!shell) return undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setStageSize({ width, height });
+      }
+    });
+
+    observer.observe(shell);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -612,10 +653,35 @@ export default function CanvasView({
       return undefined;
     }
 
+    setConnectionState("waking");
+    reconnectAttemptRef.current = 0;
+    setReconnectAttempt(0);
     const socket = createCanvasSocket({ workspaceId, token });
     socketRef.current = socket;
 
+    const handleReconnectAttempt = (attempt) => {
+      reconnectAttemptRef.current = attempt;
+      setReconnectAttempt(attempt);
+      setConnectionState(attempt <= 2 ? "waking" : "reconnecting");
+    };
+
+    const handleReconnect = () => {
+      reconnectAttemptRef.current = 0;
+      setReconnectAttempt(0);
+      setConnectionState("online");
+    };
+
+    const handleReconnectFailed = () => {
+      setConnectionState("error");
+    };
+
+    socket.io.on("reconnect_attempt", handleReconnectAttempt);
+    socket.io.on("reconnect", handleReconnect);
+    socket.io.on("reconnect_failed", handleReconnectFailed);
+
     socket.on("connect", () => {
+      reconnectAttemptRef.current = 0;
+      setReconnectAttempt(0);
       setConnectionState("online");
       // Always request a full Yjs merge from the server. We do not persist the Y.Doc locally;
       // sessionStorage may hold a "caught up" sequence after a prior tab session. Sending that
@@ -652,12 +718,14 @@ export default function CanvasView({
         return next;
       });
     });
-    socket.on("disconnect", () => {
-      setConnectionState("offline");
+    socket.on("disconnect", (_reason) => {
+      setConnectionState(socket.active ? "reconnecting" : "offline");
       localSocketIdRef.current = null;
       setRemoteCursors({});
     });
-    socket.on("connect_error", () => setConnectionState("error"));
+    socket.on("connect_error", () => {
+      setConnectionState(reconnectAttemptRef.current <= 2 ? "waking" : "error");
+    });
     socket.on("canvas:delta", (payload) => {
       const update = decodeYjsUpdate(payload?.update);
       if (!update || !docRef.current) return;
@@ -685,6 +753,9 @@ export default function CanvasView({
     });
 
     return () => {
+      socket.io.off("reconnect_attempt", handleReconnectAttempt);
+      socket.io.off("reconnect", handleReconnect);
+      socket.io.off("reconnect_failed", handleReconnectFailed);
       socket.disconnect();
       socketRef.current = null;
     };
@@ -770,29 +841,40 @@ export default function CanvasView({
     const pointer = getStagePointer();
     if (!pointer) return;
 
-    if (["geo", "text", "note", "arrow"].includes(tool)) {
+    const isGeo = tool.startsWith("geo:");
+    const baseTool = isGeo ? "geo" : tool;
+
+    if (["geo", "text", "note", "arrow", "draw"].includes(baseTool)) {
       if ((tool === "text" || tool === "note") && closedTextEditorOnThisDown) {
         return;
       }
-      const node = makeNode(tool === "geo" ? "rect" : tool, pointer, collabUser, nodes.length + 1);
+
+      const nodeType = isGeo ? tool.split(":")[1] : tool;
+      const node = makeNode(nodeType, pointer, collabUser, nodes.length + 1);
+      
       if (tool === "text") {
         lastPlacedTextRef.current = node;
         setTextEditor({ nodeId: node.id, value: "", baseline: "", surface: "text" });
-      }
-      if (tool === "note") {
+        emitOp({ type: "node:create", node });
+      } else if (tool === "note") {
         lastPlacedTextRef.current = node;
         setTextEditor({ nodeId: node.id, value: "", baseline: "", surface: "note" });
+        emitOp({ type: "node:create", node });
+      } else {
+        // Drag-to-create tools
+        isDrawingRef.current = true;
+        drawingNodeRef.current = node;
+        drawingStartPosRef.current = pointer;
+        
+        if (tool === "geo" || tool === "arrow") {
+          node.width = 0;
+          node.height = 0;
+          if (tool === "arrow") node.points = [0, 0, 0, 0];
+        }
+        
+        emitOp({ type: "node:create", node });
       }
-      emitOp({ type: "node:create", node });
-      setSelectedId(node.id);
-      return;
-    }
-
-    if (tool === "draw") {
-      const node = makeNode("draw", pointer, collabUser, nodes.length + 1);
-      isDrawingRef.current = true;
-      drawingNodeRef.current = node;
-      emitOp({ type: "node:create", node });
+      
       setSelectedId(node.id);
       return;
     }
@@ -809,8 +891,24 @@ export default function CanvasView({
     const pointer = getStagePointer();
     if (!pointer) return;
     const node = drawingNodeRef.current;
-    node.points = [...node.points, pointer.x, pointer.y];
-    emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
+    const start = drawingStartPosRef.current;
+
+    if (node.type === "draw") {
+      node.points = [...node.points, pointer.x, pointer.y];
+      emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
+    } else if (node.type === "arrow") {
+      const dx = pointer.x - node.x;
+      const dy = pointer.y - node.y;
+      node.points = [0, 0, dx, dy];
+      emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
+    } else {
+      // Shape (Rect, etc.)
+      const width = pointer.x - node.x;
+      const height = pointer.y - node.y;
+      node.width = width;
+      node.height = height;
+      emitOp({ type: "node:update", nodeId: node.id, patch: { width, height } });
+    }
   }
 
   function handleStageMouseUp() {
@@ -966,6 +1064,39 @@ export default function CanvasView({
       );
     }
 
+    if (node.type === "circle") {
+      return (
+        <Circle
+          key={key}
+          {...konvaProps}
+          x={node.x + node.width / 2}
+          y={node.y + node.height / 2}
+          radius={Math.abs(node.width) / 2}
+          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+          stroke={node.style?.stroke || "#818cf8"}
+          strokeWidth={node.style?.strokeWidth || 2}
+        />
+      );
+    }
+
+    if (node.type === "triangle") {
+      return (
+        <Line
+          key={key}
+          {...konvaProps}
+          points={[
+            node.width / 2, 0,
+            node.width, node.height,
+            0, node.height
+          ]}
+          closed
+          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+          stroke={node.style?.stroke || "#818cf8"}
+          strokeWidth={node.style?.strokeWidth || 2}
+        />
+      );
+    }
+
     return (
       <Rect
         key={key}
@@ -1001,7 +1132,13 @@ export default function CanvasView({
       {connectionState !== "online" ? (
         <div className="ws-loading">
           <div className="ws-loading-spinner" />
-          Connecting to workspace...
+          <div className="ws-loading-copy">
+            <strong>{CONNECTION_MESSAGES[connectionState] || CONNECTION_MESSAGES.disconnected}</strong>
+            <span>
+              Free hosting can take 30-60 seconds to wake. Your canvas will resync automatically.
+              {reconnectAttempt > 0 ? ` Attempt ${reconnectAttempt}/30.` : ""}
+            </span>
+          </div>
         </div>
       ) : null}
       <Stage

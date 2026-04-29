@@ -4,6 +4,7 @@ import { DashboardLayout } from "../layouts/DashboardLayout";
 import { apiFetch } from "../net/api";
 import { FiLink, FiCheckCircle, FiClock, FiAlertCircle, FiPlus, FiChevronDown } from "react-icons/fi";
 import "../styles/workspace.css";
+import { TaskCard } from "../workspace/TaskCard";
 
 export function TasksPage({ user }) {
   const [tasks, setTasks] = useState([]);
@@ -46,6 +47,33 @@ export function TasksPage({ user }) {
       console.error("Failed to update task:", err);
       setTasks(oldTasks); // Rollback
       alert("Failed to update task status. Please try again.");
+    }
+  };
+
+  const handleDeleteTask = async (workspaceId, taskId) => {
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    
+    const oldTasks = [...tasks];
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+        method: "DELETE"
+      });
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+      setTasks(oldTasks);
+      alert("Failed to delete task. Please try again.");
+    }
+  };
+
+  const getIntentLabel = (intent) => {
+    switch (intent?.toLowerCase()) {
+      case 'action_item': return 'Action Item';
+      case 'open_question': return 'Open Question';
+      case 'decision': return 'Decision';
+      case 'reference': return 'Reference';
+      default: return 'Task';
     }
   };
 
@@ -145,47 +173,18 @@ export function TasksPage({ user }) {
                   {tasks
                     .filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status)
                     .map((task) => (
-                      <div 
-                        key={task.id} 
-                        className={`ws-task-card kanban-card status-border-${task.status.toLowerCase()} ${draggingTask?.id === task.id ? 'dragging' : ''}`}
-                        draggable
-                        onDragStart={() => onDragStart(task)}
-                      >
-                        <div className="ws-task-card-header">
-                          <div className="ws-task-header-left">
-                            {task.priority && (
-                              <span className={`ws-task-priority-badge ${task.priority}`}>
-                                {task.priority}
-                              </span>
-                            )}
-                          </div>
-                          <Link 
-                            to={`/workspace/${task.workspace_id}/workspace`} 
-                            className="ws-task-workspace-link"
-                          >
-                            {task.workspaceName}
-                          </Link>
-                        </div>
-                        <p className="ws-task-title" style={{ fontSize: '13px', fontWeight: '500', lineHeight: '1.5', margin: '8px 0 12px' }}>{task.title}</p>
-                        
-                        <div className="ws-task-progress-mini">
-                          <div className="ws-task-progress-bar">
-                            <div className="ws-task-progress-fill" style={{ width: task.status === 'done' ? '100%' : task.status === 'doing' ? '50%' : '0%' }} />
-                          </div>
-                        </div>
-
-                        <div className="ws-task-footer" style={{ marginTop: '12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-subtle)', fontSize: '10px' }}>
-                             <FiCheckCircle size={10} />
-                             <span>{task.status === 'done' ? '1/1' : '0/1'}</span>
-                          </div>
-                          <div className="ws-task-footer-actions">
-                            <div className="ws-task-user-pip" title={task.authorName || "Unassigned"}>
-                              {getInitials(task.authorName)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <TaskCard 
+                        key={task.id}
+                        task={task}
+                        onUpdateTask={(id, data) => handleUpdateTask(task.workspace_id, id, data)}
+                        onDeleteTask={(id) => handleDeleteTask(task.workspace_id, id)}
+                        onJumpToNode={(nodeId) => {
+                          window.location.href = `/workspace/${task.workspace_id}/workspace`;
+                        }}
+                        getUsername={(id) => task.authorName || 'User'}
+                        getIntentLabel={getIntentLabel}
+                        isReadOnlyMode={false}
+                      />
                     ))}
                   {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status).length === 0 && (
                     <div className="ws-kanban-empty">No tasks in this column</div>

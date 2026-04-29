@@ -3,6 +3,14 @@ const AUTH_HINT_KEY = "ligma:auth-hint";
 
 let accessToken = null;
 let refreshTimeoutId = null;
+const API_BASE_URL = (import.meta.env.VITE_SERVER_URL || "").replace(/\/+$/, "");
+
+function toApiUrl(path) {
+  if (typeof path !== "string" || path.length === 0) return path;
+  if (/^https?:\/\//i.test(path)) return path;
+  if (!API_BASE_URL) return path;
+  return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 function scheduleRefresh() {
   if (refreshTimeoutId) {
@@ -75,7 +83,7 @@ async function request(path, options = {}, retryOnUnauthorized = true) {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(path, {
+  const response = await fetch(toApiUrl(path), {
     ...options,
     headers,
     credentials: "include",
@@ -138,7 +146,7 @@ export async function register({ username, password, displayName }) {
     false,
   );
 
-  setAccessToken(payload.accessToken);
+  setAccessToken(payload?.accessToken || null);
   return payload;
 }
 
@@ -152,7 +160,7 @@ export async function login({ username, password }) {
     false,
   );
 
-  setAccessToken(payload.accessToken);
+  setAccessToken(payload?.accessToken || null);
   return payload;
 }
 
