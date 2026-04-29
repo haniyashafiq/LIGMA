@@ -182,7 +182,7 @@ export function WorkspacePage() {
       .then((res) => {
         setCurrentUser(res?.user || null);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [workspaceId, setCurrentWorkspace, navigate, location.search]);
 
   // Sync editor tool with activeTool state
@@ -203,8 +203,32 @@ export function WorkspacePage() {
   const loadTasks = useCallback(() => {
     apiFetch(`/api/workspaces/${workspaceId}/tasks`)
       .then((res) => setTasks(res.tasks || []))
-      .catch(() => {});
+      .catch(() => { });
   }, [workspaceId]);
+
+  const handleDeleteTask = useCallback(async (taskId) => {
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+    }
+  }, [workspaceId, loadTasks]);
+
+  const handleDeleteAllTasks = useCallback(async () => {
+    if (!window.confirm("Are you sure you want to delete ALL tasks in this workspace? This cannot be undone.")) return;
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks`, {
+        method: "DELETE",
+      });
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to delete all tasks:", err);
+    }
+  }, [workspaceId, loadTasks]);
 
   const loadEvents = useCallback(() => {
     apiFetch(`/api/workspaces/${workspaceId}/events`)
@@ -214,7 +238,7 @@ export function WorkspacePage() {
           setEvents(sorted);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [workspaceId]);
 
   const getUsername = useCallback((userId) => {
@@ -285,7 +309,7 @@ export function WorkspacePage() {
       if (event?.detail?.workspaceId && String(event.detail.workspaceId) !== String(workspaceId)) {
         return;
       }
-      reloadWorkspaceMembers().catch(() => {});
+      reloadWorkspaceMembers().catch(() => { });
     }
 
     window.addEventListener("ligma:role-updated", handleRoleUpdated);
@@ -447,8 +471,8 @@ export function WorkspacePage() {
       {/* ── Top Navigation Bar ──────────────────────── */}
       <header className="workspace-topbar">
         <div className="workspace-topbar-left">
-          <button 
-            className="ws-topbar-back-btn" 
+          <button
+            className="ws-topbar-back-btn"
             onClick={() => navigate("/workspaces")}
             title="Go back to projects"
           >
@@ -548,7 +572,7 @@ export function WorkspacePage() {
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
               <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Workspace Timeline</h2>
               <p style={{ color: 'var(--color-text-subtle)', marginBottom: '32px' }}>A complete, append-only history of all events in this workspace.</p>
-              
+
               <div className="ws-timeline-track" style={{ position: 'relative', borderLeft: '2px solid var(--color-border)', marginLeft: '14px', paddingLeft: '32px' }}>
                 {events.map((event) => {
                   const action = getEventAction(event);
@@ -585,8 +609,8 @@ export function WorkspacePage() {
                   {tasks
                     .filter(t => t.status === (status === 'doing' ? 'doing' : status))
                     .map((task) => (
-                      <div 
-                        key={task.id} 
+                      <div
+                        key={task.id}
                         className="ws-task-card kanban-card"
                         onClick={() => {
                           if (task.source_node_id) {
@@ -595,7 +619,7 @@ export function WorkspacePage() {
                             setTimeout(() => jumpToNode(task.source_node_id), 100);
                           }
                         }}
-                        style={{ 
+                        style={{
                           cursor: task.source_node_id ? 'pointer' : 'default',
                         }}
                       >
@@ -621,7 +645,7 @@ export function WorkspacePage() {
                         </div>
                         <p className="ws-task-title" style={{ fontSize: '14px', marginBottom: '16px' }}>{task.title}</p>
                         <div className="ws-task-footer">
-                          <span 
+                          <span
                             className={`ws-task-status ${task.status}`}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -723,18 +747,18 @@ export function WorkspacePage() {
                     {editor && [...editor.getCurrentPageShapes()]
                       .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
                       .map(shape => (
-                      <div 
-                        key={shape.id} 
-                        className="ws-layer-item"
-                        onClick={() => {
-                          editor.select(shape.id);
-                          editor.zoomToSelection();
-                        }}
-                      >
-                        <FiSquare size={12} />
-                        <span>{shape.type} - {(shape.id.split(':')[1] || shape.id).substring(0, 4)}</span>
-                      </div>
-                    ))}
+                        <div
+                          key={shape.id}
+                          className="ws-layer-item"
+                          onClick={() => {
+                            editor.select(shape.id);
+                            editor.zoomToSelection();
+                          }}
+                        >
+                          <FiSquare size={12} />
+                          <span>{shape.type} - {(shape.id.split(':')[1] || shape.id).substring(0, 4)}</span>
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}
@@ -748,36 +772,36 @@ export function WorkspacePage() {
                   <FiRotateCw size={14} />
                 </button>
                 <div className="ws-bottom-divider" />
-                <button 
-                  className={`ws-bottom-btn${gridEnabled ? " active" : ""}`} 
+                <button
+                  className={`ws-bottom-btn${gridEnabled ? " active" : ""}`}
                   title="Toggle Grid"
                   onClick={() => setGridEnabled(!gridEnabled)}
                 >
                   <FiSquare size={14} />
                 </button>
-                <button 
-                  className="ws-bottom-btn" 
+                <button
+                  className="ws-bottom-btn"
                   title="Toggle Fullscreen"
                   onClick={toggleFullScreen}
                 >
                   <FiMaximize size={14} />
                 </button>
-                <button 
-                  className={`ws-bottom-btn${isDarkMode ? " active" : ""}`} 
+                <button
+                  className={`ws-bottom-btn${isDarkMode ? " active" : ""}`}
                   title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                   onClick={() => setIsDarkMode(!isDarkMode)}
                 >
                   {isDarkMode ? <FiMoon size={14} /> : <FiSun size={14} />}
                 </button>
-                <button 
-                  className="ws-bottom-btn" 
+                <button
+                  className="ws-bottom-btn"
                   title="Zoom Out"
                   onClick={() => editor?.zoomOut()}
                 >
                   <FiZoomOut size={14} />
                 </button>
-                <button 
-                  className="ws-bottom-btn" 
+                <button
+                  className="ws-bottom-btn"
                   title="Zoom to Fit"
                   onClick={() => {
                     if (!editor) return;
@@ -790,8 +814,8 @@ export function WorkspacePage() {
                 >
                   <FiCrosshair size={14} />
                 </button>
-                <button 
-                  className="ws-bottom-btn" 
+                <button
+                  className="ws-bottom-btn"
                   title="Zoom In"
                   onClick={() => editor?.zoomIn()}
                 >
@@ -801,26 +825,26 @@ export function WorkspacePage() {
             </div>
 
             {/* Execution Panel (Right Sidebar) */}
-        {execOpen && (
-          <aside className="ws-exec-panel">
-            <div className="ws-exec-scroll">
+            {execOpen && (
+              <aside className="ws-exec-panel">
+                <div className="ws-exec-scroll">
                   {/* Activity Log Section (Recent) */}
                   <div className="ws-section-toggle" style={{ position: 'relative' }}>
                     <h3>
                       <FiActivity size={12} />
                       Recent Activity
                     </h3>
-                    <button 
-                      className="ws-section-add-btn" 
-                      aria-label="Filter events" 
+                    <button
+                      className="ws-section-add-btn"
+                      aria-label="Filter events"
                       title="Filter events"
                       onClick={() => setShowActivityFilter(!showActivityFilter)}
-                      style={{ 
-                        display: 'flex', alignItems: 'center', gap: '4px', 
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '4px',
                         width: 'auto', height: 'auto',
-                        background: activityFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent', 
-                        padding: activityFilter !== 'all' ? '4px 8px' : '4px', 
-                        borderRadius: '4px' 
+                        background: activityFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent',
+                        padding: activityFilter !== 'all' ? '4px 8px' : '4px',
+                        borderRadius: '4px'
                       }}
                     >
                       {activityFilter !== 'all' && (
@@ -831,7 +855,7 @@ export function WorkspacePage() {
                     {showActivityFilter && (
                       <div className="ws-dropdown-menu">
                         {['all', 'mine', 'others'].map(filter => (
-                          <button 
+                          <button
                             key={filter}
                             className={`ws-dropdown-item ${activityFilter === filter ? 'active' : ''}`}
                             onClick={() => { setActivityFilter(filter); setShowActivityFilter(false); }}
@@ -863,7 +887,7 @@ export function WorkspacePage() {
                             <p>
                               <strong>{getUsername(event.userId)}</strong> {action}
                             </p>
-                            <div className="ws-activity-time">{new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                            <div className="ws-activity-time">{new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                           </div>
                         </li>
                       );
@@ -878,237 +902,265 @@ export function WorkspacePage() {
                   </ul>
 
                   {/* Task Board Section */}
-              <div className="ws-section-toggle" style={{ position: 'relative' }}>
-                <h3>
-                  <FiFileText size={12} />
-                  Task Board
-                </h3>
-                <button 
-                  className="ws-section-add-btn" 
-                  aria-label="Filter tasks"
-                  onClick={() => setShowTaskFilter(!showTaskFilter)}
-                  style={{ 
-                    display: 'flex', alignItems: 'center', gap: '4px', 
-                    width: 'auto', height: 'auto',
-                    background: taskFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent', 
-                    padding: taskFilter !== 'all' ? '4px 8px' : '4px', 
-                    borderRadius: '4px' 
-                  }}
-                >
-                  {taskFilter !== 'all' && (
-                    <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{taskFilter}</span>
-                  )}
-                  {taskFilter !== 'all' ? <FiFilter size={12} color="var(--color-primary)" /> : <FiMoreHorizontal size={12} />}
-                </button>
-                {showTaskFilter && (
-                  <div className="ws-dropdown-menu">
-                    {['all', 'todo', 'doing', 'done'].map(filter => (
-                      <button 
-                        key={filter}
-                        className={`ws-dropdown-item ${taskFilter === filter ? 'active' : ''}`}
-                        onClick={() => { setTaskFilter(filter); setShowTaskFilter(false); }}
+                  <div className="ws-section-toggle" style={{ position: 'relative' }}>
+                    <h3>
+                      <FiFileText size={12} />
+                      Task Board
+                    </h3>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        className="ws-section-add-btn delete-all"
+                        title="Delete all tasks"
+                        onClick={handleDeleteAllTasks}
+                        disabled={workspaceRole !== 'lead'}
                       >
-                        {filter}
+                        <FiTrash2 size={12} color="var(--color-danger)" />
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="ws-task-section" style={{ paddingTop: '16px' }}>
-                {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).length === 0 && (
-                  <div
-                    style={{
-                      textAlign: "center",
-                      padding: "var(--space-6) 0",
-                      color: "var(--color-text-subtle)",
-                      fontSize: "var(--text-xs)",
-                    }}
-                  >
-                    No tasks yet. Add text to a sticky note on the canvas; matching items sync here after a moment.
-                  </div>
-                )}
-
-                {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).map((task) => (
-                  <div 
-                    key={task.id} 
-                    className="ws-task-card"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (activeTab !== 'workspace') {
-                        setActiveTab('workspace');
-                        navigate(`/workspace/${workspaceId}/workspace`);
-                        setTimeout(() => jumpToNode(task.source_node_id), 100);
-                      } else {
-                        jumpToNode(task.source_node_id);
-                      }
-                    }}
-                    style={{ 
-                      cursor: task.source_node_id ? 'pointer' : 'default',
-                      transition: 'transform 0.2s, border-color 0.2s'
-                    }}
-                  >
-                    <div className="ws-task-card-header">
-                      <div className="ws-task-header-left">
-                        {task.priority && (
-                          <span className={`ws-task-priority-badge ${task.priority}`}>
-                            {task.priority}
-                          </span>
+                      <button
+                        className="ws-section-add-btn"
+                        aria-label="Filter tasks"
+                        onClick={() => setShowTaskFilter(!showTaskFilter)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          width: 'auto', height: 'auto',
+                          background: taskFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent',
+                          padding: taskFilter !== 'all' ? '4px 8px' : '4px',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        {taskFilter !== 'all' && (
+                          <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{taskFilter}</span>
                         )}
-                        {task.intent ? (
-                          <span className={`ws-task-intent-badge ${String(task.intent).toLowerCase()}`}>
-                            {getIntentLabel(task.intent)}
-                          </span>
-                        ) : null}
-                        {task.authorName ? (
-                          <span className="ws-task-added-by">{task.authorName}</span>
-                        ) : null}
-                      </div>
-                      <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
-                        {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
-                      </span>
+                        {taskFilter !== 'all' ? <FiFilter size={12} color="var(--color-primary)" /> : <FiMoreHorizontal size={12} />}
+                      </button>
                     </div>
-                    <p className="ws-task-title">{task.title}</p>
-                    <div className="ws-task-footer">
-                      <span 
-                        className={`ws-task-status ${task.status}`}
+
+                    {showTaskFilter && (
+                      <div className="ws-dropdown-menu">
+                        {['all', 'todo', 'doing', 'done'].map(filter => (
+                          <button
+                            key={filter}
+                            className={`ws-dropdown-item ${taskFilter === filter ? 'active' : ''}`}
+                            onClick={() => { setTaskFilter(filter); setShowTaskFilter(false); }}
+                          >
+                            {filter}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="ws-task-section" style={{ paddingTop: '16px' }}>
+                    {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).length === 0 && (
+                      <div
+                        style={{
+                          textAlign: "center",
+                          padding: "var(--space-6) 0",
+                          color: "var(--color-text-subtle)",
+                          fontSize: "var(--text-xs)",
+                        }}
+                      >
+                        No tasks yet. Add text to a sticky note on the canvas; matching items sync here after a moment.
+                      </div>
+                    )}
+
+                    {tasks.filter(t => taskFilter === 'all' || t.status === taskFilter).map((task) => (
+                      <div
+                        key={task.id}
+                        className="ws-task-card"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (isReadOnlyMode) return;
-                          const states = ['todo', 'doing', 'done'];
-                          const current = task.status === 'in_progress' ? 'doing' : task.status;
-                          const idx = states.indexOf(current);
-                          const next = states[(idx + 1) % states.length];
-                          handleUpdateTask(task.id, { status: next });
+                          if (activeTab !== 'workspace') {
+                            setActiveTab('workspace');
+                            navigate(`/workspace/${workspaceId}/workspace`);
+                            setTimeout(() => jumpToNode(task.source_node_id), 100);
+                          } else {
+                            jumpToNode(task.source_node_id);
+                          }
                         }}
-                        style={{ cursor: isReadOnlyMode ? 'not-allowed' : 'pointer' }}
-                        title={isReadOnlyMode ? "Read-only mode" : "Click to cycle status"}
+                        style={{
+                          cursor: task.source_node_id ? 'pointer' : 'default',
+                          transition: 'transform 0.2s, border-color 0.2s'
+                        }}
                       >
-                        {task.status === 'in_progress' ? 'Doing' : task.status}
-                      </span>
-                      <div className="ws-task-footer-actions">
-                        {task.source_node_id && (
-                          <button 
-                            className="ws-task-link-btn" 
-                            title="View on canvas"
+                        <div className="ws-task-card-header">
+                          <div className="ws-task-header-left">
+                            {task.priority && (
+                              <span
+                                className={`ws-task-priority-badge ${task.priority}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isReadOnlyMode) return;
+                                  const priorities = ['low', 'medium', 'high', 'urgent'];
+                                  const idx = priorities.indexOf(task.priority || 'medium');
+                                  const next = priorities[(idx + 1) % priorities.length];
+                                  handleUpdateTask(task.id, { priority: next });
+                                }}
+                                style={{ cursor: isReadOnlyMode ? 'not-allowed' : 'pointer' }}
+                                title={isReadOnlyMode ? "Read-only mode" : "Click to cycle priority"}
+                              >
+                                {task.priority}
+                              </span>
+                            )}
+                            {task.authorName ? (
+                              <span className="ws-task-added-by">{task.authorName}</span>
+                            ) : null}
+                          </div>
+                          <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
+                            {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
+                          </span>
+                        </div>
+                        <p className="ws-task-title">{task.title?.replace(/^\[.*?\]\s*/, '')}</p>
+                        <div className="ws-task-footer">
+                          <span
+                            className={`ws-task-status ${task.status}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (activeTab !== 'workspace') {
-                                setActiveTab('workspace');
-                                navigate(`/workspace/${workspaceId}/workspace`);
-                                setTimeout(() => jumpToNode(task.source_node_id), 100);
-                              } else {
-                                jumpToNode(task.source_node_id);
-                              }
+                              if (isReadOnlyMode) return;
+                              const states = ['todo', 'doing', 'done'];
+                              const current = task.status === 'in_progress' ? 'doing' : task.status;
+                              const idx = states.indexOf(current);
+                              const next = states[(idx + 1) % states.length];
+                              handleUpdateTask(task.id, { status: next });
                             }}
+                            style={{ cursor: isReadOnlyMode ? 'not-allowed' : 'pointer' }}
+                            title={isReadOnlyMode ? "Read-only mode" : "Click to cycle status"}
                           >
-                            <FiLink size={10} />
+                            {task.status === 'in_progress' ? 'Doing' : task.status}
+                          </span>
+                          <div className="ws-task-footer-actions">
+                            {task.source_node_id && (
+                              <button
+                                className="ws-task-link-btn"
+                                title="View on canvas"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (activeTab !== 'workspace') {
+                                    setActiveTab('workspace');
+                                    navigate(`/workspace/${workspaceId}/workspace`);
+                                    setTimeout(() => jumpToNode(task.source_node_id), 100);
+                                  } else {
+                                    jumpToNode(task.source_node_id);
+                                  }
+                                }}
+                              >
+                                <FiLink size={10} />
+                              </button>
+                            )}
+                            <button
+                              className="ws-task-delete-btn"
+                              title="Delete task"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTask(task.id);
+                              }}
+                            >
+                              <FiTrash2 size={10} color="var(--color-danger)" />
+                            </button>
+                            <div className="ws-task-user-pip" title={getUsername(task.assignee_id)}>
+                              {getUsername(task.assignee_id).charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add Task Overlay */}
+                  {showAddTask && (
+                    <div className="ws-add-task-overlay">
+                      <form className="ws-add-task-form" onSubmit={handleAddTask}>
+                        <div className="ws-modal-header">
+                          <h3>New Task</h3>
+                          <button type="button" className="ws-close-btn" onClick={() => setShowAddTask(false)}>
+                            <FiPlus size={18} style={{ transform: 'rotate(45deg)' }} />
                           </button>
-                        )}
-                        <div className="ws-task-user-pip" title={getUsername(task.assignee_id)}>
-                          {getUsername(task.assignee_id).charAt(0).toUpperCase()}
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Add Task Overlay */}
-            {showAddTask && (
-              <div className="ws-add-task-overlay">
-                <form className="ws-add-task-form" onSubmit={handleAddTask}>
-                  <div className="ws-modal-header">
-                    <h3>New Task</h3>
-                    <button type="button" className="ws-close-btn" onClick={() => setShowAddTask(false)}>
-                      <FiPlus size={18} style={{ transform: 'rotate(45deg)' }} />
-                    </button>
-                  </div>
-                  
-                  <div className="ws-form-content">
-                    <div className="ws-form-field">
-                      <textarea
-                        autoFocus
-                        placeholder="Task description..."
-                        value={newTaskTitle}
-                        onChange={(e) => setNewTaskTitle(e.target.value)}
-                        disabled={isReadOnlyMode}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="ws-form-row">
-                      <div className="ws-field-group">
-                        <label>Status</label>
-                        <div className="ws-status-toggle">
-                          {['todo', 'doing', 'done'].map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              className={newTaskStatus === s ? 'active' : ''}
-                              onClick={() => setNewTaskStatus(s)}
+                        <div className="ws-form-content">
+                          <div className="ws-form-field">
+                            <textarea
+                              autoFocus
+                              placeholder="Task description..."
+                              value={newTaskTitle}
+                              onChange={(e) => setNewTaskTitle(e.target.value)}
                               disabled={isReadOnlyMode}
-                            >
-                              {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                              required
+                            />
+                          </div>
 
-                    <div className="ws-form-row" style={{ marginTop: '16px' }}>
-                      <div className="ws-field-group">
-                        <label>Priority</label>
-                        <div className="ws-status-toggle priority">
-                          {['low', 'medium', 'high', 'urgent'].map((p) => (
-                            <button
-                              key={p}
-                              type="button"
-                              className={`${newTaskPriority === p ? 'active' : ''} ${p}`}
-                              onClick={() => setNewTaskPriority(p)}
-                              disabled={isReadOnlyMode}
-                            >
-                              {p.charAt(0).toUpperCase() + p.slice(1)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                          <div className="ws-form-row">
+                            <div className="ws-field-group">
+                              <label>Status</label>
+                              <div className="ws-status-toggle">
+                                {['todo', 'doing', 'done'].map((s) => (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    className={newTaskStatus === s ? 'active' : ''}
+                                    onClick={() => setNewTaskStatus(s)}
+                                    disabled={isReadOnlyMode}
+                                  >
+                                    {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
 
-                  <div className="ws-form-footer">
-                    <button
-                      type="submit"
-                      className="ws-submit-btn creative-glow"
-                      disabled={isReadOnlyMode || isSubmittingTask || !newTaskTitle.trim()}
-                    >
-                      {isSubmittingTask ? "Creating..." : "Create Task"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                          <div className="ws-form-row" style={{ marginTop: '16px' }}>
+                            <div className="ws-field-group">
+                              <label>Priority</label>
+                              <div className="ws-status-toggle priority">
+                                {['low', 'medium', 'high', 'urgent'].map((p) => (
+                                  <button
+                                    key={p}
+                                    type="button"
+                                    className={`${newTaskPriority === p ? 'active' : ''} ${p}`}
+                                    onClick={() => setNewTaskPriority(p)}
+                                    disabled={isReadOnlyMode}
+                                  >
+                                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="ws-form-footer">
+                          <button
+                            type="submit"
+                            className="ws-submit-btn creative-glow"
+                            disabled={isReadOnlyMode || isSubmittingTask || !newTaskTitle.trim()}
+                          >
+                            {isSubmittingTask ? "Creating..." : "Create Task"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                </div>
+                {/* Footer Actions */}
+                <div className="ws-exec-footer">
+                  <button
+                    className="ws-add-task-btn"
+                    onClick={() => setShowAddTask(true)}
+                    disabled={isReadOnlyMode}
+                    title={isReadOnlyMode ? "Read-only mode" : "Add Task"}
+                  >
+                    <FiPlus size={14} />
+                    Add Task
+                  </button>
+                  <button className="ws-sprint-btn creative-glow" disabled={isReadOnlyMode}>
+                    <FiZap size={13} />
+                    Execute Sprint
+                  </button>
+                </div>
+              </aside>
             )}
-
-            {/* Footer Actions */}
-            <div className="ws-exec-footer">
-              <button
-                className="ws-add-task-btn"
-                onClick={() => setShowAddTask(true)}
-                disabled={isReadOnlyMode}
-                title={isReadOnlyMode ? "Read-only mode" : "Add Task"}
-              >
-                <FiPlus size={14} />
-                Add Task
-              </button>
-              <button className="ws-sprint-btn creative-glow" disabled={isReadOnlyMode}>
-                <FiZap size={13} />
-                Execute Sprint
-              </button>
-            </div>
-          </aside>
-        )}
-      </>
+          </>
         )}
       </div>
       <MembersSidebar

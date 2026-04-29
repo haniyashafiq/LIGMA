@@ -208,6 +208,19 @@ router.delete('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), asy
   }
 });
 
+router.delete('/:id/tasks', requireRole('lead'), async (req, res) => {
+  try {
+    const deletedTasks = await taskService.deleteAllTasks(req.params.id);
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`room:${req.params.id}`).emit('task:sync', { allDeleted: true });
+    }
+    return res.status(200).json({ deleted: deletedTasks });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || 'Failed to delete all tasks.' });
+  }
+});
+
 router.patch('/:id/tasks/:taskId', requireRole('lead', 'contributor'), async (req, res) => {
   try {
     const existingTask = await taskService.getTask(req.params.id, req.params.taskId);

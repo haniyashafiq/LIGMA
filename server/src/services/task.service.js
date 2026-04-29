@@ -112,12 +112,13 @@ async function upsertTaskByNodeId(workspaceId, sourceNodeId, data) {
     sourceAuthorName = null,
   } = data;
 
-  const existing = await pool.query(
+  // 1. Check if a task is already linked to THIS specific node
+  const existingByNode = await pool.query(
     `SELECT id FROM tasks WHERE workspace_id = $1 AND source_node_id = $2`,
     [workspaceId, sourceNodeId]
   );
 
-  if (existing.rows.length > 0) {
+  if (existingByNode.rows.length > 0) {
     const result = await pool.query(
       `UPDATE tasks
        SET title = $1,
@@ -147,6 +148,35 @@ async function upsertTaskByNodeId(workspaceId, sourceNodeId, data) {
     return result.rows[0];
   }
 
+  // 2. Duplication Constraint: Check if a task with the SAME TITLE already exists in this workspace
+  // We trim and case-insensitively compare the title.
+  const existingByTitle = await pool.query(
+    `SELECT id, source_node_id FROM tasks 
+     WHERE workspace_id = $1 AND LOWER(TRIM(title)) = LOWER(TRIM($2)) 
+     LIMIT 1`,
+    [workspaceId, title]
+  );
+
+  if (existingByTitle.rows.length > 0) {
+    const taskId = existingByTitle.rows[0].id;
+    const currentSourceNode = existingByTitle.rows[0].source_node_id;
+
+    // If it exists, we update it but preserve the original source_node_id if it had one.
+    // This effectively "merges" the new note's intent into the existing task.
+    const result = await pool.query(
+      `UPDATE tasks
+       SET status = COALESCE($1, status),
+           priority = COALESCE($2, priority),
+           source_node_id = COALESCE(source_node_id, $3),
+           updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [status, priority, sourceNodeId, taskId]
+    );
+    return result.rows[0];
+  }
+
+  // 3. No existing task found, create a new one
   return createTask(workspaceId, {
     title,
     status,
@@ -198,6 +228,14 @@ async function deleteTask(workspaceId, taskId) {
   return result.rows[0];
 }
 
+async function deleteAllTasks(workspaceId) {
+  const result = await pool.query(
+    `DELETE FROM tasks WHERE workspace_id = $1 RETURNING *`,
+    [workspaceId]
+  );
+  return result.rows;
+}
+
 module.exports = {
   listWorkspaceTasks,
   listUserTasks,
@@ -207,5 +245,6 @@ module.exports = {
   updateTaskStatus,
   upsertTaskByNodeId,
   deleteTask,
+  deleteAllTasks,
   updateTask,
 };

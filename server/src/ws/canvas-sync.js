@@ -476,6 +476,17 @@ function createCanvasSyncManager(io) {
           update,
         });
 
+        // ── Task Deletion Sync ──────────────────────────────────────────
+        if (type === "node:delete") {
+          try {
+            await taskService.deleteTaskByNodeId(socket.workspaceId, nodeId);
+            io.to(workspaceRoom).emit("task:sync", { deleted: true, sourceNodeId: nodeId });
+          } catch (err) {
+            console.error("[canvas-sync] Failed to delete linked task", err);
+          }
+        }
+
+        /*
         if (type === "node:create" || type === "node:update") {
           try {
             await maybeClassifyNode({
@@ -489,6 +500,7 @@ function createCanvasSyncManager(io) {
             console.error("[canvas-sync] Intent extraction failed", error);
           }
         }
+        */
 
         if (room.lastSequenceNum > 0 && room.lastSequenceNum % SNAPSHOT_EVERY_EVENTS === 0) {
           eventService
