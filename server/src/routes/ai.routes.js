@@ -28,7 +28,7 @@ router.post('/classify', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
-      signal: AbortSignal.timeout(3000) // 3s timeout for AI
+      signal: AbortSignal.timeout(10000) // 10s timeout for AI
     });
 
     if (response.ok) {

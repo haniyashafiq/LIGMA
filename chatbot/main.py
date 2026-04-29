@@ -27,10 +27,7 @@ app = FastAPI(title="LIGMA Chatbot API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",      # Vite dev server
-        os.getenv("CLIENT_URL", ""),   # production origin from .env
-    ],
+    allow_origins=["*"], # Allow all for robustness in dev/proxy setups
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
