@@ -188,8 +188,8 @@ function makeNode(type, pointer, currentUser, zIndex) {
     type,
     x: pointer.x,
     y: pointer.y,
-    width: type === "text" ? 220 : 180,
-    height: type === "text" ? 48 : 180,
+    width: type === "text" ? 280 : 200,
+    height: type === "text" ? 56 : 200,
     rotation: 0,
     zIndex,
     text: "",
@@ -198,7 +198,7 @@ function makeNode(type, pointer, currentUser, zIndex) {
       fill: type === "note" ? "#facc15" : "rgba(99, 102, 241, 0.18)",
       stroke: type === "note" ? "#eab308" : "#818cf8",
       strokeWidth: 2,
-      fontSize: 18,
+      fontSize: type === "note" ? 18 : 20,
     },
     metadata: {
       authorId: currentUser?.id || null,
@@ -504,8 +504,8 @@ export default function CanvasView({
     const innerH = isNote ? Math.max(20, (node.height || 100) - notePad * 2) : node.height || 48;
     const relX = vp.x + innerX * vp.scale;
     const relY = vp.y + innerY * vp.scale;
-    const sw = Math.max(innerW * vp.scale, 48);
-    const sh = Math.max(innerH * vp.scale, 28);
+    const sw = Math.max(innerW * vp.scale, 80);
+    const sh = Math.max(innerH * vp.scale, 40);
     const stageRect = stage.container().getBoundingClientRect();
     const shellRect = shell.getBoundingClientRect();
     return {
@@ -590,6 +590,8 @@ export default function CanvasView({
     if (value !== lastValueRef.current) {
       emitTextChange(editing.nodeId, value);
     }
+    // Final force sync to nodes state for instant visual
+    updateNodesFromDoc();
     if (value !== editing.baseline) {
       handleAITrigger(editing.nodeId, value);
     }
@@ -1223,7 +1225,7 @@ export default function CanvasView({
           text={node.text || "\u00a0"}
           width={node.width}
           height={node.height}
-          fill="#e2e8f0"
+          fill="#f8fafc"
           fontSize={node.style?.fontSize || 18}
           visible={!editingThis}
           onDblClick={(e) => {
@@ -1269,8 +1271,8 @@ export default function CanvasView({
             width={Math.max(20, node.width - 24)}
             height={Math.max(20, node.height - (intentBadge ? 48 : 24))}
             text={node.text || "\u00a0"}
-            fill="#1f2937"
-            fontSize={node.style?.fontSize || 16}
+            fill="#0f172a"
+            fontSize={node.style?.fontSize || 18}
             listening={false}
             visible={!editingThis}
           />
