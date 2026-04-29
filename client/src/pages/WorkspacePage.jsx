@@ -205,6 +205,7 @@ export function WorkspacePage() {
     const actions = {
       "canvas:node:create": "created a canvas node",
       "canvas:node:update": "updated a canvas node",
+      "canvas:node:text:delta": "edited canvas text",
       "canvas:node:delete": "deleted a canvas node",
       "canvas:node:lock": "locked a canvas node",
       "canvas:node:unlock": "unlocked a canvas node",

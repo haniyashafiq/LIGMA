@@ -5,7 +5,12 @@ const { getUserWorkspaceRole } = require("../middleware/rbac");
 const { classifyIntentForNode } = require("../services/intent.service");
 const {
   applySemanticEvent,
+  applyTextDelta,
+  ensureNodeText,
   getMeta,
+  getNodeText,
+  getNodeTextsMap,
+  getNodeWithText,
   getNodesMap,
 } = require("../services/canvas-event-projector");
 
@@ -113,7 +118,6 @@ function sanitizePatch(patch, currentNode, user, role) {
 
   if (patch.style) next.style = sanitizeStyle({ ...currentNode.style, ...patch.style });
   if (patch.points) next.points = Array.isArray(patch.points) ? patch.points.map((n) => sanitizeNumber(n)) : [];
-  if (patch.text !== undefined) next.text = sanitizeText(patch.text);
   if (patch.type !== undefined) next.type = typeof patch.type === "string" ? patch.type : currentNode.type;
   if (patch.x !== undefined) next.x = sanitizeNumber(patch.x, currentNode.x);
   if (patch.y !== undefined) next.y = sanitizeNumber(patch.y, currentNode.y);
@@ -131,6 +135,18 @@ function sanitizePatch(patch, currentNode, user, role) {
   }
 
   return next;
+}
+
+function sanitizeTextDelta(delta) {
+  if (!delta || typeof delta !== "object") {
+    throw createHttpError("Canvas text delta payload is required.");
+  }
+
+  return {
+    index: Math.max(0, sanitizeNumber(delta.index)),
+    delete: Math.max(0, sanitizeNumber(delta.delete)),
+    insert: typeof delta.insert === "string" ? delta.insert : "",
+  };
 }
 
 function isTextBearingNode(node) {
@@ -189,6 +205,8 @@ function eventTypeForOp(type) {
       return "canvas:node:create";
     case "node:update":
       return "canvas:node:update";
+    case "node:text:delta":
+      return "canvas:node:text:delta";
     case "node:delete":
       return "canvas:node:delete";
     case "node:lock":
@@ -210,6 +228,7 @@ function applyOperationToDoc(doc, op, socket, role) {
   if (type === "node:create") {
     const node = sanitizeNode({ ...op.node, id: op.node?.id || nodeId }, socket.user, role);
     nodes.set(node.id, node);
+    ensureNodeText(doc, node.id, node.text);
     return { nodeId: node.id, payload: { opId: op.opId || null, node }, changedNode: node };
   }
 
@@ -221,13 +240,31 @@ function applyOperationToDoc(doc, op, socket, role) {
 
   if (type === "node:update") {
     if (!currentNode) throw createHttpError("Canvas node not found.", 404);
+    if (op.patch?.text !== undefined || op.node?.text !== undefined) {
+      throw createHttpError("Text edits must use node:text:delta so concurrent typing can merge.", 400);
+    }
     const node = sanitizePatch(op.patch || op.node || {}, currentNode, socket.user, role);
     nodes.set(nodeId, node);
-    return { nodeId, payload: { opId: op.opId || null, node }, changedNode: node };
+    return { nodeId, payload: { opId: op.opId || null, node }, changedNode: getNodeWithText(doc, nodeId) || node };
+  }
+
+  if (type === "node:text:delta") {
+    if (!currentNode) throw createHttpError("Canvas node not found.", 404);
+    if (currentNode.type !== "text" && currentNode.type !== "note") {
+      throw createHttpError("Only text-bearing nodes can receive text deltas.", 400);
+    }
+    const delta = sanitizeTextDelta(op.delta);
+    applyTextDelta(doc, nodeId, delta);
+    const changedNode = getNodeWithText(doc, nodeId) || {
+      ...currentNode,
+      text: getNodeText(doc, nodeId, currentNode.text),
+    };
+    return { nodeId, payload: { opId: op.opId || null, nodeId, delta }, changedNode };
   }
 
   if (type === "node:delete") {
     nodes.delete(nodeId);
+    getNodeTextsMap(doc).delete(nodeId);
     return { nodeId, payload: { opId: op.opId || null, nodeId }, changedNode: currentNode || null };
   }
 
@@ -485,9 +522,8 @@ function createCanvasSyncManager(io) {
             console.error("[canvas-sync] Failed to delete linked task", err);
           }
         }
-
-        /*
-        if (type === "node:create" || type === "node:update") {
+        
+        if (type === "node:create" || type === "node:update" || type === "node:text:delta") {
           try {
             await maybeClassifyNode({
               room,
@@ -500,7 +536,6 @@ function createCanvasSyncManager(io) {
             console.error("[canvas-sync] Intent extraction failed", error);
           }
         }
-        */
 
         if (room.lastSequenceNum > 0 && room.lastSequenceNum % SNAPSHOT_EVERY_EVENTS === 0) {
           eventService
