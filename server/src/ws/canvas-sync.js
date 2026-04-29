@@ -220,6 +220,10 @@ function eventTypeForOp(type) {
   }
 }
 
+function shouldClassifyAfterOp(type) {
+  return type === "node:create" || type === "node:update" || type === "node:text:delta";
+}
+
 function applyOperationToDoc(doc, op, socket, role) {
   const nodes = getNodesMap(doc);
   const type = typeof op?.type === "string" ? op.type : "";
@@ -528,8 +532,7 @@ function createCanvasSyncManager(io) {
           }
         }
 
-        /*
-        if (type === "node:create" || type === "node:update") {
+        if (shouldClassifyAfterOp(type)) {
           try {
             await maybeClassifyNode({
               room,
@@ -542,7 +545,6 @@ function createCanvasSyncManager(io) {
             console.error("[canvas-sync] Intent extraction failed", error);
           }
         }
-        */
 
         if (room.lastSequenceNum > 0 && room.lastSequenceNum % SNAPSHOT_EVERY_EVENTS === 0) {
           eventService

@@ -4,9 +4,53 @@ const intentService = require('../services/intent.service');
 const { authenticateRequest } = require('../middleware/auth');
 
 const router = express.Router();
+const VALID_AI_INTENTS = new Set([
+  'action_item',
+  'decision',
+  'open_question',
+  'reference',
+  'general',
+]);
+const VALID_TASK_STATUSES = new Set(['todo', 'in_progress', 'done']);
 
 // All AI routes require authentication
 router.use(authenticateRequest);
+
+function normalizeIntent(rawIntent) {
+  const intent = String(rawIntent || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+
+  if (intent === 'action') return 'action_item';
+  if (intent === 'question') return 'open_question';
+
+  return VALID_AI_INTENTS.has(intent) ? intent : null;
+}
+
+function normalizeTaskStatus(rawStatus) {
+  const status = String(rawStatus || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+
+  if (status === 'doing') return 'in_progress';
+
+  return VALID_TASK_STATUSES.has(status) ? status : 'todo';
+}
+
+function localClassification(message, nodeType) {
+  const localResult = intentService.classifyIntentForNode(message, nodeType || 'note');
+  console.log(`[AI Proxy] Local fallback: intent=${localResult.intent}`);
+
+  return {
+    intent: localResult.intent,
+    status: 'todo',
+    source: 'local',
+    confidence: localResult.confidence,
+    reason: localResult.reason,
+  };
+}
 
 /**
  * Proxies or falls back to intent classification.
@@ -32,12 +76,18 @@ router.post('/classify', async (req, res) => {
 
     if (response.ok) {
       const data = await response.json();
-      console.log(`[AI Proxy] AI service success: intent=${data.intent}, status=${data.status}`);
-      return res.json({
-        intent: data.intent,
-        status: data.status,
-        source: 'ai'
-      });
+      const intent = normalizeIntent(data.intent || data.reply);
+
+      if (intent) {
+        console.log(`[AI Proxy] AI service success: intent=${intent}, status=${data.status}`);
+        return res.json({
+          intent,
+          status: normalizeTaskStatus(data.status),
+          source: 'ai'
+        });
+      }
+
+      console.warn(`[AI Proxy] AI service returned unusable intent "${data.intent}". Falling back to local.`);
     } else {
       console.warn(`[AI Proxy] AI service returned ${response.status}. Falling back to local.`);
     }
@@ -45,15 +95,7 @@ router.post('/classify', async (req, res) => {
     console.warn(`[AI Proxy] AI service unreachable or timed out: ${error.message}. Falling back to local.`);
   }
 
-  // 2. Fallback to local regex-based intent service
-  const localResult = intentService.classifyIntentForNode(message, nodeType || 'note');
-  console.log(`[AI Proxy] Local fallback: intent=${localResult.intent}`);
-  
-  return res.json({
-    intent: localResult.intent,
-    status: 'todo',
-    source: 'local'
-  });
+  return res.json(localClassification(message, nodeType));
 });
 
 module.exports = router;
