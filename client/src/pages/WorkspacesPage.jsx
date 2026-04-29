@@ -11,6 +11,7 @@ import {
   FiLoader,
   FiHexagon,
   FiArrowRight,
+  FiTrash2,
 } from "react-icons/fi";
 import {
   apiFetch,
@@ -77,6 +78,13 @@ export function WorkspacesPage() {
   const [newName, setNewName]       = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showAll, setShowAll]       = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
+
+  useEffect(() => {
+    const handleGlobalClick = () => setOpenMenuId(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -231,6 +239,7 @@ export function WorkspacesPage() {
                 to={`/workspace/${ws.id}`}
                 className="canvas-list-item"
                 id={`canvas-item-${ws.id}`}
+                style={openMenuId === ws.id ? { zIndex: 1001, position: 'relative', overflow: 'visible' } : {}}
               >
                 <div
                   className="canvas-list-icon"
@@ -249,17 +258,34 @@ export function WorkspacesPage() {
 
                  <div className="canvas-list-actions">
                   {ws.role === "lead" && (
-                    <button
-                      className="canvas-kebab"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleDeleteWorkspace(ws.id);
-                      }}
-                      title="Delete Workspace"
-                    >
-                      <FiMoreHorizontal size={15} />
-                    </button>
+                    <>
+                      <button
+                        className="canvas-kebab"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === ws.id ? null : ws.id);
+                        }}
+                        title="More options"
+                      >
+                        <FiMoreHorizontal size={15} />
+                      </button>
+
+                      {openMenuId === ws.id && (
+                        <div className="canvas-dropdown" onClick={(e) => e.stopPropagation()}>
+                          <button 
+                            className="canvas-dropdown-item danger"
+                            onClick={() => {
+                              handleDeleteWorkspace(ws.id);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <FiTrash2 size={12} />
+                            Delete Workspace
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </Link>
@@ -284,6 +310,7 @@ export function WorkspacesPage() {
                   to={`/workspace/${ws.id}`}
                   className="canvas-list-item"
                   id={`canvas-item-invited-${ws.id}`}
+                  style={openMenuId === ws.id ? { zIndex: 1001, position: 'relative', overflow: 'visible' } : {}}
                 >
                   <div
                     className="canvas-list-icon"
@@ -302,17 +329,34 @@ export function WorkspacesPage() {
 
                    <div className="canvas-list-actions">
                     {ws.role === "lead" && (
-                      <button
-                        className="canvas-kebab"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleDeleteWorkspace(ws.id);
-                        }}
-                        title="Delete Workspace"
-                      >
-                        <FiMoreHorizontal size={15} />
-                      </button>
+                      <>
+                        <button
+                          className="canvas-kebab"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === ws.id ? null : ws.id);
+                          }}
+                          title="More options"
+                        >
+                          <FiMoreHorizontal size={15} />
+                        </button>
+
+                        {openMenuId === ws.id && (
+                          <div className="canvas-dropdown" onClick={(e) => e.stopPropagation()}>
+                            <button 
+                              className="canvas-dropdown-item danger"
+                              onClick={() => {
+                                handleDeleteWorkspace(ws.id);
+                                setOpenMenuId(null);
+                              }}
+                            >
+                              <FiTrash2 size={12} />
+                              Delete Workspace
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </Link>
