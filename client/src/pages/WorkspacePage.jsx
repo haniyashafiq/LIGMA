@@ -313,7 +313,7 @@ export function WorkspacePage() {
   const connectionDot = connectionStatus === "online" ? "online" : connectionStatus === "error" ? "error" : "offline";
 
   return (
-    <div className="workspace-shell glassmorphism">
+    <div className="ws-main-shell glassmorphism">
       <WorkspaceTopbar
         workspaceName={workspaceName}
         activeTab={activeTab}

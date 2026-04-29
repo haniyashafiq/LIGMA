@@ -248,6 +248,22 @@ export default function CanvasView({
     return () => window.removeEventListener("ligma:rbac-toast", handleRbacToastEvent);
   }, []);
 
+  // Handle Resize
+  useEffect(() => {
+    const shell = canvasShellRef.current;
+    if (!shell) return undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setStageSize({ width, height });
+      }
+    });
+
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (!rbacToast) return undefined;
     const id = window.setTimeout(() => setRbacToast(null), 3400);

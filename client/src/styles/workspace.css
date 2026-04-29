@@ -3,6 +3,15 @@
    ============================================================ */
 
 /* ── Top Nav Bar ──────────────────────────────────────── */
+.ws-main-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  overflow: hidden;
+  position: relative;
+}
+
 .workspace-topbar {
   height: 48px;
   display: flex;
