@@ -38,14 +38,14 @@ import { ExecutionPanel } from "../workspace/ExecutionPanel";
 import { AddTaskModal } from "../workspace/AddTaskModal";
 
 const TOOLS = [
-  { id: "select", Icon: FiMousePointer, label: "Select" },
-  { id: "hand", Icon: FiMove, label: "Hand" },
-  { id: "geo", Icon: FiSquare, label: "Shapes" },
-  { id: "text", Icon: FiType, label: "Text" },
-  { id: "draw", Icon: FiEdit2, label: "Pen" },
-  { id: "arrow", Icon: FiArrowUpRight, label: "Arrow" },
-  { id: "note", Icon: FiFileText, label: "Notes" },
-  { id: "eraser", Icon: FiTrash, label: "Eraser" },
+  { id: "select", Icon: FiMousePointer, label: "Select", shortcut: "V" },
+  { id: "hand", Icon: FiMove, label: "Hand", shortcut: "H / Space" },
+  { id: "geo", Icon: FiSquare, label: "Shapes", shortcut: "S" },
+  { id: "text", Icon: FiType, label: "Text", shortcut: "T" },
+  { id: "draw", Icon: FiEdit2, label: "Pen", shortcut: "P" },
+  { id: "arrow", Icon: FiArrowUpRight, label: "Arrow", shortcut: "A" },
+  { id: "note", Icon: FiFileText, label: "Notes", shortcut: "N" },
+  { id: "eraser", Icon: FiTrash, label: "Eraser", shortcut: "E" },
 ];
 
 const TOOL_EXTRAS = [

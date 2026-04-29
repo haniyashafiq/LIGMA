@@ -1249,6 +1249,9 @@ export default function CanvasView({
       onDragStart: (e) => {
         e.cancelBubble = true;
       },
+      onDragMove: (e) => {
+        e.cancelBubble = true;
+      },
       onDragEnd: (event) => {
         event.cancelBubble = true;
         updateNode(node.id, { x: event.target.x(), y: event.target.y() });
@@ -1361,82 +1364,78 @@ export default function CanvasView({
 
     if (node.type === "arrow") {
       return (
-        <Arrow
-          key={key}
-          {...konvaProps}
-          points={node.points?.length ? node.points : [0, 0, node.width || 120, 0]}
-          stroke={node.style?.stroke || "#e2e8f0"}
-          fill={node.style?.stroke || "#e2e8f0"}
-          strokeWidth={node.style?.strokeWidth || 2}
-          pointerLength={12}
-          pointerWidth={12}
-        />
+        <Group key={key} {...konvaProps}>
+          <Arrow
+            points={node.points?.length ? node.points : [0, 0, node.width || 120, 0]}
+            stroke={node.style?.stroke || "#e2e8f0"}
+            fill={node.style?.stroke || "#e2e8f0"}
+            strokeWidth={node.style?.strokeWidth || 2}
+            pointerLength={12}
+            pointerWidth={12}
+          />
+        </Group>
       );
     }
 
     if (node.type === "draw") {
       return (
-        <Line
-          key={key}
-          {...konvaProps}
-          points={node.points || []}
-          stroke={node.style?.stroke || "#e2e8f0"}
-          strokeWidth={node.style?.strokeWidth || 2}
-          tension={0.35}
-          lineCap="round"
-          lineJoin="round"
-        />
+        <Group key={key} {...konvaProps}>
+          <Line
+            points={node.points || []}
+            stroke={node.style?.stroke || "#e2e8f0"}
+            strokeWidth={node.style?.strokeWidth || 2}
+            tension={0.35}
+            lineCap="round"
+            lineJoin="round"
+          />
+        </Group>
       );
     }
 
     if (node.type === "circle") {
-      const { x, y, ...restProps } = konvaProps;
       return (
-        <Circle
-          key={key}
-          {...restProps}
-          x={node.x + node.width / 2}
-          y={node.y + node.height / 2}
-          radius={Math.abs(node.width) / 2}
-          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
-          stroke={node.style?.stroke || "#818cf8"}
-          strokeWidth={node.style?.strokeWidth || 2}
-        />
+        <Group key={key} {...konvaProps}>
+          <Circle
+            x={node.width / 2}
+            y={node.height / 2}
+            radius={Math.abs(node.width) / 2}
+            fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+            stroke={node.style?.stroke || "#818cf8"}
+            strokeWidth={node.style?.strokeWidth || 2}
+          />
+        </Group>
       );
     }
 
     if (node.type === "triangle") {
-      const { x, y, ...restProps } = konvaProps;
       return (
-        <Line
-          key={key}
-          {...restProps}
-          x={node.x}
-          y={node.y}
-          points={[
-            node.width / 2, 0,
-            node.width, node.height,
-            0, node.height
-          ]}
-          closed
-          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
-          stroke={node.style?.stroke || "#818cf8"}
-          strokeWidth={node.style?.strokeWidth || 2}
-        />
+        <Group key={key} {...konvaProps}>
+          <Line
+            points={[
+              node.width / 2, 0,
+              node.width, node.height,
+              0, node.height
+            ]}
+            closed
+            fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+            stroke={node.style?.stroke || "#818cf8"}
+            strokeWidth={node.style?.strokeWidth || 2}
+          />
+        </Group>
       );
     }
 
     return (
-      <Rect
-        key={key}
-        {...konvaProps}
-        width={node.width}
-        height={node.height}
-        fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
-        stroke={node.metadata?.lockedBy ? "#f97316" : node.style?.stroke || "#818cf8"}
-        strokeWidth={node.style?.strokeWidth || 2}
-        cornerRadius={8}
-      />
+      <Group key={key} {...konvaProps}>
+        <Rect
+          width={node.width}
+          height={node.height}
+          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+          stroke={node.metadata?.lockedBy ? "#f97316" : node.style?.stroke || "#818cf8"}
+          strokeWidth={node.style?.strokeWidth || 2}
+          cornerRadius={8}
+        />
+      </Group>
     );
   }
 
