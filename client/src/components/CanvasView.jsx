@@ -189,7 +189,7 @@ function makeNode(type, pointer, currentUser, zIndex) {
     x: pointer.x,
     y: pointer.y,
     width: type === "text" ? 220 : 180,
-    height: type === "text" ? 48 : 100,
+    height: type === "text" ? 48 : 180,
     rotation: 0,
     zIndex,
     text: "",
@@ -292,6 +292,7 @@ export default function CanvasView({
   const textAreaRef = useRef(null);
   const skipNextTextBlurCommitRef = useRef(false);
   const textEditorRef = useRef(null);
+  const lastValueRef = useRef("");
   const reconnectAttemptRef = useRef(0);
 
   const [nodes, setNodes] = useState([]);
@@ -411,13 +412,25 @@ export default function CanvasView({
         text: getNodeText(textMap, node),
       }))
       .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-    setNodes(nextNodes);
+
+    // Only update if something actually changed to prevent render loops
+    const currentNodes = nodesRef.current;
+    const hasChanged = nextNodes.length !== currentNodes.length || 
+                      nextNodes.some((n, i) => n.id !== currentNodes[i]?.id || n.text !== currentNodes[i]?.text);
+    
+    if (hasChanged) {
+      setNodes(nextNodes);
+    }
     setTextEditor((current) => {
       if (!current) return current;
       const live = nextNodes.find((node) => node.id === current.nodeId);
       if (!live || live.text === current.value) return current;
-      if (current.value !== current.baseline) return current;
-      return { ...current, value: live.text, baseline: live.text };
+      // If user hasn't changed anything yet, adopt the live text
+      if (current.value === current.baseline) {
+        lastValueRef.current = live.text;
+        return { ...current, value: live.text, baseline: live.text };
+      }
+      return current;
     });
   }, []);
 
@@ -506,9 +519,11 @@ export default function CanvasView({
   }, [resolveTextNode]);
 
   const emitTextChange = useCallback(
-    (nodeId, previousValue, nextValue) => {
+    (nodeId, nextValue) => {
+      const previousValue = lastValueRef.current;
       const delta = diffTextChange(previousValue, nextValue);
       if (!delta) return;
+      lastValueRef.current = nextValue;
       emitOp({ type: "node:text:delta", nodeId, delta });
     },
     [emitOp],
@@ -572,8 +587,8 @@ export default function CanvasView({
     const value = ta && typeof ta.value === "string" ? ta.value : (editing.value ?? "");
     lastPlacedTextRef.current = null;
     skipNextTextBlurCommitRef.current = true;
-    if (value !== editing.value) {
-      emitTextChange(editing.nodeId, editing.value ?? "", value);
+    if (value !== lastValueRef.current) {
+      emitTextChange(editing.nodeId, value);
     }
     if (value !== editing.baseline) {
       handleAITrigger(editing.nodeId, value);
@@ -593,7 +608,7 @@ export default function CanvasView({
       const ta = textAreaRef.current;
       const live = ta && typeof ta.value === "string" ? ta.value : current.value;
       if (current.baseline !== live) {
-        emitTextChange(current.nodeId, live, current.baseline ?? "");
+        emitTextChange(current.nodeId, current.baseline ?? "");
       }
       lastPlacedTextRef.current = null;
       textEditorRef.current = null;
@@ -608,6 +623,7 @@ export default function CanvasView({
       const live = resolveTextNode(node.id) || node;
       const initial = live.text ?? "";
       const surface = node.type === "note" ? "note" : "text";
+      lastValueRef.current = initial;
       setTextEditor({ nodeId: node.id, value: initial, baseline: initial, surface });
     },
     [readOnly, resolveTextNode],
@@ -619,7 +635,20 @@ export default function CanvasView({
       return;
     }
     const layout = computeTextEditLayout(textEditor.nodeId);
-    setTextEditLayout(layout);
+    if (layout) {
+      setTextEditLayout(prev => {
+        if (prev && 
+            prev.left === layout.left && 
+            prev.top === layout.top && 
+            prev.width === layout.width && 
+            prev.height === layout.height && 
+            prev.fontSize === layout.fontSize && 
+            prev.rotation === layout.rotation) {
+          return prev;
+        }
+        return layout;
+      });
+    }
     requestAnimationFrame(() => {
       const el = textAreaRef.current;
       if (!el) return;
@@ -627,7 +656,7 @@ export default function CanvasView({
       const len = el.value.length;
       el.setSelectionRange(len, len);
     });
-  }, [textEditor, computeTextEditLayout, viewport, stageSize, nodes]);
+  }, [textEditor?.nodeId, computeTextEditLayout, viewport, stageSize]);
 
   useEffect(() => {
     if (!textEditor) return;
@@ -636,7 +665,7 @@ export default function CanvasView({
       lastPlacedTextRef.current = null;
       textEditorRef.current = null;
     }
-  }, [textEditor, nodes, resolveTextNode]);
+  }, [textEditor, resolveTextNode]);
 
   const jumpToNode = useCallback(
     (nodeId) => {
@@ -1478,9 +1507,9 @@ export default function CanvasView({
           value={textEditor.value}
           onChange={(e) => {
             const nextValue = e.target.value;
+            emitTextChange(textEditor.nodeId, nextValue);
             setTextEditor((prev) => {
               if (!prev) return null;
-              emitTextChange(prev.nodeId, prev.value ?? "", nextValue);
               return { ...prev, value: nextValue };
             });
           }}
