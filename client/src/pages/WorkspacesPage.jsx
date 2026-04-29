@@ -123,8 +123,21 @@ export function WorkspacesPage() {
     }
   }
 
-   const myWorkspaces = workspaces.filter(ws => ws.createdBy === user?.id);
-  const invitedWorkspaces = workspaces.filter(ws => ws.createdBy !== user?.id);
+  async function handleDeleteWorkspace(workspaceId) {
+    if (!window.confirm("Are you sure you want to delete this workspace? This cannot be undone.")) return;
+    
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}`, {
+        method: "DELETE",
+      });
+      setWorkspaces(prev => prev.filter(w => w.id !== workspaceId));
+    } catch (err) {
+      alert(err.message || "Failed to delete workspace.");
+    }
+  }
+
+  const myWorkspaces = workspaces.filter(ws => String(ws.createdBy) === String(user?.id));
+  const invitedWorkspaces = workspaces.filter(ws => String(ws.createdBy) !== String(user?.id));
 
   const displayedWorkspaces = showAll ? myWorkspaces : myWorkspaces.slice(0, 6);
 
@@ -161,7 +174,7 @@ export function WorkspacesPage() {
 
        {/* ── Your Canvases ─────────────────────── */}
       <div className="section-header">
-        <h2>{showAll ? "All Your Canvases" : "Recent Canvases"}</h2>
+        <h2>{showAll ? "All Your Canvases" : "Your Canvases"}</h2>
         {workspaces.length > 6 && (
           <span 
             className="view-all-link" 
@@ -234,19 +247,20 @@ export function WorkspacesPage() {
                   </div>
                 </div>
 
-                <div className="canvas-list-actions">
-                  <div className="member-stack">
-                    <div className="member-pip" style={{ background: col.color }}>
-                      {letter}
-                    </div>
-                  </div>
-                  <button
-                    className="canvas-kebab"
-                    onClick={(e) => e.preventDefault()}
-                    aria-label="More options"
-                  >
-                    <FiMoreHorizontal size={15} />
-                  </button>
+                 <div className="canvas-list-actions">
+                  {ws.role === "lead" && (
+                    <button
+                      className="canvas-kebab"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteWorkspace(ws.id);
+                      }}
+                      title="Delete Workspace"
+                    >
+                      <FiMoreHorizontal size={15} />
+                    </button>
+                  )}
                 </div>
               </Link>
             );
@@ -286,19 +300,20 @@ export function WorkspacesPage() {
                     </div>
                   </div>
 
-                  <div className="canvas-list-actions">
-                    <div className="member-stack">
-                      <div className="member-pip" style={{ background: col.color }}>
-                        {letter}
-                      </div>
-                    </div>
-                    <button
-                      className="canvas-kebab"
-                      onClick={(e) => e.preventDefault()}
-                      aria-label="More options"
-                    >
-                      <FiMoreHorizontal size={15} />
-                    </button>
+                   <div className="canvas-list-actions">
+                    {ws.role === "lead" && (
+                      <button
+                        className="canvas-kebab"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeleteWorkspace(ws.id);
+                        }}
+                        title="Delete Workspace"
+                      >
+                        <FiMoreHorizontal size={15} />
+                      </button>
+                    )}
                   </div>
                 </Link>
               );

@@ -315,6 +315,27 @@ async function acceptInviteToken(token, userId) {
   };
 }
 
+async function deleteWorkspace(workspaceId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Delete roles first
+    await client.query('DELETE FROM workspace_roles WHERE workspace_id = $1', [workspaceId]);
+    
+    // Delete the workspace
+    const result = await client.query('DELETE FROM workspaces WHERE id = $1 RETURNING id', [workspaceId]);
+    
+    await client.query('COMMIT');
+    return result.rows[0] || null;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   VALID_ROLES,
   createWorkspace,
@@ -324,4 +345,5 @@ module.exports = {
   updateUserRole,
   createInviteToken,
   acceptInviteToken,
+  deleteWorkspace,
 };
