@@ -33,6 +33,8 @@ import {
   FiCrosshair,
   FiLogOut,
   FiUsers,
+  FiCircle,
+  FiTriangle,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
 import CanvasReplay, { useCanvasReplay, ReplayControls, ReplayOverlay } from "../components/CanvasReplay";
@@ -90,6 +92,7 @@ export function WorkspacePage() {
 
   const [editor, setEditor] = useState(null);
   const [activeTool, setActiveTool] = useState("select");
+  const [geoSubTool, setGeoSubTool] = useState("rect");
   const [activeTab, setActiveTab] = useState(urlTab || "workspace");
   const [workspaceName, setWorkspaceName] = useState("Workspace");
   const [workspaceRole, setWorkspaceRole] = useState("viewer");
@@ -138,6 +141,11 @@ export function WorkspacePage() {
   const [showTaskFilter, setShowTaskFilter] = useState(false);
   const [activityFilter, setActivityFilter] = useState("all");
   const [showActivityFilter, setShowActivityFilter] = useState(false);
+  
+  // Theme management
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", isDarkMode ? "dark" : "light");
+  }, [isDarkMode]);
 
   // Load workspace metadata
   useEffect(() => {
@@ -663,17 +671,37 @@ export function WorkspacePage() {
               <span className="ws-tool-panel-label">Tools</span>
 
               {TOOLS.map(({ id, Icon, label }) => (
-                <button
-                  key={id}
-                  className={`ws-tool-btn${activeTool === id ? " active" : ""}`}
-                  onClick={() => handleToolSelect(id)}
-                  title={label}
-                  aria-label={label}
-                  disabled={isReadOnlyMode}
-                >
-                  <Icon size={16} />
-                  <span>{label}</span>
-                </button>
+                <React.Fragment key={id}>
+                  <button
+                    className={`ws-tool-btn${activeTool === id ? " active" : ""}`}
+                    onClick={() => handleToolSelect(id)}
+                    title={label}
+                    aria-label={label}
+                    disabled={isReadOnlyMode}
+                  >
+                    <Icon size={16} />
+                    <span>{label}</span>
+                  </button>
+                  
+                  {id === "geo" && activeTool === "geo" && (
+                    <div className="ws-tool-submenu">
+                      {[
+                        { id: "rect", Icon: FiSquare, label: "Rectangle" },
+                        { id: "circle", Icon: FiCircle, label: "Circle" },
+                        { id: "triangle", Icon: FiTriangle, label: "Triangle" },
+                      ].map((sub) => (
+                        <button
+                          key={sub.id}
+                          className={`ws-tool-sub-btn${geoSubTool === sub.id ? " active" : ""}`}
+                          onClick={() => setGeoSubTool(sub.id)}
+                          title={sub.label}
+                        >
+                          <sub.Icon size={12} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
 
               <div className="ws-tool-divider" />
@@ -706,6 +734,7 @@ export function WorkspacePage() {
                 currentUserId={currentUser?.id || null}
                 currentUserRole={workspaceRole}
                 collabUser={collabUser}
+                activeTool={activeTool === "geo" ? `geo:${geoSubTool}` : activeTool}
               />
               <ReplayOverlay state={replayState} gridMode={gridEnabled} />
 
