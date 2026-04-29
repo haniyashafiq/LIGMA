@@ -160,6 +160,16 @@ function makeNode(type, pointer, currentUser, zIndex) {
     node.style.stroke = "#e2e8f0";
   }
 
+  if (type === "circle") {
+    node.width = 0;
+    node.height = 0;
+  }
+
+  if (type === "triangle") {
+    node.width = 0;
+    node.height = 0;
+  }
+
   return node;
 }
 
@@ -186,6 +196,7 @@ export default function CanvasView({
   const activeToolRef = useRef(activeTool);
   const isDrawingRef = useRef(false);
   const drawingNodeRef = useRef(null);
+  const drawingStartPosRef = useRef(null);
   const lastPointerRef = useRef(null);
   const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
   const lastCursorEmitRef = useRef(0);
@@ -249,6 +260,22 @@ export default function CanvasView({
 
     window.addEventListener("ligma:rbac-toast", handleRbacToastEvent);
     return () => window.removeEventListener("ligma:rbac-toast", handleRbacToastEvent);
+  }, []);
+
+  // Handle Resize
+  useEffect(() => {
+    const shell = canvasShellRef.current;
+    if (!shell) return undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setStageSize({ width, height });
+      }
+    });
+
+    observer.observe(shell);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -745,29 +772,40 @@ export default function CanvasView({
     const pointer = getStagePointer();
     if (!pointer) return;
 
-    if (["geo", "text", "note", "arrow"].includes(tool)) {
+    const isGeo = tool.startsWith("geo:");
+    const baseTool = isGeo ? "geo" : tool;
+
+    if (["geo", "text", "note", "arrow", "draw"].includes(baseTool)) {
       if ((tool === "text" || tool === "note") && closedTextEditorOnThisDown) {
         return;
       }
-      const node = makeNode(tool === "geo" ? "rect" : tool, pointer, collabUser, nodes.length + 1);
+
+      const nodeType = isGeo ? tool.split(":")[1] : tool;
+      const node = makeNode(nodeType, pointer, collabUser, nodes.length + 1);
+      
       if (tool === "text") {
         lastPlacedTextRef.current = node;
         setTextEditor({ nodeId: node.id, value: "", baseline: "", surface: "text" });
-      }
-      if (tool === "note") {
+        emitOp({ type: "node:create", node });
+      } else if (tool === "note") {
         lastPlacedTextRef.current = node;
         setTextEditor({ nodeId: node.id, value: "", baseline: "", surface: "note" });
+        emitOp({ type: "node:create", node });
+      } else {
+        // Drag-to-create tools
+        isDrawingRef.current = true;
+        drawingNodeRef.current = node;
+        drawingStartPosRef.current = pointer;
+        
+        if (tool === "geo" || tool === "arrow") {
+          node.width = 0;
+          node.height = 0;
+          if (tool === "arrow") node.points = [0, 0, 0, 0];
+        }
+        
+        emitOp({ type: "node:create", node });
       }
-      emitOp({ type: "node:create", node });
-      setSelectedId(node.id);
-      return;
-    }
-
-    if (tool === "draw") {
-      const node = makeNode("draw", pointer, collabUser, nodes.length + 1);
-      isDrawingRef.current = true;
-      drawingNodeRef.current = node;
-      emitOp({ type: "node:create", node });
+      
       setSelectedId(node.id);
       return;
     }
@@ -784,8 +822,24 @@ export default function CanvasView({
     const pointer = getStagePointer();
     if (!pointer) return;
     const node = drawingNodeRef.current;
-    node.points = [...node.points, pointer.x, pointer.y];
-    emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
+    const start = drawingStartPosRef.current;
+
+    if (node.type === "draw") {
+      node.points = [...node.points, pointer.x, pointer.y];
+      emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
+    } else if (node.type === "arrow") {
+      const dx = pointer.x - node.x;
+      const dy = pointer.y - node.y;
+      node.points = [0, 0, dx, dy];
+      emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
+    } else {
+      // Shape (Rect, etc.)
+      const width = pointer.x - node.x;
+      const height = pointer.y - node.y;
+      node.width = width;
+      node.height = height;
+      emitOp({ type: "node:update", nodeId: node.id, patch: { width, height } });
+    }
   }
 
   function handleStageMouseUp() {
@@ -937,6 +991,39 @@ export default function CanvasView({
           tension={0.35}
           lineCap="round"
           lineJoin="round"
+        />
+      );
+    }
+
+    if (node.type === "circle") {
+      return (
+        <Circle
+          key={key}
+          {...konvaProps}
+          x={node.x + node.width / 2}
+          y={node.y + node.height / 2}
+          radius={Math.abs(node.width) / 2}
+          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+          stroke={node.style?.stroke || "#818cf8"}
+          strokeWidth={node.style?.strokeWidth || 2}
+        />
+      );
+    }
+
+    if (node.type === "triangle") {
+      return (
+        <Line
+          key={key}
+          {...konvaProps}
+          points={[
+            node.width / 2, 0,
+            node.width, node.height,
+            0, node.height
+          ]}
+          closed
+          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+          stroke={node.style?.stroke || "#818cf8"}
+          strokeWidth={node.style?.strokeWidth || 2}
         />
       );
     }

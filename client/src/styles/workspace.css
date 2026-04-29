@@ -3,6 +3,15 @@
    ============================================================ */
 
 /* ── Top Nav Bar ──────────────────────────────────────── */
+.ws-main-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  overflow: hidden;
+  position: relative;
+}
+
 .workspace-topbar {
   height: 48px;
   display: flex;
@@ -684,8 +693,36 @@
 .ws-task-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 8px;
+  gap: 8px;
+}
+
+.ws-task-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-task-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, background 0.2s;
+}
+
+.ws-task-card:hover .ws-task-delete-btn {
+  opacity: 1;
+}
+
+.ws-task-delete-btn:hover {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
 }
 
 .ws-task-badge {
@@ -794,6 +831,7 @@
   border-color: rgba(148, 163, 184, 0.3);
   color: #cbd5e1;
 }
+
 .ws-task-added-by {
   font-size: 9px;
   color: var(--color-text-subtle);
@@ -1090,8 +1128,8 @@
 }
 
 .ws-add-task-form {
-  background: #1e1e1e;
-  border: 1px solid #333;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   width: 100%;
   max-width: 380px;
@@ -1104,7 +1142,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .ws-modal-header h3 {
@@ -1112,7 +1150,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #888;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -1127,7 +1165,7 @@
 }
 
 .ws-close-btn:hover {
-  color: #fff;
+  color: var(--color-text);
 }
 
 .ws-form-content {
@@ -1138,7 +1176,7 @@
   width: 100%;
   background: none;
   border: none;
-  color: #fff;
+  color: var(--color-text);
   font-family: inherit;
   font-size: 15px;
   line-height: 1.6;
@@ -1596,37 +1634,13 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  padding: var(--space-5);
   height: 100%;
   color: var(--color-text-muted);
   font-size: var(--text-sm);
-  text-align: center;
 }
 
 .ws-loading-spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(148, 163, 184, 0.28);
-  border-top-color: var(--color-primary);
-  border-radius: 999px;
   animation: spin 1s linear infinite;
-}
-
-.ws-loading-copy {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  max-width: 360px;
-  line-height: 1.5;
-}
-
-.ws-loading-copy strong {
-  color: var(--color-text);
-  font-size: var(--text-base);
-}
-
-.ws-loading-copy span {
-  color: var(--color-text-subtle);
 }
 
 @keyframes spin {
@@ -1869,7 +1883,7 @@
   border-radius: 12px;
   padding: 16px;
   border: 1px solid var(--color-border);
-  max-height: 100%;
+  height: 100%;
 }
 
 .ws-kanban-column-header {
@@ -1905,6 +1919,7 @@
   flex-direction: column;
   gap: 12px;
   padding-right: 4px;
+  max-height: 100%;
 }
 
 /* Custom scrollbar for Kanban columns */
@@ -1929,6 +1944,8 @@
 
 .kanban-card {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  max-height: 200px;
+  flex-shrink: 0;
 }
 
 .kanban-card:hover {
@@ -2064,4 +2081,247 @@
 .kanban-card.dragging {
   opacity: 0.4;
   cursor: grabbing;
+}
+
+.ws-tool-submenu {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  gap: 2px;
+  position: absolute;
+  left: 60px;
+  top: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+.ws-tool-sub-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ws-tool-sub-btn:hover {
+  background: var(--color-interactive-hover);
+  color: var(--color-text);
+}
+
+.ws-tool-sub-btn.active {
+  color: var(--color-primary);
+  background: rgba(13, 153, 255, 0.1);
+}
+
+/* ── New Task Card UI (Ultra-Compact for Sidebar) ────── */
+.ws-new-task-card {
+  background: rgba(25, 25, 25, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  margin-bottom: 8px;
+  min-width: 0;
+}
+
+.ws-new-task-card:hover {
+  background: rgba(30, 30, 30, 0.9);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.ws-task-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ws-task-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ws-task-display-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-task-author-sub {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.ws-task-top-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ws-task-type-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.ws-task-type-badge.auto {
+  background: rgba(13, 153, 255, 0.15);
+  color: #72b9ff;
+  border: 1px solid rgba(13, 153, 255, 0.2);
+}
+
+.ws-task-type-badge.manual {
+  background: rgba(162, 89, 255, 0.15);
+  color: #c08fff;
+  border: 1px solid rgba(162, 89, 255, 0.2);
+}
+
+.ws-task-delete-action {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  padding: 1px;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.ws-task-delete-action:hover {
+  color: #ff4d4d;
+}
+
+.ws-task-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.03);
+  width: 100%;
+}
+
+.ws-task-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-task-status-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.ws-pill-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.ws-pill-badge.status-todo {
+  background: rgba(100, 150, 140, 0.1);
+  color: #7ab8aa;
+  border-color: rgba(100, 150, 140, 0.2);
+  cursor: pointer;
+}
+
+.ws-pill-badge.status-in_progress {
+  background: rgba(13, 153, 255, 0.1);
+  color: #72b9ff;
+  border-color: rgba(13, 153, 255, 0.2);
+  cursor: pointer;
+}
+
+.ws-pill-badge.status-done {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.2);
+  cursor: pointer;
+}
+
+.ws-pill-badge.priority-high {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.ws-pill-badge.priority-medium {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.ws-pill-badge.priority-low {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.ws-pill-badge.intent-badge {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.pill-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.ws-task-assignee-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ws-task-avatar-circle {
+  width: 20px;
+  height: 20px;
+  background: #7c3aed;
+  color: #fff;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
