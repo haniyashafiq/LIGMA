@@ -254,6 +254,35 @@ export function WorkspacePage() {
     setActiveTool(toolId);
   }, [workspaceRole]);
 
+  useEffect(() => {
+    function handleGlobalKeyDown(e) {
+      if (workspaceRole === "viewer") return;
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      const maps = {
+        v: "select",
+        h: "hand",
+        s: "geo",
+        t: "text",
+        p: "draw",
+        a: "arrow",
+        n: "note",
+        e: "eraser",
+      };
+
+      if (maps[key]) {
+        e.preventDefault();
+        handleToolSelect(maps[key]);
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [workspaceRole, handleToolSelect]);
+
   const handleAddTask = async (e) => {
     e.preventDefault();
     if (workspaceRole === "viewer" || !newTaskTitle.trim()) return;
