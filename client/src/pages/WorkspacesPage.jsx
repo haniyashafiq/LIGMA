@@ -73,6 +73,7 @@ export function WorkspacesPage() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState(null);
   const [newName, setNewName]       = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showAll, setShowAll]       = useState(false);
@@ -106,10 +107,14 @@ export function WorkspacesPage() {
     try {
       const res = await apiFetch("/api/workspaces", {
         method: "POST",
-        body: JSON.stringify({ name: newName.trim() }),
+        body: JSON.stringify({ 
+          name: newName.trim(),
+          templateId: activeTemplate?.id || null
+        }),
       });
       setWorkspaces((prev) => [res.workspace, ...prev]);
       setNewName("");
+      setActiveTemplate(null);
       setShowCreate(false);
     } catch (err) {
       setError(err.message || "Failed to create workspace.");
@@ -118,7 +123,10 @@ export function WorkspacesPage() {
     }
   }
 
-  const displayedWorkspaces = showAll ? workspaces : workspaces.slice(0, 6);
+   const myWorkspaces = workspaces.filter(ws => ws.createdBy === user?.id);
+  const invitedWorkspaces = workspaces.filter(ws => ws.createdBy !== user?.id);
+
+  const displayedWorkspaces = showAll ? myWorkspaces : myWorkspaces.slice(0, 6);
 
   return (
     <DashboardLayout user={user}>
@@ -151,9 +159,9 @@ export function WorkspacesPage() {
         </div>
       </div>
 
-      {/* ── Recent Canvases ─────────────────── */}
+       {/* ── Your Canvases ─────────────────────── */}
       <div className="section-header">
-        <h2>{showAll ? "All Canvases" : "Recent Canvases"}</h2>
+        <h2>{showAll ? "All Your Canvases" : "Recent Canvases"}</h2>
         {workspaces.length > 6 && (
           <span 
             className="view-all-link" 
@@ -246,6 +254,59 @@ export function WorkspacesPage() {
         </div>
       </div>
 
+      {/* ── Shared with You ─────────────────── */}
+      {invitedWorkspaces.length > 0 && (
+        <>
+          <div className="section-header" style={{ marginTop: '48px' }}>
+            <h2>Shared with You</h2>
+          </div>
+          <div className="canvas-list" style={{ marginTop: '16px' }}>
+            {invitedWorkspaces.map((ws, idx) => {
+              const col = ICON_COLORS[idx % ICON_COLORS.length];
+              const letter = ws.name.trim()[0]?.toUpperCase() || "C";
+              return (
+                <Link
+                  key={ws.id}
+                  to={`/workspace/${ws.id}`}
+                  className="canvas-list-item"
+                  id={`canvas-item-invited-${ws.id}`}
+                >
+                  <div
+                    className="canvas-list-icon"
+                    style={{ background: col.bg, color: col.color }}
+                  >
+                    {letter}
+                  </div>
+
+                  <div className="canvas-list-info">
+                    <p className="canvas-list-name">{ws.name}</p>
+                    <div className="canvas-list-meta">
+                      <span>Edited {relativeTime(ws.updated_at || ws.created_at)}</span>
+                      <span>{ws.role || "member"}</span>
+                    </div>
+                  </div>
+
+                  <div className="canvas-list-actions">
+                    <div className="member-stack">
+                      <div className="member-pip" style={{ background: col.color }}>
+                        {letter}
+                      </div>
+                    </div>
+                    <button
+                      className="canvas-kebab"
+                      onClick={(e) => e.preventDefault()}
+                      aria-label="More options"
+                    >
+                      <FiMoreHorizontal size={15} />
+                    </button>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* ── Workspace Templates ─────────────── */}
       <div className="section-header">
         <h2>Workspace Templates</h2>
@@ -262,8 +323,18 @@ export function WorkspacesPage() {
             role="button"
             tabIndex={0}
             id={`template-${id}`}
-            onClick={() => setShowCreate(true)}
-            onKeyDown={(e) => e.key === "Enter" && setShowCreate(true)}
+             onClick={() => {
+              setActiveTemplate({ id, label });
+              setNewName(`${label} Workspace`);
+              setShowCreate(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                setActiveTemplate({ id, label });
+                setNewName(`${label} Workspace`);
+                setShowCreate(true);
+              }
+            }}
           >
             <div className="template-card-icon">
               <Icon size={22} style={{ color: "var(--color-primary)" }} />
@@ -279,13 +350,13 @@ export function WorkspacesPage() {
       {showCreate && (
         <div
           className="create-modal-backdrop"
-          onClick={() => setShowCreate(false)}
+          onClick={() => { setShowCreate(false); setActiveTemplate(null); }}
           role="dialog"
           aria-modal="true"
           aria-label="Create new canvas"
         >
           <div className="create-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>New Canvas</h2>
+            <h2>{activeTemplate ? `Use ${activeTemplate.label} Template` : 'New Canvas'}</h2>
 
             <form onSubmit={handleCreate} className="auth-form">
               <label className="field">

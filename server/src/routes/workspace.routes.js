@@ -11,10 +11,10 @@ const router = express.Router();
 router.use(authenticateRequest);
 
 router.post('/', async (req, res) => {
-  const { name } = req.body || {};
+  const { name, templateId } = req.body || {};
 
   try {
-    const workspace = await workspaceService.createWorkspace(name, req.user.id);
+    const workspace = await workspaceService.createWorkspace(name, req.user.id, templateId);
     return res.status(201).json({ workspace });
   } catch (error) {
     return res.status(error.statusCode || 500).json({

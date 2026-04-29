@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { pool } = require('../db/pool');
 
+const templateService = require('./template.service');
+
 const VALID_ROLES = new Set(['lead', 'contributor', 'viewer']);
 const INVITE_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
@@ -39,7 +41,7 @@ function mapMember(row) {
   };
 }
 
-async function createWorkspace(name, creatorId) {
+async function createWorkspace(name, creatorId, templateId = null) {
   const trimmedName = typeof name === 'string' ? name.trim() : '';
   if (!trimmedName) {
     throw createHttpError('Workspace name is required.', 400);
@@ -70,6 +72,14 @@ async function createWorkspace(name, creatorId) {
     );
 
     await client.query('COMMIT');
+
+    // Seed if template provided
+    if (templateId) {
+      await templateService.seedWorkspace(workspace.id, templateId, creatorId).catch(err => {
+        console.error('[workspace.service] Template seeding failed', err);
+      });
+    }
+
     return {
       ...mapWorkspace(workspace),
       role: 'lead',
