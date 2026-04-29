@@ -1,5 +1,6 @@
 const config = require("../config");
 const intentService = require("./intent.service");
+const { normalizeStatusForStorage } = require("./task.service");
 
 const VALID_AI_INTENTS = new Set([
   "action_item",
@@ -8,7 +9,6 @@ const VALID_AI_INTENTS = new Set([
   "reference",
   "general",
 ]);
-const VALID_TASK_STATUSES = new Set(["todo", "in_progress", "done"]);
 
 function normalizeIntent(rawIntent) {
   const intent = String(rawIntent || "")
@@ -23,14 +23,7 @@ function normalizeIntent(rawIntent) {
 }
 
 function normalizeTaskStatus(rawStatus) {
-  const status = String(rawStatus || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-
-  if (status === "doing") return "in_progress";
-
-  return VALID_TASK_STATUSES.has(status) ? status : "todo";
+  return normalizeStatusForStorage(rawStatus);
 }
 
 function classifyWithLocalFallback(message, nodeType) {

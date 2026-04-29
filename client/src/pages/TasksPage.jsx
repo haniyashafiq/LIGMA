@@ -6,6 +6,12 @@ import { FiLink, FiCheckCircle, FiClock, FiAlertCircle, FiPlus, FiChevronDown } 
 import "../styles/workspace.css";
 import { TaskCard } from "../workspace/TaskCard";
 
+function normalizeBoardStatus(raw) {
+  const s = (raw || "").toLowerCase();
+  if (s === "doing") return "in_progress";
+  return s;
+}
+
 export function TasksPage({ user }) {
   const [tasks, setTasks] = useState([]);
   const [workspaces, setWorkspaces] = useState([]);
@@ -87,7 +93,8 @@ export function TasksPage({ user }) {
 
   const onDrop = (newStatus) => {
     if (!draggingTask) return;
-    if (draggingTask.status.toLowerCase() === newStatus) {
+    const from = normalizeBoardStatus(draggingTask.status);
+    if (from === newStatus) {
       setDraggingTask(null);
       return;
     }
@@ -152,7 +159,11 @@ export function TasksPage({ user }) {
         </div>
       ) : (
         <div className="ws-kanban-view" style={{ background: 'transparent', padding: '24px 0', height: 'calc(100vh - 200px)' }}>
-            {['todo', 'doing', 'done'].map((status) => (
+            {[
+              { key: 'todo', title: 'TODO' },
+              { key: 'in_progress', title: 'IN PROGRESS' },
+              { key: 'done', title: 'DONE' },
+            ].map(({ key: status, title }) => (
               <div 
                 key={status} 
                 className={`ws-kanban-column column-${status}`} 
@@ -162,16 +173,16 @@ export function TasksPage({ user }) {
               >
                 <div className="ws-kanban-column-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3>{status === 'doing' ? 'IN PROGRESS' : status.toUpperCase()}</h3>
+                    <h3>{title}</h3>
                     <span className="ws-kanban-count-pill">
-                      {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status).length}
+                      {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && normalizeBoardStatus(t.status) === status).length}
                     </span>
                   </div>
                   <button className="ws-kanban-more"><FiPlus size={14} /></button>
                 </div>
                 <div className="ws-kanban-tasks">
                   {tasks
-                    .filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status)
+                    .filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && normalizeBoardStatus(t.status) === status)
                     .map((task) => (
                       <TaskCard 
                         key={task.id}
@@ -187,7 +198,7 @@ export function TasksPage({ user }) {
                         onDragStart={onDragStart}
                       />
                     ))}
-                  {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && t.status.toLowerCase() === status).length === 0 && (
+                  {tasks.filter(t => (filterWorkspace === 'all' || t.workspace_id === filterWorkspace) && normalizeBoardStatus(t.status) === status).length === 0 && (
                     <div className="ws-kanban-empty">No tasks in this column</div>
                   )}
                 </div>

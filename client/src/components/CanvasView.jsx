@@ -264,7 +264,7 @@ export default function CanvasView({
   currentUserRole = "viewer",
   collabUser = null,
 }) {
-  const { token, exposeJump, setConnectionStatus, user } = useContext(AppContext);
+  const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
   const canvasShellRef = useRef(null);
   const stageRef = useRef(null);
   const transformerRef = useRef(null);
@@ -551,8 +551,8 @@ export default function CanvasView({
           status: status || 'todo',
           intent: 'action_item',
           source: 'ai',
-          sourceAuthorId: user?.id,
-          sourceAuthorName: user?.displayName || user?.username
+          sourceAuthorId: currentUserId,
+          sourceAuthorName: collabUser?.name || 'Collaborator'
         })
       });
       window.dispatchEvent(new CustomEvent('ligma:tasks-sync'));
@@ -563,7 +563,7 @@ export default function CanvasView({
       });
       window.dispatchEvent(new CustomEvent('ligma:tasks-sync'));
     }
-  }, [resolveTextNode, workspaceId, user]);
+  }, [resolveTextNode, workspaceId, currentUserId, collabUser]);
 
   const commitTextEditor = useCallback(() => {
     setTextEditor((current) => {
@@ -912,12 +912,8 @@ export default function CanvasView({
     socket.on("workspace:role_updated", (payload) => {
       window.dispatchEvent(new CustomEvent("ligma:role-updated", { detail: payload || {} }));
     });
-    socket.on("task:sync", (payload) => {
+    socket.on("task:sync", () => {
       window.dispatchEvent(new CustomEvent("ligma:tasks-sync"));
-      if (payload?.deleted && payload.sourceNodeId && !payload.preserveNode) {
-        // If a task linked to a canvas node was deleted, remove the note too
-        emitOp({ type: "node:delete", nodeId: payload.sourceNodeId });
-      }
     });
 
     return () => {

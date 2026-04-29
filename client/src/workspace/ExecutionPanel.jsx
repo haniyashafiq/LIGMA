@@ -162,9 +162,11 @@ export function ExecutionPanel({
         </div>
 
         <div className="ws-task-list">
-          {tasks.filter(t => {
-            if (taskFilter === 'all') return true;
-            return t.status === taskFilter;
+          {tasks.filter((t) => {
+            if (taskFilter === "all") return true;
+            const s = (t.status || "").toLowerCase();
+            const normalized = s === "doing" ? "in_progress" : s;
+            return normalized === taskFilter;
           }).map((task) => (
             <TaskCard 
               key={task.id}

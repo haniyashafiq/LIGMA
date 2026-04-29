@@ -265,13 +265,15 @@ export function WorkspacePage() {
           title: newTaskTitle.trim(),
           status: newTaskStatus,
           priority: newTaskPriority,
-          authorName: currentUser?.username || "Collaborator"
         }),
       });
       setNewTaskTitle("");
       setShowAddTask(false);
       loadTasks();
     } catch (err) {
+      if (err?.status === 409) {
+        alert(err?.message || "You already have a task with this title.");
+      }
       console.error("Failed to create task:", err);
     } finally {
       setIsSubmittingTask(false);
@@ -283,7 +285,9 @@ export function WorkspacePage() {
     
     // Optimistic Update
     const oldTasks = [...tasks];
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...data } : t));
+    setTasks(prev =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...data } : t)),
+    );
 
     try {
       await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
@@ -293,9 +297,13 @@ export function WorkspacePage() {
       // Optionally reload to ensure perfect sync
       // loadTasks(); 
     } catch (err) {
+      if (err?.status === 409) {
+        alert(err?.message || "A task with this title already exists for you.");
+      } else {
+        alert("Failed to update task. Please check your connection.");
+      }
       console.error("Failed to update task:", err);
       setTasks(oldTasks); // Rollback on failure
-      alert("Failed to update task. Please check your connection.");
     }
   };
 

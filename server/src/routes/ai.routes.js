@@ -1,6 +1,7 @@
 const express = require('express');
 const config = require('../config');
 const intentService = require('../services/intent.service');
+const taskService = require('../services/task.service');
 const { authenticateRequest } = require('../middleware/auth');
 
 const router = express.Router();
@@ -36,7 +37,7 @@ router.post('/classify', async (req, res) => {
       console.log(`[AI Proxy] Chatbot success: intent=${data.intent}, status=${data.status}`);
       return res.json({
         intent: data.intent,
-        status: data.status,
+        status: taskService.normalizeStatusForStorage(data.status),
         source: 'ai'
       });
     } else {
@@ -52,7 +53,7 @@ router.post('/classify', async (req, res) => {
 
   return res.json({
     intent: localResult.intent,
-    status: 'todo',
+    status: taskService.normalizeStatusForStorage('todo'),
     source: 'local'
   });
 });

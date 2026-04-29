@@ -1,5 +1,5 @@
 import React from "react";
-import { FiTrash2, FiLink } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 
 export function TaskCard({ 
   task, 
@@ -11,23 +11,36 @@ export function TaskCard({
   getIntentLabel,
   onDragStart
 }) {
+  const normalizedStatus = React.useMemo(() => {
+    const s = task.status?.toLowerCase?.() || "todo";
+    if (s === "doing") return "in_progress";
+    return ["todo", "in_progress", "done"].includes(s) ? s : "todo";
+  }, [task.status]);
+
   const getPriorityIcon = (priority) => {
     switch (priority?.toLowerCase()) {
-      case 'high': return '☰';
-      case 'medium': return '☲';
-      case 'low': return '☱';
-      default: return '☲';
+      case "high": return "☰";
+      case "medium": return "☲";
+      case "urgent": return "☷";
+      case "low": return "☱";
+      default: return "☲";
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
-      case 'done': return '●';
-      case 'in_progress': return '◐';
-      case 'todo': return '○';
-      default: return '○';
+      case "done":
+        return "●";
+      case "in_progress":
+        return "◐";
+      case "todo":
+        return "○";
+      default:
+        return "○";
     }
   };
+
+  const statusClass = normalizedStatus.replace(/-/g, "_");
 
   return (
     <div 
@@ -72,24 +85,37 @@ export function TaskCard({
       <div className="ws-task-bottom-row">
         <div className="ws-task-status-badges">
           <button 
-            className={`ws-pill-badge status-${task.status}`}
+            type="button"
+            className={`ws-pill-badge status-${statusClass}`}
             onClick={(e) => {
               e.stopPropagation();
               if (isReadOnlyMode) return;
-              const states = ['todo', 'in_progress', 'done'];
-              const idx = states.indexOf(task.status);
+              const states = ["todo", "in_progress", "done"];
+              const idx = Math.max(0, states.indexOf(normalizedStatus));
               const next = states[(idx + 1) % states.length];
               onUpdateTask(task.id, { status: next });
             }}
           >
-            <span className="pill-icon">{getStatusIcon(task.status)}</span>
-            {task.status === 'in_progress' ? 'DOING' : task.status?.toUpperCase()}
+            <span className="pill-icon">{getStatusIcon(normalizedStatus)}</span>
+            {normalizedStatus === "in_progress" ? "DOING" : normalizedStatus?.toUpperCase()}
           </button>
 
-          <span className={`ws-pill-badge priority-${task.priority}`}>
+          <button
+            type="button"
+            className={`ws-pill-badge priority-${task.priority || "medium"}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isReadOnlyMode) return;
+              const order = ["low", "medium", "high", "urgent"];
+              const current = task.priority?.toLowerCase?.() || "medium";
+              const idx = Math.max(0, order.indexOf(current));
+              const next = order[(idx + 1) % order.length];
+              onUpdateTask(task.id, { priority: next });
+            }}
+          >
             <span className="pill-icon">{getPriorityIcon(task.priority)}</span>
             {task.priority?.toUpperCase()}
-          </span>
+          </button>
 
           {task.intent && (
             <span className={`ws-pill-badge intent-${String(task.intent).toLowerCase()}`}>

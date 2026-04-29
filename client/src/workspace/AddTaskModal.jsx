@@ -42,17 +42,25 @@ export function AddTaskModal({
             <div className="ws-field-group">
               <label>Status</label>
               <div className="ws-status-toggle">
-                {['todo', 'doing', 'done'].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    className={newTaskStatus === s ? 'active' : ''}
-                    onClick={() => setNewTaskStatus(s)}
-                    disabled={isReadOnlyMode}
-                  >
-                    {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
-                  </button>
-                ))}
+            {[
+              { value: "todo", label: "Todo" },
+              { value: "in_progress", label: "Doing" },
+              { value: "done", label: "Done" },
+            ].map(({ value, label }) => {
+              const normalizedSelection =
+                newTaskStatus === "doing" ? "in_progress" : newTaskStatus;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className={normalizedSelection === value ? "active" : ""}
+                  onClick={() => setNewTaskStatus(value)}
+                  disabled={isReadOnlyMode}
+                >
+                  {label}
+                </button>
+              );
+            })}
               </div>
             </div>
           </div>

@@ -6,6 +6,8 @@ const eventService = require('../services/event.service');
 const { authenticateRequest } = require('../middleware/auth');
 const { requireRole, checkNodePermission } = require('../middleware/rbac');
 
+const { deleteLinkedCanvasNode } = require('../ws/canvas-sync');
+
 const router = express.Router();
 
 router.use(authenticateRequest);
@@ -135,10 +137,25 @@ router.get('/:id/tasks', requireRole('lead', 'contributor', 'viewer'), async (re
 
 router.post('/:id/tasks', requireRole('lead', 'contributor'), async (req, res) => {
   try {
-    const task = await taskService.createTask(req.params.id, req.body);
+    const { title, status, priority, intent } = req.body || {};
+    const task = await taskService.createTask(req.params.id, {
+      title,
+      status,
+      priority,
+      intent: intent != null ? intent : null,
+      source: 'manual',
+      sourceAuthorId: req.user.id,
+      sourceAuthorName: req.user.username,
+    });
     return res.status(201).json({ task });
   } catch (error) {
-    return res.status(500).json({
+    if (error.code === 'DUPLICATE_TASK') {
+      return res.status(409).json({
+        message: error.message,
+        code: error.code,
+      });
+    }
+    return res.status(error.statusCode || 500).json({
       message: error.message || 'Failed to create task.',
     });
   }
@@ -156,20 +173,23 @@ router.put('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), async 
       return res.status(403).json({ message: 'You cannot modify tasks linked to this canvas node.' });
     }
 
-    const task = await taskService.upsertTaskByNodeId(req.params.id, req.params.nodeId, req.body);
+    const task = await taskService.upsertTaskByNodeId(req.params.id, req.params.nodeId, {
+      ...req.body,
+      sourceAuthorId: req.user.id,
+      sourceAuthorName: req.user.username,
+    });
     
     const io = req.app.get('io');
     if (io) {
-      io.to(`room:${req.params.id}`).emit('task:sync', {
-        id: task.id,
-        title: task.title,
-        status: task.status,
-        sourceNodeId: task.source_node_id
-      });
+      const payload = taskService.buildTaskSyncPayload(task);
+      io.to(`room:${req.params.id}`).emit('task:sync', payload);
     }
 
     return res.status(200).json({ task });
   } catch (error) {
+    if (error.code === 'DUPLICATE_TASK') {
+      return res.status(409).json({ message: error.message, code: error.code });
+    }
     return res.status(500).json({
       message: error.message || 'Failed to upsert task.',
     });
@@ -252,16 +272,15 @@ router.patch('/:id/tasks/:taskId', requireRole('lead', 'contributor'), async (re
     
     const io = req.app.get('io');
     if (io) {
-      io.to(`room:${req.params.id}`).emit('task:sync', {
-        id: task.id,
-        title: task.title,
-        status: task.status,
-        sourceNodeId: task.source_node_id
-      });
+      const payload = taskService.buildTaskSyncPayload(task);
+      io.to(`room:${req.params.id}`).emit('task:sync', payload);
     }
 
     return res.status(200).json({ task });
   } catch (error) {
+    if (error.code === 'DUPLICATE_TASK') {
+      return res.status(409).json({ message: error.message, code: error.code });
+    }
     return res.status(500).json({
       message: error.message || 'Failed to update task.',
     });
@@ -346,8 +365,17 @@ router.delete('/:id/tasks/:taskId', requireRole('lead', 'contributor'), async (r
         io.to(`room:${req.params.id}`).emit('task:sync', {
           id: deleted.id,
           deleted: true,
-          sourceNodeId: deleted.source_node_id
+          sourceNodeId: deleted.source_node_id,
         });
+        if (deleted.source_node_id) {
+          deleteLinkedCanvasNode(io, {
+            workspaceId: req.params.id,
+            nodeId: deleted.source_node_id,
+            actingUser: req.user,
+          }).catch((err) =>
+            console.error('[workspace.routes] deleteLinkedCanvasNode:', err.message || err),
+          );
+        }
       }
     }
 

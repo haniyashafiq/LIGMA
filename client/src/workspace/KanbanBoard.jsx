@@ -1,6 +1,12 @@
 import React from "react";
 import { TaskCard } from "./TaskCard";
 
+function normalizeKanbanStatus(status) {
+  const s = (status || "").toLowerCase();
+  if (s === "doing") return "in_progress";
+  return s;
+}
+
 export function KanbanBoard({ 
   tasks, 
   onUpdateTask, 
@@ -23,7 +29,8 @@ export function KanbanBoard({
 
   const onDrop = (newStatus) => {
     if (!draggingTask) return;
-    if (draggingTask.status?.toLowerCase() === newStatus.toLowerCase()) {
+    const from = normalizeKanbanStatus(draggingTask.status);
+    if (from === newStatus) {
       setDraggingTask(null);
       return;
     }
@@ -49,12 +56,12 @@ export function KanbanBoard({
           <div className="ws-kanban-column-header">
             <h3>{getColumnTitle(status)}</h3>
             <span className="ws-kanban-count">
-              {tasks.filter(t => t.status === status).length}
+              {tasks.filter(t => normalizeKanbanStatus(t.status) === status).length}
             </span>
           </div>
           <div className="ws-kanban-tasks">
             {tasks
-              .filter(t => t.status === status)
+              .filter(t => normalizeKanbanStatus(t.status) === status)
               .map((task) => (
                 <TaskCard
                   key={task.id}
@@ -68,7 +75,7 @@ export function KanbanBoard({
                   onDragStart={onDragStart}
                 />
               ))}
-            {tasks.filter(t => t.status === status).length === 0 && (
+            {tasks.filter(t => normalizeKanbanStatus(t.status) === status).length === 0 && (
               <div className="ws-kanban-empty">No tasks in this column</div>
             )}
           </div>

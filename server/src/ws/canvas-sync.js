@@ -360,14 +360,7 @@ async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
       sourceAuthorName: metadata.authorName || null,
     });
 
-    const payload = {
-      id: task.id,
-      title: task.title,
-      status: task.status,
-      sourceNodeId: task.source_node_id,
-      source_node_id: task.source_node_id,
-      authorName: task.authorName || task.source_author_name || null,
-    };
+    const payload = taskService.buildTaskSyncPayload(task);
 
     io.to(`room:${workspaceId}`).emit("task:sync", payload);
   } else {
@@ -459,6 +452,87 @@ async function getRoom(workspaceId) {
 
   roomPromises.set(workspaceId, promise);
   return promise;
+}
+
+/**
+ * Remove a canvas node after its linked workspace task row was deleted via REST.
+ * Applies the same Yjs update + canvas_events persistence as interactive deletes.
+ */
+async function deleteLinkedCanvasNode(io, { workspaceId, nodeId, actingUser }) {
+  const workspaceRoom = `room:${workspaceId}`;
+  if (!io || !workspaceId || !nodeId || !actingUser?.id) {
+    return { ok: false, reason: "bad_args" };
+  }
+
+  const room = await getRoom(workspaceId);
+  const nid = normalizeNodeId(nodeId);
+  if (!nid) return { ok: false, reason: "bad_node_id" };
+
+  const nodes = getNodesMap(room.doc);
+  const currentNode = nodes.get(nid);
+  if (!currentNode) {
+    return { ok: false, reason: "node_not_in_doc" };
+  }
+
+  try {
+    const role = await assertCanMutate({
+      action: "delete",
+      node: currentNode,
+      user: actingUser,
+      workspaceId,
+    });
+    const fakeSocket = { user: actingUser };
+
+    let update = null;
+    const onUpdate = (nextUpdate) => {
+      update = Buffer.from(nextUpdate);
+    };
+    room.doc.on("update", onUpdate);
+
+    let result;
+    room.doc.transact(() => {
+      result = applyOperationToDoc(
+        room.doc,
+        { type: "node:delete", nodeId: nid },
+        fakeSocket,
+        role,
+      );
+    }, "linked-task-delete");
+    room.doc.off("update", onUpdate);
+
+    if (!update || !result) {
+      return { ok: false, reason: "no_yjs_update" };
+    }
+
+    const event = await eventService.appendEvent(
+      workspaceId,
+      actingUser.id,
+      eventTypeForOp("node:delete"),
+      result.nodeId,
+      result.payload,
+      update,
+    );
+    room.lastSequenceNum = Number(event.sequence_num);
+
+    io.to(workspaceRoom).emit("canvas:delta", {
+      opId: null,
+      sequenceNum: room.lastSequenceNum,
+      eventType: eventTypeForOp("node:delete"),
+      nodeId: result.nodeId,
+      update,
+    });
+
+    if (room.lastSequenceNum > 0 && room.lastSequenceNum % SNAPSHOT_EVERY_EVENTS === 0) {
+      eventService
+        .createSnapshot(workspaceId, Buffer.from(Y.encodeStateAsUpdate(room.doc)), room.lastSequenceNum)
+        .catch((error) => console.error("[canvas-sync] Snapshot failed", error));
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("[canvas-sync] deleteLinkedCanvasNode failed", error.message || error);
+    return { ok: false, reason: error.message || String(error) };
+  }
 }
 
 async function sendRecovery(socket, room, sinceSequence = 0) {
@@ -648,4 +722,5 @@ function createCanvasSyncManager(io) {
 
 module.exports = {
   createCanvasSyncManager,
+  deleteLinkedCanvasNode,
 };
