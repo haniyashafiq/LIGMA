@@ -46,6 +46,7 @@ The important design choice is that clients do not submit trusted raw document s
 │     ├─ routes/           # auth/workspace/task APIs
 │     ├─ services/         # event log, tasks, intent classifier
 │     └─ ws/               # canvas sync gateway
+├─ ai/                     # Optional FastAPI + Gemini intent HTTP API
 ├─ docker-compose.yml      # Local PostgreSQL
 └─ render.yaml             # Render Blueprint
 ```
@@ -82,7 +83,7 @@ npm run dev
 
 ## Common Commands
 
-- `npm run dev` - run server, client, and chatbot dev processes.
+- `npm run dev` - run server, client, and optional AI service (Gemini) dev processes.
 - `npm run dev:server` - run the API only.
 - `npm run dev:client` - run the Vite client only.
 - `npm run build` - build the client.
@@ -109,6 +110,7 @@ The included `render.yaml` deploys:
 
 - `ligma-client` - Render Static Site, free
 - `ligma-server` - Render Free Web Service
+- `ligma-ai` - Render Free Web Service (Python / Gemini for `/api/ai/classify` proxy)
 - `ligma-db` - Render Free Postgres
 
 The server start command runs migrations before booting, so the database schema is created automatically during deploy.

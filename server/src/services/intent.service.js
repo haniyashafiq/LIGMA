@@ -94,10 +94,11 @@ function classifyIntentForNode(text, nodeType) {
   ) {
     return base;
   }
+  // Sticky notes default to tasks unless the text is clearly non-actionable (above branches).
   return {
-    intent: "general",
+    intent: "action_item",
     confidence: base.confidence,
-    reason: "No strong signal detected; defaulting to general.",
+    reason: "Sticky note with no strong non-task signal; treating as actionable.",
   };
 }
 

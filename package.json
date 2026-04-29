@@ -7,10 +7,10 @@
     "client"
   ],
   "scripts": {
-    "dev": "concurrently -n server,client,chatbot -c cyan,magenta,green \"npm run dev --workspace server\" \"npm run dev --workspace client\" \"npm run dev:chatbot\"",
+    "dev": "concurrently -n server,client,ai -c cyan,magenta,green \"npm run dev --workspace server\" \"npm run dev --workspace client\" \"npm run dev:ai\"",
     "dev:server": "npm run dev --workspace server",
     "dev:client": "npm run dev --workspace client",
-    "dev:chatbot": "cd chatbot && uvicorn main:app --reload --port 8000",
+    "dev:ai": "cd ai && uvicorn main:app --reload --port 8000",
     "build": "npm run build --workspace client",
     "start": "npm run start --workspace server"
   },

@@ -10,7 +10,7 @@ router.use(authenticateRequest);
 
 /**
  * Proxies or falls back to intent classification.
- * First tries the AI Chatbot (Gemini), then falls back to local regex.
+ * First tries the optional Gemini HTTP service (/ai), then falls back to local rules.
  */
 router.post('/classify', async (req, res) => {
   const { message, nodeType } = req.body;
@@ -22,9 +22,8 @@ router.post('/classify', async (req, res) => {
   try {
     console.log(`[AI Proxy] Attempting classification for: "${message.substring(0, 30)}..."`);
     
-    // 1. Try to hit the FastAPI Chatbot
-    const chatbotUrl = `${config.CHATBOT_URL}/chat`;
-    const response = await fetch(chatbotUrl, {
+    const classifyUrl = `${config.AI_SERVICE_URL}/chat`;
+    const response = await fetch(classifyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
@@ -33,17 +32,17 @@ router.post('/classify', async (req, res) => {
 
     if (response.ok) {
       const data = await response.json();
-      console.log(`[AI Proxy] Chatbot success: intent=${data.intent}, status=${data.status}`);
+      console.log(`[AI Proxy] AI service success: intent=${data.intent}, status=${data.status}`);
       return res.json({
         intent: data.intent,
         status: data.status,
         source: 'ai'
       });
     } else {
-      console.warn(`[AI Proxy] Chatbot returned ${response.status}. Falling back to local.`);
+      console.warn(`[AI Proxy] AI service returned ${response.status}. Falling back to local.`);
     }
   } catch (error) {
-    console.warn(`[AI Proxy] Chatbot unreachable or timed out: ${error.message}. Falling back to local.`);
+    console.warn(`[AI Proxy] AI service unreachable or timed out: ${error.message}. Falling back to local.`);
   }
 
   // 2. Fallback to local regex-based intent service

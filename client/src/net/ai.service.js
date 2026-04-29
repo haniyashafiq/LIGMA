@@ -10,7 +10,7 @@ function normalizeTaskStatus(rawStatus) {
 }
 
 /**
- * Classify the intent of a text statement using the AI Chatbot via Server Proxy.
+ * Classify the intent of a text statement via the server proxy (optional Gemini backend + local fallback).
  * @param {string} text - The text to analyze.
  * @returns {Promise<object>} - The detected intent and status.
  */

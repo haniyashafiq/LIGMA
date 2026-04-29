@@ -1,6 +1,8 @@
 """
-LIGMA AI Chatbot – FastAPI backend
-Communicates with the AI Assistant UI on the Vite frontend.
+LIGMA AI service – FastAPI backend (Gemini intent classification over HTTP).
+
+The Node server calls POST /chat for optional LLM-backed intents; the canvas
+also uses a built-in classifier when this service is unavailable.
 
 Run:
     uvicorn main:app --reload --port 8000
@@ -23,7 +25,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # ── App setup ────────────────────────────────────────────────────────
-app = FastAPI(title="LIGMA Chatbot API")
+app = FastAPI(title="LIGMA AI API")
 
 app.add_middleware(
     CORSMiddleware,
