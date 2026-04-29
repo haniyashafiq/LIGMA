@@ -968,9 +968,9 @@ export default function CanvasView({
     if (node.type === "note") {
       const editingThis = textEditor?.nodeId === node.id;
       return (
-        <React.Fragment key={key}>
+        <Group key={key} {...konvaProps}>
           <Rect
-            {...konvaProps}
+            nodeId={node.id}
             width={node.width}
             height={node.height}
             fill={node.style?.fill || "#facc15"}
@@ -989,8 +989,8 @@ export default function CanvasView({
             }}
           />
           <Text
-            x={node.x + 12}
-            y={node.y + 12}
+            x={12}
+            y={12}
             width={Math.max(20, node.width - 24)}
             height={Math.max(20, node.height - 24)}
             text={node.text || "\u00a0"}
@@ -999,7 +999,7 @@ export default function CanvasView({
             listening={false}
             visible={!editingThis}
           />
-        </React.Fragment>
+        </Group>
       );
     }
 
@@ -1088,7 +1088,11 @@ export default function CanvasView({
         scaleX={viewport.scale}
         scaleY={viewport.scale}
         draggable={!readOnly && activeTool === "hand"}
-        onDragEnd={(event) => setViewport((current) => ({ ...current, x: event.target.x(), y: event.target.y() }))}
+        onDragEnd={(event) => {
+          const stage = event.target.getStage();
+          if (!stage || event.target !== stage) return;
+          setViewport((current) => ({ ...current, x: event.target.x(), y: event.target.y() }));
+        }}
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleStageMouseMove}
         onMouseUp={handleStageMouseUp}
