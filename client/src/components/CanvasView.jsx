@@ -78,6 +78,18 @@ function normalizeIntent(intent = "general") {
   return String(intent || "general").trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
+const INTENT_BADGES = {
+  action_item: { label: "Action item", fill: "#dcfce7", stroke: "#22c55e", text: "#166534" },
+  decision: { label: "Decision", fill: "#dbeafe", stroke: "#3b82f6", text: "#1e40af" },
+  open_question: { label: "Open question", fill: "#fef3c7", stroke: "#f59e0b", text: "#92400e" },
+  reference: { label: "Reference", fill: "#f1f5f9", stroke: "#94a3b8", text: "#334155" },
+  general: { label: "General", fill: "#f3e8ff", stroke: "#a855f7", text: "#6b21a8" },
+};
+
+function getIntentBadge(intent) {
+  return INTENT_BADGES[normalizeIntent(intent)] || null;
+}
+
 function createCanvasSocket({ workspaceId, token }) {
   const socket = io(getSocketBaseUrl(), {
     auth: (cb) => cb({ token: getAccessToken() || token, workspaceId }),
@@ -1199,6 +1211,8 @@ export default function CanvasView({
 
     if (node.type === "note") {
       const editingThis = textEditor?.nodeId === node.id;
+      const intentBadge = getIntentBadge(node.metadata?.intent);
+      const badgeWidth = intentBadge ? Math.min(Math.max(intentBadge.label.length * 7 + 18, 86), Math.max(86, node.width - 24)) : 0;
       return (
         <React.Fragment key={key}>
           <Rect
@@ -1224,13 +1238,39 @@ export default function CanvasView({
             x={node.x + 12}
             y={node.y + 12}
             width={Math.max(20, node.width - 24)}
-            height={Math.max(20, node.height - 24)}
+            height={Math.max(20, node.height - (intentBadge ? 48 : 24))}
             text={node.text || "\u00a0"}
             fill="#1f2937"
             fontSize={node.style?.fontSize || 16}
             listening={false}
             visible={!editingThis}
           />
+          {intentBadge ? (
+            <>
+              <Rect
+                x={node.x + 12}
+                y={node.y + Math.max(12, node.height - 28)}
+                width={badgeWidth}
+                height={18}
+                fill={intentBadge.fill}
+                stroke={intentBadge.stroke}
+                strokeWidth={1}
+                cornerRadius={9}
+                listening={false}
+              />
+              <Text
+                x={node.x + 21}
+                y={node.y + Math.max(15, node.height - 25)}
+                width={Math.max(20, badgeWidth - 18)}
+                height={12}
+                text={intentBadge.label}
+                fill={intentBadge.text}
+                fontSize={10}
+                fontStyle="bold"
+                listening={false}
+              />
+            </>
+          ) : null}
         </React.Fragment>
       );
     }
