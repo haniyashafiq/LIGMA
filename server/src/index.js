@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const config = require('./config');
 const authRoutes = require('./routes/auth.routes');
 const workspaceRoutes = require('./routes/workspace.routes');
+const aiRoutes = require('./routes/ai.routes');
 const { attachGateway } = require('./ws/gateway');
 const {
   checkDatabaseConnection,
@@ -26,6 +27,7 @@ app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.status(200).json({

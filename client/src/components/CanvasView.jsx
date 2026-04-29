@@ -174,13 +174,11 @@ function makeNode(type, pointer, currentUser, zIndex) {
   return node;
 }
 
-function classifyIntent(text) {
-  return fetch("http://localhost:8000/chat", {
+function classifyIntent(text, nodeType = "note") {
+  return apiFetch("/api/ai/classify", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: text }),
+    body: JSON.stringify({ message: text, nodeType }),
   })
-    .then((res) => res.json())
     .then((data) => ({
       intent: data.intent || "general",
       status: data.status || "todo",
@@ -404,7 +402,7 @@ export default function CanvasView({
     if (!node || (node.type !== 'note' && node.type !== 'text')) return;
 
     const cleanText = text.replace(/^\[.*?\]\s*/, '').trim();
-    const result = await classifyIntent(cleanText);
+    const result = await classifyIntent(cleanText, node.type);
     const { intent, status } = result;
 
     // Normalize intent for display (e.g. "action item" -> "Action Item")

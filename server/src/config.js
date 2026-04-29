@@ -49,5 +49,6 @@ module.exports = {
   JWT_SECRET: process.env.JWT_SECRET,
   CLIENT_URL: process.env.CLIENT_URL,
   CLIENT_ORIGINS,
+  CHATBOT_URL: process.env.CHATBOT_URL || 'http://localhost:8000',
   DEBUG_SOCKET_LOGS: process.env.DEBUG_SOCKET_LOGS === "true",
 };
