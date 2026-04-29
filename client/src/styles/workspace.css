@@ -460,7 +460,8 @@
   font-style: italic;
 }
 
-.ws-bottom-wrapper {
+/* ── Bottom Toolbar ──────────────────────────────────── */
+.ws-bottom-bar {
   position: absolute;
   bottom: var(--space-4);
   left: 50%;
@@ -468,25 +469,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  z-index: 100;
-  pointer-events: none;
-  width: max-content;
-  max-width: calc(100% - 32px);
-}
-
-.ws-bottom-wrapper > * {
-  pointer-events: auto;
-}
-
-.ws-bottom-bar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
   background: var(--color-bg-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-2) var(--space-4);
+  z-index: 100;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 

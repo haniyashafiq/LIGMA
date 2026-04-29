@@ -87,7 +87,10 @@
 }
 
 .canvas-replay-controls {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%);
   z-index: 90;
   display: flex;
   align-items: center;

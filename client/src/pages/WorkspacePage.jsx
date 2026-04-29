@@ -740,9 +740,16 @@ export function WorkspacePage() {
               )}
 
               {/* Bottom Toolbar Area */}
-              <div className="ws-bottom-wrapper">
-                <ReplayControls state={replayState} />
-                <div className="ws-bottom-bar">
+              <ReplayControls state={replayState} />
+              <div className="ws-bottom-bar">
+                <button 
+                  className={`ws-bottom-btn${replayState.enabled ? " active" : ""}`}
+                  title="Time Travel"
+                  onClick={() => replayState.toggleEnabled()}
+                >
+                  <FiClock size={14} />
+                </button>
+                <div className="ws-bottom-divider" />
                 <button className="ws-bottom-btn" title="Undo">
                   <FiRotateCcw size={14} />
                 </button>
@@ -801,7 +808,7 @@ export function WorkspacePage() {
                 </button>
               </div>
             </div>
-          </div>
+
 
             {/* Execution Panel (Right Sidebar) */}
         {execOpen && (

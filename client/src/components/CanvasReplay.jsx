@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Arrow, Layer, Line, Rect, Stage, Text } from "react-konva";
-import { FiPause, FiPlay, FiRefreshCw, FiSkipBack, FiSkipForward } from "react-icons/fi";
+import { FiClock, FiPause, FiPlay, FiRefreshCw, FiSkipBack, FiSkipForward } from "react-icons/fi";
 import * as Y from "yjs";
 import { apiFetch } from "../net/api";
 
@@ -309,15 +309,13 @@ export function ReplayControls({ state }) {
     activeSequence,
     history,
     loadHistory,
-    toggleEnabled,
     step,
   } = state;
 
+  if (!enabled) return null;
+
   return (
     <div className="canvas-replay-controls" aria-label="Time travel controls">
-      <button type="button" className={enabled ? "active" : ""} onClick={toggleEnabled}>
-        Time Travel
-      </button>
       <button type="button" onClick={loadHistory} disabled={loading} title="Reload history">
         <FiRefreshCw size={13} />
       </button>
