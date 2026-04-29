@@ -122,6 +122,23 @@ function attachGateway(server) {
       user: presence,
     });
 
+    socket.on("canvas:cursor:move", (payload) => {
+      const x = Number(payload?.x);
+      const y = Number(payload?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return;
+      }
+      const entry = connections.get(socket.id) || {};
+      socket.to(room).emit("canvas:cursor", {
+        socketId: socket.id,
+        userId: socket.user.id,
+        username: entry.username || socket.user.username,
+        color: entry.color || "#6366f1",
+        x,
+        y,
+      });
+    });
+
     socket.on("disconnect", async () => {
       const disconnectedPresence = connections.get(socket.id);
       connections.delete(socket.id);
@@ -130,6 +147,8 @@ function attachGateway(server) {
         socketId: socket.id,
         user: disconnectedPresence || presence,
       });
+
+      socket.to(room).emit("canvas:cursor:leave", { socketId: socket.id });
 
       await canvasSyncManager.cleanupWorkspaceIfUnused(workspaceId);
     });

@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import * as Y from "yjs";
-import { Arrow, Circle, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
+import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
 import { AppContext } from "../utils/AppContext";
 import { getAccessToken, refreshAccessToken } from "../net/api";
 import "../styles/canvas.css";
@@ -98,6 +98,12 @@ function nextNodeId() {
   return `node:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 }
 
+const CURSOR_EMIT_MS = 32;
+const CURSOR_STALE_MS = 5000;
+
+// Remote pointer: tip at (0,0) in local coords (classic triangular arrow, down-right).
+const REMOTE_CURSOR_ARROW = [0, 0, 0, 20, 5, 15, 9, 24, 12, 22, 8, 13, 15, 13];
+
 function makeNode(type, pointer, currentUser, zIndex) {
   const node = {
     id: nextNodeId(),
@@ -173,6 +179,9 @@ export default function CanvasView({
   const isDrawingRef = useRef(false);
   const drawingNodeRef = useRef(null);
   const lastPointerRef = useRef(null);
+  const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
+  const lastCursorEmitRef = useRef(0);
+  const localSocketIdRef = useRef(null);
 
   const [nodes, setNodes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -180,6 +189,7 @@ export default function CanvasView({
   const [rbacToast, setRbacToast] = useState(null);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
+  const [remoteCursors, setRemoteCursors] = useState({});
 
   const capturePointerForToast = useCallback((event) => {
     lastPointerRef.current = { x: event.clientX, y: event.clientY };
@@ -196,6 +206,10 @@ export default function CanvasView({
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
+
+  useEffect(() => {
+    viewportRef.current = viewport;
+  }, [viewport]);
 
   useEffect(() => {
     function handleRbacToastEvent(event) {
@@ -247,11 +261,12 @@ export default function CanvasView({
     const stage = stageRef.current;
     const pos = stage?.getPointerPosition();
     if (!stage || !pos) return null;
+    const vp = viewportRef.current;
     return {
-      x: (pos.x - viewport.x) / viewport.scale,
-      y: (pos.y - viewport.y) / viewport.scale,
+      x: (pos.x - vp.x) / vp.scale,
+      y: (pos.y - vp.y) / vp.scale,
     };
-  }, [viewport]);
+  }, []);
 
   const jumpToNode = useCallback(
     (nodeId) => {
@@ -388,7 +403,41 @@ export default function CanvasView({
       );
       socket.emit("canvas:hello", { lastSequenceNum });
     });
-    socket.on("disconnect", () => setConnectionState("offline"));
+    socket.on("server:ready", (payload) => {
+      if (payload?.socketId) {
+        localSocketIdRef.current = payload.socketId;
+      }
+    });
+    socket.on("canvas:cursor", (payload) => {
+      const sid = payload?.socketId;
+      if (!sid || sid === localSocketIdRef.current) return;
+      setRemoteCursors((prev) => ({
+        ...prev,
+        [sid]: {
+          socketId: sid,
+          userId: payload.userId,
+          username: payload.username || "User",
+          color: payload.color || "#6366f1",
+          x: Number(payload.x),
+          y: Number(payload.y),
+          t: Date.now(),
+        },
+      }));
+    });
+    socket.on("canvas:cursor:leave", (payload) => {
+      const sid = payload?.socketId;
+      if (!sid) return;
+      setRemoteCursors((prev) => {
+        const next = { ...prev };
+        delete next[sid];
+        return next;
+      });
+    });
+    socket.on("disconnect", () => {
+      setConnectionState("offline");
+      localSocketIdRef.current = null;
+      setRemoteCursors({});
+    });
     socket.on("connect_error", () => setConnectionState("error"));
     socket.on("canvas:delta", (payload) => {
       const update = decodeYjsUpdate(payload?.update);
@@ -414,6 +463,35 @@ export default function CanvasView({
       socketRef.current = null;
     };
   }, [token, workspaceId]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      setRemoteCursors((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const [key, c] of Object.entries(next)) {
+          if (now - (c.t || 0) > CURSOR_STALE_MS) {
+            delete next[key];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  function emitCursorPosition() {
+    const sock = socketRef.current;
+    if (!sock?.connected) return;
+    const now = Date.now();
+    if (now - lastCursorEmitRef.current < CURSOR_EMIT_MS) return;
+    lastCursorEmitRef.current = now;
+    const pointer = getStagePointer();
+    if (!pointer) return;
+    sock.emit("canvas:cursor:move", { x: pointer.x, y: pointer.y });
+  }
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -487,6 +565,7 @@ export default function CanvasView({
   }
 
   function handleStageMouseMove() {
+    emitCursorPosition();
     if (!isDrawingRef.current || !drawingNodeRef.current) return;
     const pointer = getStagePointer();
     if (!pointer) return;
@@ -719,6 +798,34 @@ export default function CanvasView({
                 listening={false}
               />
             ))}
+        </Layer>
+        <Layer listening={false}>
+          {Object.values(remoteCursors).map((c) => (
+            <Group key={c.socketId} x={c.x} y={c.y} listening={false}>
+              <Line
+                points={REMOTE_CURSOR_ARROW}
+                closed
+                fill={c.color}
+                stroke="#0f172a"
+                strokeWidth={1.25}
+                lineJoin="round"
+                listening={false}
+              />
+              <Text
+                x={16}
+                y={4}
+                text={c.username}
+                fill="#f8fafc"
+                fontSize={11}
+                fontStyle="600"
+                listening={false}
+                shadowColor="rgba(0,0,0,0.85)"
+                shadowBlur={6}
+                shadowOffsetX={0}
+                shadowOffsetY={1}
+              />
+            </Group>
+          ))}
         </Layer>
       </Stage>
       {nodes.length === 0 && connectionState === "online" ? (
