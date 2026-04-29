@@ -25,51 +25,6 @@ function decodeYjsUpdate(update) {
   return null;
 }
 
-function getNodeText(nodeTextsMap, node) {
-  const text = node?.id ? nodeTextsMap?.get(node.id) : null;
-  if (text && typeof text.toString === "function") {
-    return text.toString();
-  }
-  return typeof node?.text === "string" ? node.text : "";
-}
-
-function ensureNodeText(nodeTextsMap, nodeId, initialText = "") {
-  if (!nodeTextsMap || !nodeId) return null;
-  let text = nodeTextsMap.get(nodeId);
-  if (!text) {
-    text = new Y.Text();
-    nodeTextsMap.set(nodeId, text);
-  }
-  if (text.length === 0 && initialText) {
-    text.insert(0, initialText);
-  }
-  return text;
-}
-
-function diffTextChange(previous = "", next = "") {
-  if (previous === next) {
-    return null;
-  }
-
-  let start = 0;
-  while (start < previous.length && start < next.length && previous[start] === next[start]) {
-    start += 1;
-  }
-
-  let previousEnd = previous.length;
-  let nextEnd = next.length;
-  while (previousEnd > start && nextEnd > start && previous[previousEnd - 1] === next[nextEnd - 1]) {
-    previousEnd -= 1;
-    nextEnd -= 1;
-  }
-
-  return {
-    index: start,
-    delete: previousEnd - start,
-    insert: next.slice(start, nextEnd),
-  };
-}
-
 function createCanvasSocket({ workspaceId, token }) {
   const socket = io(getSocketBaseUrl(), {
     auth: (cb) => cb({ token: getAccessToken() || token, workspaceId }),
@@ -252,7 +207,6 @@ export default function CanvasView({
   const socketRef = useRef(null);
   const docRef = useRef(null);
   const nodesMapRef = useRef(null);
-  const nodeTextsMapRef = useRef(null);
   const nodesRef = useRef([]);
   const remoteCursorsRef = useRef({});
   const selectedIdRef = useRef(null);
@@ -357,7 +311,6 @@ export default function CanvasView({
   const applyOpLocally = useCallback((op) => {
     const doc = docRef.current;
     const map = nodesMapRef.current;
-    const textMap = nodeTextsMapRef.current;
     if (!doc || !map) return;
 
     doc.transact(() => {
@@ -366,7 +319,6 @@ export default function CanvasView({
 
       if (type === "node:create" && op.node) {
         map.set(op.node.id, op.node);
-        ensureNodeText(textMap, op.node.id, op.node.text || "");
       } else if (type === "node:update" && nodeId) {
         const current = map.get(nodeId);
         if (current) {
@@ -374,49 +326,22 @@ export default function CanvasView({
         }
       } else if (type === "node:delete" && nodeId) {
         map.delete(nodeId);
-        textMap?.delete(nodeId);
       }
     }, "local");
   }, []);
 
   const updateNodesFromDoc = useCallback(() => {
     const map = nodesMapRef.current;
-    const textMap = nodeTextsMapRef.current;
     if (!map) return;
-    const nextNodes = Array.from(map.values())
-      .map((node) => ({
-        ...node,
-        text: getNodeText(textMap, node),
-      }))
-      .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-    setNodes(nextNodes);
-    setTextEditor((current) => {
-      if (!current) return current;
-      const live = nextNodes.find((node) => node.id === current.nodeId);
-      if (!live || live.text === current.value) return current;
-      return { ...current, value: live.text };
-    });
+    setNodes(Array.from(map.values()).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)));
   }, []);
 
   const emitOp = useCallback(
     (op) => {
       if (readOnly || !socketRef.current?.connected) return;
-
-      const type = typeof op?.type === "string" ? op.type : "";
-      let applyLocal = true;
-      if (type === "node:delete" && currentUserRole === "contributor") {
-        const nodeId = op.nodeId || op.node?.id;
-        const node = nodeId ? nodesMapRef.current?.get(nodeId) : null;
-        const ownerId = node?.metadata?.ownerId || node?.metadata?.authorId;
-        const isOwn = ownerId && String(ownerId) === String(currentUserId);
-        if (!isOwn) {
-          applyLocal = false;
-        }
-      }
-
-      if (applyLocal) {
-        applyOpLocally(op);
-      }
+      
+      // Apply locally for instant feedback
+      applyOpLocally(op);
 
       socketRef.current.emit("canvas:op", {
         ...op,
@@ -426,16 +351,7 @@ export default function CanvasView({
             : `${Date.now()}:${Math.random()}`,
       });
     },
-    [readOnly, applyOpLocally, currentUserId, currentUserRole],
-  );
-
-  const emitTextChange = useCallback(
-    (nodeId, previousValue, nextValue) => {
-      const delta = diffTextChange(previousValue, nextValue);
-      if (!delta) return;
-      emitOp({ type: "node:text:delta", nodeId, delta });
-    },
-    [emitOp],
+    [readOnly, applyOpLocally],
   );
 
   const getStagePointer = useCallback(() => {
@@ -450,16 +366,12 @@ export default function CanvasView({
   }, []);
 
   const resolveTextNode = useCallback((nodeId) => {
-    const node =
+    return (
       nodesMapRef.current?.get(nodeId) ||
       (lastPlacedTextRef.current?.id === nodeId ? lastPlacedTextRef.current : null) ||
       nodesRef.current.find((n) => n.id === nodeId) ||
-      null;
-    if (!node) return null;
-    return {
-      ...node,
-      text: getNodeText(nodeTextsMapRef.current, node),
-    };
+      null
+    );
   }, []);
 
   const computeTextEditLayout = useCallback((nodeId) => {
@@ -539,21 +451,33 @@ export default function CanvasView({
     setTextEditor((current) => {
       if (!current) return null;
       lastPlacedTextRef.current = null;
+      const ta = textAreaRef.current;
+      const value = ta && typeof ta.value === "string" ? ta.value : (current.value ?? "");
+      if (value === current.baseline) {
+        return null;
+      }
+      emitOp({ type: "node:update", nodeId: current.nodeId, patch: { text: value } });
+      handleAITrigger(current.nodeId, value);
       return null;
     });
-  }, []);
+  }, [emitOp, handleAITrigger]);
 
   /** Saves textarea content and closes the editor. Mousedown on the stage runs before blur; call this first so we do not lose edits (e.g. text tool spawning a new node would reset editor state). Returns whether an editor was open. */
   const flushActiveTextEditor = useCallback(() => {
     const editing = textEditorRef.current;
     if (!editing) return false;
     const ta = textAreaRef.current;
+    const value = ta && typeof ta.value === "string" ? ta.value : (editing.value ?? "");
     lastPlacedTextRef.current = null;
     skipNextTextBlurCommitRef.current = true;
+    if (value !== editing.baseline) {
+      emitOp({ type: "node:update", nodeId: editing.nodeId, patch: { text: value } });
+      handleAITrigger(editing.nodeId, value);
+    }
     setTextEditor(null);
     textEditorRef.current = null;
     return true;
-  }, []);
+  }, [emitOp, handleAITrigger]);
 
   const cancelTextEditor = useCallback(() => {
     setTextEditor((current) => {
@@ -565,13 +489,13 @@ export default function CanvasView({
       const ta = textAreaRef.current;
       const live = ta && typeof ta.value === "string" ? ta.value : current.value;
       if (current.baseline !== live) {
-        emitTextChange(current.nodeId, live, current.baseline ?? "");
+        emitOp({ type: "node:update", nodeId: current.nodeId, patch: { text: current.baseline ?? "" } });
       }
       lastPlacedTextRef.current = null;
       textEditorRef.current = null;
       return null;
     });
-  }, [emitTextChange]);
+  }, [emitOp]);
 
   const beginTextEdit = useCallback(
     (node) => {
@@ -734,21 +658,16 @@ export default function CanvasView({
   useEffect(() => {
     const doc = new Y.Doc();
     const nodesMap = doc.getMap("nodes");
-    const nodeTextsMap = doc.getMap("nodeTexts");
     docRef.current = doc;
     nodesMapRef.current = nodesMap;
-    nodeTextsMapRef.current = nodeTextsMap;
     nodesMap.observe(updateNodesFromDoc);
-    nodeTextsMap.observeDeep(updateNodesFromDoc);
     updateNodesFromDoc();
 
     return () => {
       nodesMap.unobserve(updateNodesFromDoc);
-      nodeTextsMap.unobserveDeep(updateNodesFromDoc);
       doc.destroy();
       docRef.current = null;
       nodesMapRef.current = null;
-      nodeTextsMapRef.current = null;
     };
   }, [workspaceId, updateNodesFromDoc]);
 
@@ -994,17 +913,7 @@ export default function CanvasView({
       isErasingRef.current = true;
       const target = event.target;
       if (target?.attrs?.nodeId) {
-        const eraseId = target.attrs.nodeId;
-      const targetNode = nodesMapRef.current?.get(eraseId);
-      const ownerId = targetNode?.metadata?.ownerId || targetNode?.metadata?.authorId;
-      if (currentUserRole === "contributor" && ownerId && String(ownerId) !== String(currentUserId)) {
-        window.dispatchEvent(
-          new CustomEvent("ligma:rbac-toast", {
-            detail: { message: "Contributors can't delete other members' work." },
-          }),
-        );
-      } else {
-        emitOp({ type: "node:delete", nodeId: eraseId });
+        emitOp({ type: "node:delete", nodeId: target.attrs.nodeId });
         setSelectedId(null);
       }
     }
@@ -1163,9 +1072,9 @@ export default function CanvasView({
     if (node.type === "note") {
       const editingThis = textEditor?.nodeId === node.id;
       return (
-        <Group key={key} {...konvaProps}>
+        <React.Fragment key={key}>
           <Rect
-            nodeId={node.id}
+            {...konvaProps}
             width={node.width}
             height={node.height}
             fill={node.style?.fill || "#facc15"}
@@ -1184,8 +1093,8 @@ export default function CanvasView({
             }}
           />
           <Text
-            x={12}
-            y={12}
+            x={node.x + 12}
+            y={node.y + 12}
             width={Math.max(20, node.width - 24)}
             height={Math.max(20, node.height - 24)}
             text={node.text || "\u00a0"}
@@ -1194,7 +1103,7 @@ export default function CanvasView({
             listening={false}
             visible={!editingThis}
           />
-        </Group>
+        </React.Fragment>
       );
     }
 
@@ -1319,11 +1228,7 @@ export default function CanvasView({
         scaleX={viewport.scale}
         scaleY={viewport.scale}
         draggable={!readOnly && activeTool === "hand"}
-        onDragEnd={(event) => {
-          const stage = event.target.getStage();
-          if (!stage || event.target !== stage) return;
-          setViewport((current) => ({ ...current, x: event.target.x(), y: event.target.y() }));
-        }}
+        onDragEnd={(event) => setViewport((current) => ({ ...current, x: event.target.x(), y: event.target.y() }))}
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleStageMouseMove}
         onMouseUp={handleStageMouseUp}
@@ -1403,14 +1308,9 @@ export default function CanvasView({
           className={`canvas-text-edit${textEditor.surface === "note" ? " canvas-text-edit--note" : ""}`}
           aria-label={textEditor.surface === "note" ? "Sticky note text" : "Canvas text"}
           value={textEditor.value}
-          onChange={(e) => {
-            const nextValue = e.target.value;
-            setTextEditor((prev) => {
-              if (!prev) return null;
-              emitTextChange(prev.nodeId, prev.value ?? "", nextValue);
-              return { ...prev, value: nextValue };
-            });
-          }}
+          onChange={(e) =>
+            setTextEditor((prev) => (prev ? { ...prev, value: e.target.value } : null))
+          }
           onBlur={() => {
             if (skipNextTextBlurCommitRef.current) {
               skipNextTextBlurCommitRef.current = false;

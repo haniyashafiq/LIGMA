@@ -4,26 +4,11 @@ const workspaceService = require('../services/workspace.service');
 const taskService = require('../services/task.service');
 const eventService = require('../services/event.service');
 const { authenticateRequest } = require('../middleware/auth');
-const { requireRole, checkNodePermission, getUserWorkspaceRole } = require('../middleware/rbac');
+const { requireRole, checkNodePermission } = require('../middleware/rbac');
 
 const router = express.Router();
 
 router.use(authenticateRequest);
-
-const ROLE_CHANGE_TARGET_ROLES = new Set(['contributor', 'viewer']);
-
-function buildTaskCreatePayload(body = {}, userId) {
-  return {
-    title: body.title,
-    status: body.status,
-    priority: body.priority,
-    intent: body.intent,
-    assigneeId: body.assigneeId,
-    sourceNodeId: body.sourceNodeId,
-    source: 'manual',
-    sourceAuthorId: userId,
-  };
-}
 
 router.post('/', async (req, res) => {
   const { name } = req.body || {};
@@ -115,23 +100,6 @@ router.patch('/:id/roles/:userId', requireRole('lead'), async (req, res) => {
   const { role } = req.body || {};
 
   try {
-    if (String(req.params.userId) === String(req.user.id)) {
-      return res.status(403).json({ message: 'You cannot change your own workspace role.' });
-    }
-
-    const targetRole = await getUserWorkspaceRole(req.params.id, req.params.userId);
-    if (!targetRole) {
-      return res.status(404).json({ message: 'Workspace member not found.' });
-    }
-
-    if (targetRole === 'lead') {
-      return res.status(403).json({ message: 'Lead role transfer is not available here.' });
-    }
-
-    if (!ROLE_CHANGE_TARGET_ROLES.has(typeof role === 'string' ? role.trim().toLowerCase() : '')) {
-      return res.status(400).json({ message: 'Role changes can only assign contributor or viewer.' });
-    }
-
     const updatedRole = await workspaceService.updateUserRole(
       req.params.id,
       req.params.userId,
@@ -167,29 +135,7 @@ router.get('/:id/tasks', requireRole('lead', 'contributor', 'viewer'), async (re
 
 router.post('/:id/tasks', requireRole('lead', 'contributor'), async (req, res) => {
   try {
-    if (req.body?.assigneeId) {
-      const assigneeRole = await getUserWorkspaceRole(req.params.id, req.body.assigneeId);
-      if (!assigneeRole) {
-        return res.status(400).json({ message: 'Task assignee must be a workspace member.' });
-      }
-    }
-
-    if (req.body?.sourceNodeId) {
-      const canEditNode = await checkNodePermission(
-        'edit',
-        req.body.sourceNodeId,
-        req.user.id,
-        req.params.id
-      );
-      if (!canEditNode) {
-        return res.status(403).json({ message: 'You cannot create tasks linked to this canvas node.' });
-      }
-    }
-
-    const task = await taskService.createTask(
-      req.params.id,
-      buildTaskCreatePayload(req.body, req.user.id)
-    );
+    const task = await taskService.createTask(req.params.id, req.body);
     return res.status(201).json({ task });
   } catch (error) {
     return res.status(500).json({

@@ -19,11 +19,11 @@ flowchart LR
   recovery --> clients
 ```
 
-The important design choice is that clients do not submit trusted raw document state. They submit semantic operations such as `node:create`, `node:update`, `node:text:delta`, `node:delete`, `node:lock`, and `node:permission:update`. The server validates workspace role and node-level ACL, appends an immutable event, applies it to the server-owned Yjs document, then broadcasts only the resulting delta.
+The important design choice is that clients do not submit trusted raw document state. They submit semantic operations such as `node:create`, `node:update`, `node:delete`, `node:lock`, and `node:permission:update`. The server validates workspace role and node-level ACL, appends an immutable event, applies it to the server-owned Yjs document, then broadcasts only the resulting delta.
 
 ## Constraint Strategy
 
-- **Conflict resolution:** Yjs is the CRDT layer. Canvas metadata lives in a Yjs map, text bodies live in `Y.Text`, and clients converge by applying Yjs deltas without last-write-wins text replacement.
+- **Conflict resolution:** Yjs is the CRDT layer. All accepted operations are projected into a server-owned Y.Doc and clients converge by applying Yjs deltas.
 - **Event sourcing:** `canvas_events` is the append-only source of truth. Events carry semantic payloads, node ids, sequence numbers, and optional binary Yjs updates.
 - **Delta-only realtime:** Socket.IO broadcasts `canvas:delta` updates, not full canvas state, during normal collaboration.
 - **Recovery:** clients reconnect with `lastSequenceNum`; the server replays only missed event deltas. Fresh clients receive a Yjs snapshot update.
@@ -82,7 +82,7 @@ npm run dev
 
 ## Common Commands
 
-- `npm run dev` - run server and client dev processes.
+- `npm run dev` - run server, client, and chatbot dev processes.
 - `npm run dev:server` - run the API only.
 - `npm run dev:client` - run the Vite client only.
 - `npm run build` - build the client.
