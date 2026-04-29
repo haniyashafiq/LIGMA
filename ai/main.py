@@ -29,10 +29,7 @@ app = FastAPI(title="LIGMA AI API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",      # Vite dev server
-        os.getenv("CLIENT_URL", ""),   # production origin from .env
-    ],
+     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
