@@ -7,6 +7,7 @@ import {
   FiLink, 
   FiList 
 } from "react-icons/fi";
+import { TaskCard } from "./TaskCard";
 
 export function ExecutionPanel({ 
   events, 
@@ -30,7 +31,8 @@ export function ExecutionPanel({
   navigate,
   workspaceId,
   isReadOnlyMode,
-  getIntentLabel
+  getIntentLabel,
+  handleDeleteTask
 }) {
   return (
     <aside className="ws-exec-panel">
@@ -150,62 +152,24 @@ export function ExecutionPanel({
             if (taskFilter === 'all') return true;
             return t.status === taskFilter;
           }).map((task) => (
-            <div key={task.id} className="ws-task-card">
-              <div className="ws-task-card-header">
-                <div className="ws-task-header-left">
-                  {task.priority && (
-                    <span className={`ws-task-priority-badge ${task.priority}`}>
-                      {task.priority}
-                    </span>
-                  )}
-                  {task.intent && (
-                    <span className={`ws-task-intent-badge ${String(task.intent).toLowerCase()}`}>
-                      {getIntentLabel(task.intent)}
-                    </span>
-                  )}
-                </div>
-                <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
-                  {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
-                </span>
-              </div>
-              <p className="ws-task-title">{task.title}</p>
-              <div className="ws-task-footer">
-                <span 
-                  className={`ws-task-status ${task.status}`}
-                  onClick={() => {
-                    if (isReadOnlyMode) return;
-                    const states = ['todo', 'in_progress', 'done'];
-                    const idx = states.indexOf(task.status);
-                    const next = states[(idx + 1) % states.length];
-                    handleUpdateTask(task.id, { status: next });
-                  }}
-                >
-                  {task.status === 'in_progress' ? 'Doing' : task.status}
-                </span>
-                <div className="ws-task-footer-actions">
-                  {task.source_node_id && (
-                    <button 
-                      className="ws-task-link-btn" 
-                      title="Go to Canvas node"
-                      onClick={() => {
-                        if (activeTab !== 'workspace') {
-                          setActiveTab('workspace');
-                          navigate(`/workspace/${workspaceId}/workspace`);
-                          setTimeout(() => jumpToNode(task.source_node_id), 100);
-                        } else {
-                          jumpToNode(task.source_node_id);
-                        }
-                      }}
-                    >
-                      <FiLink size={10} />
-                    </button>
-                  )}
-                  <div className="ws-task-user-pip" title={getUsername(task.assignee_id)}>
-                    {getUsername(task.assignee_id).charAt(0).toUpperCase()}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TaskCard 
+              key={task.id}
+              task={task}
+              onUpdateTask={handleUpdateTask}
+              onDeleteTask={handleDeleteTask}
+              onJumpToNode={(nodeId) => {
+                if (activeTab !== 'workspace') {
+                  setActiveTab('workspace');
+                  navigate(`/workspace/${workspaceId}/workspace`);
+                  setTimeout(() => jumpToNode(nodeId), 100);
+                } else {
+                  jumpToNode(nodeId);
+                }
+              }}
+              isReadOnlyMode={isReadOnlyMode}
+              getUsername={getUsername}
+              getIntentLabel={getIntentLabel}
+            />
           ))}
         </div>
       </div>

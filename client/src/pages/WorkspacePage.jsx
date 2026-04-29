@@ -493,6 +493,7 @@ export function WorkspacePage() {
                 workspaceId={workspaceId}
                 isReadOnlyMode={isReadOnlyMode}
                 getIntentLabel={getIntentLabel}
+                handleDeleteTask={handleDeleteTask}
               />
             )}
           </>
