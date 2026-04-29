@@ -87,15 +87,64 @@ npm run dev
 - `npm run dev:client` - run the Vite client only.
 - `npm run build` - build the client.
 - `npm run migrate --workspace server` - apply DB migrations.
+- `npm run backup:event-log --workspace server` - export demo data from Postgres to `server/backups/`.
 - `npm run test --workspace server` - run server unit tests.
 
 ## Deployment
 
-The included `render.yaml` defines a Render PostgreSQL database, Node web service, and static client. The server start command runs migrations before booting, and the client gets `VITE_SERVER_URL` / `VITE_SOCKET_URL` values pointing at the Render API service.
+The hackathon deployment uses Render for the static frontend, Node backend, and Postgres database on free plans:
+
+```mermaid
+flowchart LR
+  browser["Browser"] --> frontend["Render Static Site"]
+  frontend -->|"REST + auth"| backend["Render Free Web Service"]
+  frontend -->|"Socket.IO websocket"| backend
+  backend --> database["Render Free Postgres"]
+  pinger["Cron-job.org"] -->|"GET /api/health"| backend
+```
+
+### Render Free Blueprint
+
+The included `render.yaml` deploys:
+
+- `ligma-client` - Render Static Site, free
+- `ligma-server` - Render Free Web Service
+- `ligma-db` - Render Free Postgres
+
+The server start command runs migrations before booting, so the database schema is created automatically during deploy.
+
+Render Free Postgres expires after 30 days and does not provide production-grade backup safety. That is acceptable for short hackathon evaluation windows, but export a backup before judging.
+
+The blueprint sets the required service URLs:
+
+- Backend `CLIENT_URL=https://ligma-client.onrender.com`
+- Backend `CLIENT_URLS=https://ligma-client.onrender.com,http://localhost:5173`
+- Frontend `VITE_SERVER_URL=https://ligma-server.onrender.com`
+- Frontend `VITE_SOCKET_URL=https://ligma-server.onrender.com`
+
+If Render gives either service a different URL, update those values in the Render dashboard and redeploy the affected service.
+
+Render build/start commands are already configured:
+
+- Server build: `npm install`
+- Server start: `npm run migrate && npm start`
+- Server health check: `/api/health`
+- Client build: `npm install && npm run build`
+- Client publish directory: `dist`
+
+### Demo Reliability
+
+Render free services can sleep after inactivity. The canvas shows a "Waking up server..." state and retries Socket.IO reconnects automatically. For judging, add a free Cron-job.org job that requests `https://ligma-server.onrender.com/api/health` every 10 minutes.
+
+Render Free Postgres expires after 30 days. Before a demo, export the event log and related workspace/task data:
+
+```bash
+DATABASE_URL="<render-postgres-external-url>" npm run backup:event-log --workspace server
+```
 
 After deployment, verify:
 
-- `GET /api/health` returns `ok: true`.
+- `GET https://<render-backend>.onrender.com/api/health` returns `ok: true`.
 - Two browser sessions connected to the same workspace converge after canvas edits.
 - Reconnect resumes from missed sequence numbers.
 - Text nodes classified as action items appear on the task board within 3 seconds.
