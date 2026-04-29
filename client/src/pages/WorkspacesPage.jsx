@@ -275,7 +275,9 @@ export function WorkspacesPage() {
                         <div className="canvas-dropdown" onClick={(e) => e.stopPropagation()}>
                           <button 
                             className="canvas-dropdown-item danger"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               handleDeleteWorkspace(ws.id);
                               setOpenMenuId(null);
                             }}
@@ -346,7 +348,9 @@ export function WorkspacesPage() {
                           <div className="canvas-dropdown" onClick={(e) => e.stopPropagation()}>
                             <button 
                               className="canvas-dropdown-item danger"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
                                 handleDeleteWorkspace(ws.id);
                                 setOpenMenuId(null);
                               }}
