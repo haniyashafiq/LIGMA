@@ -1199,8 +1199,15 @@ export default function CanvasView({
       draggable: !readOnly && activeToolRef.current === "select",
       onClick: () => setSelectedId(node.id),
       onTap: () => setSelectedId(node.id),
-      onDragEnd: (event) => updateNode(node.id, { x: event.target.x(), y: event.target.y() }),
+      onDragStart: (e) => {
+        e.cancelBubble = true;
+      },
+      onDragEnd: (event) => {
+        event.cancelBubble = true;
+        updateNode(node.id, { x: event.target.x(), y: event.target.y() });
+      },
       onTransformEnd: (event) => {
+        event.cancelBubble = true;
         const target = event.target;
         const scaleX = target.scaleX();
         const scaleY = target.scaleY();
@@ -1219,24 +1226,24 @@ export default function CanvasView({
     if (node.type === "text") {
       const editingThis = textEditor?.nodeId === node.id;
       return (
-        <Text
-          key={key}
-          {...konvaProps}
-          text={node.text || "\u00a0"}
-          width={node.width}
-          height={node.height}
-          fill="#f8fafc"
-          fontSize={node.style?.fontSize || 18}
-          visible={!editingThis}
-          onDblClick={(e) => {
-            e.evt?.stopPropagation?.();
-            beginTextEdit(node);
-          }}
-          onDblTap={(e) => {
-            e.evt?.stopPropagation?.();
-            beginTextEdit(node);
-          }}
-        />
+        <Group {...konvaProps}>
+          <Text
+            text={node.text || "\u00a0"}
+            width={node.width}
+            height={node.height}
+            fill="#f8fafc"
+            fontSize={node.style?.fontSize || 20}
+            visible={!editingThis}
+            onDblClick={(e) => {
+              e.evt?.stopPropagation?.();
+              beginTextEdit(node);
+            }}
+            onDblTap={(e) => {
+              e.evt?.stopPropagation?.();
+              beginTextEdit(node);
+            }}
+          />
+        </Group>
       );
     }
 
@@ -1245,9 +1252,8 @@ export default function CanvasView({
       const intentBadge = getIntentBadge(node.metadata?.intent);
       const badgeWidth = intentBadge ? Math.min(Math.max(intentBadge.label.length * 7 + 18, 86), Math.max(86, node.width - 24)) : 0;
       return (
-        <React.Fragment key={key}>
+        <Group {...konvaProps}>
           <Rect
-            {...konvaProps}
             width={node.width}
             height={node.height}
             fill={node.style?.fill || "#facc15"}
@@ -1266,8 +1272,8 @@ export default function CanvasView({
             }}
           />
           <Text
-            x={node.x + 12}
-            y={node.y + 12}
+            x={12}
+            y={12}
             width={Math.max(20, node.width - 24)}
             height={Math.max(20, node.height - (intentBadge ? 48 : 24))}
             text={node.text || "\u00a0"}
@@ -1279,8 +1285,8 @@ export default function CanvasView({
           {intentBadge ? (
             <>
               <Rect
-                x={node.x + 12}
-                y={node.y + Math.max(12, node.height - 28)}
+                x={12}
+                y={Math.max(12, node.height - 28)}
                 width={badgeWidth}
                 height={18}
                 fill={intentBadge.fill}
@@ -1290,8 +1296,8 @@ export default function CanvasView({
                 listening={false}
               />
               <Text
-                x={node.x + 21}
-                y={node.y + Math.max(15, node.height - 25)}
+                x={21}
+                y={Math.max(15, node.height - 25)}
                 width={Math.max(20, badgeWidth - 18)}
                 height={12}
                 text={intentBadge.label}
@@ -1302,7 +1308,7 @@ export default function CanvasView({
               />
             </>
           ) : null}
-        </React.Fragment>
+        </Group>
       );
     }
 
