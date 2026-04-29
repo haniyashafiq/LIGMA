@@ -571,13 +571,17 @@ export default function CanvasView({
       lastPlacedTextRef.current = null;
       const ta = textAreaRef.current;
       const value = ta && typeof ta.value === "string" ? ta.value : (current.value ?? "");
-      if (value === current.baseline) {
-        return null;
+      
+      if (value !== lastValueRef.current) {
+        emitTextChange(current.nodeId, value);
       }
-      handleAITrigger(current.nodeId, value);
+      
+      if (value !== current.baseline) {
+        handleAITrigger(current.nodeId, value);
+      }
       return null;
     });
-  }, [handleAITrigger]);
+  }, [emitTextChange, handleAITrigger]);
 
   /** Saves textarea content and closes the editor. Mousedown on the stage runs before blur; call this first so we do not lose edits (e.g. text tool spawning a new node would reset editor state). Returns whether an editor was open. */
   const flushActiveTextEditor = useCallback(() => {
@@ -590,6 +594,15 @@ export default function CanvasView({
     if (value !== lastValueRef.current) {
       emitTextChange(editing.nodeId, value);
     }
+    
+    // Optimistic local update to prevent "disappearing" text flicker
+    const node = nodesMapRef.current?.get(editing.nodeId);
+    if (node) {
+      const liveTextNode = nodeTextsMapRef.current?.get(editing.nodeId);
+      // We don't want to conflict with Yjs, but for visual continuity:
+      setNodes(prev => prev.map(n => n.id === editing.nodeId ? { ...n, text: value } : n));
+    }
+
     // Final force sync to nodes state for instant visual
     updateNodesFromDoc();
     if (value !== editing.baseline) {
@@ -1226,7 +1239,7 @@ export default function CanvasView({
     if (node.type === "text") {
       const editingThis = textEditor?.nodeId === node.id;
       return (
-        <Group {...konvaProps}>
+        <Group key={key} {...konvaProps}>
           <Text
             text={node.text || "\u00a0"}
             width={node.width}
@@ -1252,7 +1265,7 @@ export default function CanvasView({
       const intentBadge = getIntentBadge(node.metadata?.intent);
       const badgeWidth = intentBadge ? Math.min(Math.max(intentBadge.label.length * 7 + 18, 86), Math.max(86, node.width - 24)) : 0;
       return (
-        <Group {...konvaProps}>
+        <Group key={key} {...konvaProps}>
           <Rect
             width={node.width}
             height={node.height}
@@ -1544,6 +1557,10 @@ export default function CanvasView({
             lineHeight: 1.25,
             transform: textEditLayout.rotation ? `rotate(${textEditLayout.rotation}deg)` : undefined,
             transformOrigin: "top left",
+            zIndex: 10000,
+            display: "block",
+            visibility: "visible",
+            opacity: 1,
           }}
         />
       ) : null}
