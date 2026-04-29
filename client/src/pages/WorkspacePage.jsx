@@ -38,14 +38,14 @@ import { ExecutionPanel } from "../workspace/ExecutionPanel";
 import { AddTaskModal } from "../workspace/AddTaskModal";
 
 const TOOLS = [
-  { id: "select", Icon: FiMousePointer, label: "Select" },
-  { id: "hand", Icon: FiMove, label: "Hand" },
-  { id: "geo", Icon: FiSquare, label: "Shapes" },
-  { id: "text", Icon: FiType, label: "Text" },
-  { id: "draw", Icon: FiEdit2, label: "Pen" },
-  { id: "arrow", Icon: FiArrowUpRight, label: "Arrow" },
-  { id: "note", Icon: FiFileText, label: "Notes" },
-  { id: "eraser", Icon: FiTrash, label: "Eraser" },
+  { id: "select", Icon: FiMousePointer, label: "Select", shortcut: "V" },
+  { id: "hand", Icon: FiMove, label: "Hand", shortcut: "H / Space" },
+  { id: "geo", Icon: FiSquare, label: "Shapes", shortcut: "S" },
+  { id: "text", Icon: FiType, label: "Text", shortcut: "T" },
+  { id: "draw", Icon: FiEdit2, label: "Pen", shortcut: "P" },
+  { id: "arrow", Icon: FiArrowUpRight, label: "Arrow", shortcut: "A" },
+  { id: "note", Icon: FiFileText, label: "Notes", shortcut: "N" },
+  { id: "eraser", Icon: FiTrash, label: "Eraser", shortcut: "E" },
 ];
 
 const TOOL_EXTRAS = [
@@ -253,6 +253,54 @@ export function WorkspacePage() {
     if (workspaceRole === "viewer") return;
     setActiveTool(toolId);
   }, [workspaceRole]);
+
+  const [previousToolBeforeSpace, setPreviousToolBeforeSpace] = useState(null);
+
+  useEffect(() => {
+    function handleGlobalKeyDown(e) {
+      if (workspaceRole === "viewer") return;
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) {
+        return;
+      }
+
+      if (e.code === "Space" && activeTool !== "hand" && !previousToolBeforeSpace) {
+        setPreviousToolBeforeSpace(activeTool);
+        setActiveTool("hand");
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      const maps = {
+        v: "select",
+        h: "hand",
+        s: "geo",
+        t: "text",
+        p: "draw",
+        a: "arrow",
+        n: "note",
+        e: "eraser",
+      };
+
+      if (maps[key]) {
+        e.preventDefault();
+        handleToolSelect(maps[key]);
+      }
+    }
+
+    function handleGlobalKeyUp(e) {
+      if (e.code === "Space" && previousToolBeforeSpace) {
+        setActiveTool(previousToolBeforeSpace);
+        setPreviousToolBeforeSpace(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    window.addEventListener("keyup", handleGlobalKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+      window.removeEventListener("keyup", handleGlobalKeyUp);
+    };
+  }, [workspaceRole, handleToolSelect, activeTool, previousToolBeforeSpace]);
 
   const handleAddTask = async (e) => {
     e.preventDefault();

@@ -18,12 +18,12 @@ export function ToolPanel({
     <div className="ws-tool-panel">
       <span className="ws-tool-panel-label">Tools</span>
 
-      {tools.map(({ id, Icon, label }) => (
+      {tools.map(({ id, Icon, label, shortcut }) => (
         <React.Fragment key={id}>
           <button
             className={`ws-tool-btn${activeTool === id ? " active" : ""}`}
             onClick={() => handleToolSelect(id)}
-            title={label}
+            title={shortcut ? `${label} (${shortcut})` : label}
             aria-label={label}
             disabled={isReadOnlyMode}
           >
