@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const Y = require("yjs");
-const { applySemanticEvent, getNodesMap } = require("./canvas-event-projector");
+const { applySemanticEvent, getNodeText, getNodesMap } = require("./canvas-event-projector");
 
 function makeNode(overrides = {}) {
   return {
@@ -60,4 +60,30 @@ test("delete events remove nodes during missed-event replay", () => {
   });
 
   assert.equal(getNodesMap(doc).has("node:test"), false);
+});
+
+test("text deltas preserve concurrent inserts instead of last-write-wins", () => {
+  const doc = new Y.Doc();
+  applySemanticEvent(doc, {
+    eventType: "canvas:node:create",
+    nodeId: "node:test",
+    payload: { node: makeNode({ text: "" }) },
+  });
+
+  applySemanticEvent(doc, {
+    eventType: "canvas:node:text:delta",
+    nodeId: "node:test",
+    payload: { nodeId: "node:test", delta: { index: 0, delete: 0, insert: "Alpha" } },
+  });
+  applySemanticEvent(doc, {
+    eventType: "canvas:node:text:delta",
+    nodeId: "node:test",
+    payload: { nodeId: "node:test", delta: { index: 0, delete: 0, insert: "Beta" } },
+  });
+
+  const merged = getNodeText(doc, "node:test");
+  assert.match(merged, /Alpha/);
+  assert.match(merged, /Beta/);
+  assert.notEqual(merged, "Alpha");
+  assert.notEqual(merged, "Beta");
 });

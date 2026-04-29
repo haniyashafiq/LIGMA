@@ -1,8 +1,0 @@
-langchain-google-genai
-langchain-huggingface
-langchain
-langchain-openai
-langchain-mcp-adapters
-python-dotenv
-fastapi
-uvicorn[standard]
