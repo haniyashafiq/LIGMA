@@ -195,7 +195,8 @@ router.delete('/:id/tasks/node/:nodeId', requireRole('lead', 'contributor'), asy
       if (io) {
         io.to(`room:${req.params.id}`).emit('task:sync', {
           deleted: true,
-          sourceNodeId: req.params.nodeId
+          sourceNodeId: req.params.nodeId,
+          preserveNode: true
         });
       }
     }

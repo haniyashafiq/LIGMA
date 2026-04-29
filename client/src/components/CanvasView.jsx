@@ -883,7 +883,7 @@ export default function CanvasView({
     });
     socket.on("task:sync", (payload) => {
       window.dispatchEvent(new CustomEvent("ligma:tasks-sync"));
-      if (payload?.deleted && payload.sourceNodeId) {
+      if (payload?.deleted && payload.sourceNodeId && !payload.preserveNode) {
         // If a task linked to a canvas node was deleted, remove the note too
         emitOp({ type: "node:delete", nodeId: payload.sourceNodeId });
       }

@@ -361,6 +361,15 @@ async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
     };
 
     io.to(`room:${workspaceId}`).emit("task:sync", payload);
+  } else {
+    const deletedRows = await taskService.deleteTaskByNodeId(workspaceId, node.id);
+    if (deletedRows.length > 0) {
+      io.to(`room:${workspaceId}`).emit("task:sync", {
+        deleted: true,
+        sourceNodeId: node.id,
+        preserveNode: true,
+      });
+    }
   }
 }
 
