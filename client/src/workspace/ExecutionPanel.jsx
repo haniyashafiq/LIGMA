@@ -132,13 +132,13 @@ export function ExecutionPanel({
           </button>
           {showTaskFilter && (
             <div className="ws-dropdown-menu">
-              {['all', 'todo', 'doing', 'done'].map(filter => (
+              {['all', 'todo', 'in_progress', 'done'].map(filter => (
                 <button 
                   key={filter} 
                   className={`ws-dropdown-item ${taskFilter === filter ? 'active' : ''}`}
                   onClick={() => { setTaskFilter(filter); setShowTaskFilter(false); }}
                 >
-                  {filter === 'doing' ? 'In Progress' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  {filter === 'in_progress' ? 'In Progress' : filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </button>
               ))}
             </div>
@@ -174,9 +174,8 @@ export function ExecutionPanel({
                   className={`ws-task-status ${task.status}`}
                   onClick={() => {
                     if (isReadOnlyMode) return;
-                    const states = ['todo', 'doing', 'done'];
-                    const current = task.status === 'in_progress' ? 'doing' : task.status;
-                    const idx = states.indexOf(current);
+                    const states = ['todo', 'in_progress', 'done'];
+                    const idx = states.indexOf(task.status);
                     const next = states[(idx + 1) % states.length];
                     handleUpdateTask(task.id, { status: next });
                   }}

@@ -693,8 +693,36 @@
 .ws-task-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 8px;
+  gap: 8px;
+}
+
+.ws-task-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-task-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, background 0.2s;
+}
+
+.ws-task-card:hover .ws-task-delete-btn {
+  opacity: 1;
+}
+
+.ws-task-delete-btn:hover {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
 }
 
 .ws-task-badge {

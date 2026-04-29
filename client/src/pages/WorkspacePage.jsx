@@ -357,6 +357,19 @@ export function WorkspacePage() {
     }
   };
 
+  const handleDeleteTask = async (taskId) => {
+    if (workspaceRole === "viewer") return;
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+    }
+  };
+
   return (
     <div className="ws-main-shell glassmorphism">
       <WorkspaceTopbar
@@ -383,6 +396,7 @@ export function WorkspacePage() {
           <KanbanBoard 
             tasks={tasks} 
             onUpdateTask={handleUpdateTask} 
+            onDeleteTask={handleDeleteTask}
             onJumpToNode={(nodeId) => {
               if (activeTab !== 'workspace') {
                 setActiveTab('workspace');
