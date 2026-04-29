@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import * as Y from "yjs";
 import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
@@ -129,13 +129,9 @@ function makeNode(type, pointer, currentUser, zIndex) {
   };
 
   if (type === "text") {
-    node.text = "Double-click to edit";
+    node.text = "";
     node.style.fill = "transparent";
     node.style.stroke = "transparent";
-  }
-
-  if (type === "note") {
-    node.text = "Action item: ";
   }
 
   if (type === "arrow") {
@@ -182,6 +178,10 @@ export default function CanvasView({
   const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
   const lastCursorEmitRef = useRef(0);
   const localSocketIdRef = useRef(null);
+  const lastPlacedTextRef = useRef(null);
+  const textAreaRef = useRef(null);
+  const skipNextTextBlurCommitRef = useRef(false);
+  const textEditorRef = useRef(null);
 
   const [nodes, setNodes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -190,6 +190,12 @@ export default function CanvasView({
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
   const [remoteCursors, setRemoteCursors] = useState({});
+  const [textEditor, setTextEditor] = useState(null);
+  const [textEditLayout, setTextEditLayout] = useState(null);
+
+  useEffect(() => {
+    textEditorRef.current = textEditor;
+  }, [textEditor]);
 
   const capturePointerForToast = useCallback((event) => {
     lastPointerRef.current = { x: event.clientX, y: event.clientY };
@@ -267,6 +273,128 @@ export default function CanvasView({
       y: (pos.y - vp.y) / vp.scale,
     };
   }, []);
+
+  const resolveTextNode = useCallback((nodeId) => {
+    return (
+      nodesMapRef.current?.get(nodeId) ||
+      (lastPlacedTextRef.current?.id === nodeId ? lastPlacedTextRef.current : null) ||
+      nodesRef.current.find((n) => n.id === nodeId) ||
+      null
+    );
+  }, []);
+
+  const computeTextEditLayout = useCallback((nodeId) => {
+    const node = resolveTextNode(nodeId);
+    const shell = canvasShellRef.current;
+    const stage = stageRef.current;
+    if (!node || !shell || !stage) return null;
+    const vp = viewportRef.current;
+    const notePad = 12;
+    const isNote = node.type === "note";
+    const innerX = isNote ? node.x + notePad : node.x;
+    const innerY = isNote ? node.y + notePad : node.y;
+    const innerW = isNote ? Math.max(20, (node.width || 180) - notePad * 2) : node.width || 220;
+    const innerH = isNote ? Math.max(20, (node.height || 100) - notePad * 2) : node.height || 48;
+    const relX = vp.x + innerX * vp.scale;
+    const relY = vp.y + innerY * vp.scale;
+    const sw = Math.max(innerW * vp.scale, 48);
+    const sh = Math.max(innerH * vp.scale, 28);
+    const stageRect = stage.container().getBoundingClientRect();
+    const shellRect = shell.getBoundingClientRect();
+    return {
+      left: stageRect.left - shellRect.left + relX,
+      top: stageRect.top - shellRect.top + relY,
+      width: sw,
+      height: sh,
+      fontSize: (node.style?.fontSize || (isNote ? 16 : 18)) * vp.scale,
+      rotation: node.rotation || 0,
+    };
+  }, [resolveTextNode]);
+
+  const commitTextEditor = useCallback(() => {
+    setTextEditor((current) => {
+      if (!current) return null;
+      lastPlacedTextRef.current = null;
+      const ta = textAreaRef.current;
+      const value = ta && typeof ta.value === "string" ? ta.value : (current.value ?? "");
+      if (value === current.baseline) {
+        return null;
+      }
+      emitOp({ type: "node:update", nodeId: current.nodeId, patch: { text: value } });
+      return null;
+    });
+  }, [emitOp]);
+
+  /** Saves textarea content and closes the editor. Mousedown on the stage runs before blur; call this first so we do not lose edits (e.g. text tool spawning a new node would reset editor state). Returns whether an editor was open. */
+  const flushActiveTextEditor = useCallback(() => {
+    const editing = textEditorRef.current;
+    if (!editing) return false;
+    const ta = textAreaRef.current;
+    const value = ta && typeof ta.value === "string" ? ta.value : (editing.value ?? "");
+    lastPlacedTextRef.current = null;
+    skipNextTextBlurCommitRef.current = true;
+    if (value !== editing.baseline) {
+      emitOp({ type: "node:update", nodeId: editing.nodeId, patch: { text: value } });
+    }
+    setTextEditor(null);
+    textEditorRef.current = null;
+    return true;
+  }, [emitOp]);
+
+  const cancelTextEditor = useCallback(() => {
+    setTextEditor((current) => {
+      if (!current) {
+        lastPlacedTextRef.current = null;
+        textEditorRef.current = null;
+        return null;
+      }
+      const ta = textAreaRef.current;
+      const live = ta && typeof ta.value === "string" ? ta.value : current.value;
+      if (current.baseline !== live) {
+        emitOp({ type: "node:update", nodeId: current.nodeId, patch: { text: current.baseline ?? "" } });
+      }
+      lastPlacedTextRef.current = null;
+      textEditorRef.current = null;
+      return null;
+    });
+  }, [emitOp]);
+
+  const beginTextEdit = useCallback(
+    (node) => {
+      if (readOnly || !node?.id) return;
+      if (node.type !== "text" && node.type !== "note") return;
+      const live = resolveTextNode(node.id) || node;
+      const initial = live.text ?? "";
+      const surface = node.type === "note" ? "note" : "text";
+      setTextEditor({ nodeId: node.id, value: initial, baseline: initial, surface });
+    },
+    [readOnly, resolveTextNode],
+  );
+
+  useLayoutEffect(() => {
+    if (!textEditor) {
+      setTextEditLayout(null);
+      return;
+    }
+    const layout = computeTextEditLayout(textEditor.nodeId);
+    setTextEditLayout(layout);
+    requestAnimationFrame(() => {
+      const el = textAreaRef.current;
+      if (!el) return;
+      el.focus();
+      const len = el.value.length;
+      el.setSelectionRange(len, len);
+    });
+  }, [textEditor, computeTextEditLayout, viewport, stageSize, nodes]);
+
+  useEffect(() => {
+    if (!textEditor) return;
+    if (!resolveTextNode(textEditor.nodeId)) {
+      setTextEditor(null);
+      lastPlacedTextRef.current = null;
+      textEditorRef.current = null;
+    }
+  }, [textEditor, nodes, resolveTextNode]);
 
   const jumpToNode = useCallback(
     (nodeId) => {
@@ -381,7 +509,7 @@ export default function CanvasView({
       docRef.current = null;
       nodesMapRef.current = null;
     };
-  }, [updateNodesFromDoc]);
+  }, [workspaceId, updateNodesFromDoc]);
 
   useEffect(() => {
     setConnectionStatus?.(connectionState);
@@ -398,10 +526,10 @@ export default function CanvasView({
 
     socket.on("connect", () => {
       setConnectionState("online");
-      const lastSequenceNum = Number(
-        window.sessionStorage.getItem(`ligma:canvas:${workspaceId}:sequence`) || 0,
-      );
-      socket.emit("canvas:hello", { lastSequenceNum });
+      // Always request a full Yjs merge from the server. We do not persist the Y.Doc locally;
+      // sessionStorage may hold a "caught up" sequence after a prior tab session. Sending that
+      // value makes the server skip replay while this tab's Y.Doc is still empty — canvas looks cleared after reload.
+      socket.emit("canvas:hello", { lastSequenceNum: 0 });
     });
     socket.on("server:ready", (payload) => {
       if (payload?.socketId) {
@@ -443,7 +571,7 @@ export default function CanvasView({
       const update = decodeYjsUpdate(payload?.update);
       if (!update || !docRef.current) return;
       Y.applyUpdate(docRef.current, update);
-      if (payload.sequenceNum) {
+      if (payload.sequenceNum !== undefined && payload.sequenceNum !== null) {
         window.sessionStorage.setItem(`ligma:canvas:${workspaceId}:sequence`, String(payload.sequenceNum));
       }
     });
@@ -495,6 +623,7 @@ export default function CanvasView({
 
   useEffect(() => {
     function handleKeyDown(event) {
+      if (event.target?.closest?.(".canvas-text-edit")) return;
       const key = String(event.key || "").toLowerCase();
       if ((key !== "delete" && key !== "backspace") || !selectedId || readOnly) return;
       const node = nodesMapRef.current?.get(selectedId);
@@ -523,13 +652,14 @@ export default function CanvasView({
   useEffect(() => {
     const transformer = transformerRef.current;
     if (!transformer) return;
-    const selectedNode = selectedId ? nodeRefs.current.get(selectedId) : null;
+    const selectedNode = textEditor ? null : selectedId ? nodeRefs.current.get(selectedId) : null;
     transformer.nodes(selectedNode ? [selectedNode] : []);
     transformer.getLayer()?.batchDraw();
-  }, [selectedId, nodes]);
+  }, [selectedId, nodes, textEditor]);
 
   function handleStageMouseDown(event) {
     if (readOnly) return;
+    const closedTextEditorOnThisDown = flushActiveTextEditor();
     const clickedStage = event.target === event.target.getStage();
     const tool = activeToolRef.current;
 
@@ -543,7 +673,18 @@ export default function CanvasView({
     if (!pointer) return;
 
     if (["geo", "text", "note", "arrow"].includes(tool)) {
+      if ((tool === "text" || tool === "note") && closedTextEditorOnThisDown) {
+        return;
+      }
       const node = makeNode(tool === "geo" ? "rect" : tool, pointer, collabUser, nodes.length + 1);
+      if (tool === "text") {
+        lastPlacedTextRef.current = node;
+        setTextEditor({ nodeId: node.id, value: "", baseline: "", surface: "text" });
+      }
+      if (tool === "note") {
+        lastPlacedTextRef.current = node;
+        setTextEditor({ nodeId: node.id, value: "", baseline: "", surface: "note" });
+      }
       emitOp({ type: "node:create", node });
       setSelectedId(node.id);
       return;
@@ -602,12 +743,6 @@ export default function CanvasView({
     emitOp({ type: "node:update", nodeId, patch });
   }
 
-  function editText(node) {
-    if (readOnly) return;
-    const nextText = window.prompt("Edit canvas text", node.text || "");
-    if (nextText !== null) updateNode(node.id, { text: nextText });
-  }
-
   function renderNode(node) {
     const commonProps = {
       key: node.id,
@@ -640,21 +775,30 @@ export default function CanvasView({
     };
 
     if (node.type === "text") {
+      const editingThis = textEditor?.nodeId === node.id;
       return (
         <Text
           {...commonProps}
-          text={node.text}
+          text={node.text || "\u00a0"}
           width={node.width}
           height={node.height}
           fill="#e2e8f0"
           fontSize={node.style?.fontSize || 18}
-          onDblClick={() => editText(node)}
-          onDblTap={() => editText(node)}
+          visible={!editingThis}
+          onDblClick={(e) => {
+            e.evt?.stopPropagation?.();
+            beginTextEdit(node);
+          }}
+          onDblTap={(e) => {
+            e.evt?.stopPropagation?.();
+            beginTextEdit(node);
+          }}
         />
       );
     }
 
     if (node.type === "note") {
+      const editingThis = textEditor?.nodeId === node.id;
       return (
         <React.Fragment key={node.id}>
           <Rect
@@ -667,16 +811,25 @@ export default function CanvasView({
             cornerRadius={12}
             shadowBlur={12}
             shadowOpacity={0.25}
+            onDblClick={(e) => {
+              e.evt?.stopPropagation?.();
+              beginTextEdit(node);
+            }}
+            onDblTap={(e) => {
+              e.evt?.stopPropagation?.();
+              beginTextEdit(node);
+            }}
           />
           <Text
             x={node.x + 12}
             y={node.y + 12}
             width={Math.max(20, node.width - 24)}
             height={Math.max(20, node.height - 24)}
-            text={node.text}
+            text={node.text || "\u00a0"}
             fill="#1f2937"
             fontSize={node.style?.fontSize || 16}
             listening={false}
+            visible={!editingThis}
           />
         </React.Fragment>
       );
@@ -779,7 +932,7 @@ export default function CanvasView({
         </Layer>
         <Layer>
           {nodes.map(renderNode)}
-          {selectedId ? (
+          {selectedId && !textEditor ? (
             <Transformer
               ref={transformerRef}
               rotateEnabled
@@ -828,6 +981,41 @@ export default function CanvasView({
           ))}
         </Layer>
       </Stage>
+      {textEditor && textEditLayout && !readOnly ? (
+        <textarea
+          ref={textAreaRef}
+          className={`canvas-text-edit${textEditor.surface === "note" ? " canvas-text-edit--note" : ""}`}
+          aria-label={textEditor.surface === "note" ? "Sticky note text" : "Canvas text"}
+          value={textEditor.value}
+          onChange={(e) =>
+            setTextEditor((prev) => (prev ? { ...prev, value: e.target.value } : null))
+          }
+          onBlur={() => {
+            if (skipNextTextBlurCommitRef.current) {
+              skipNextTextBlurCommitRef.current = false;
+              return;
+            }
+            commitTextEditor();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              skipNextTextBlurCommitRef.current = true;
+              cancelTextEditor();
+            }
+          }}
+          style={{
+            left: textEditLayout.left,
+            top: textEditLayout.top,
+            width: textEditLayout.width,
+            minHeight: textEditLayout.height,
+            fontSize: textEditLayout.fontSize,
+            lineHeight: 1.25,
+            transform: textEditLayout.rotation ? `rotate(${textEditLayout.rotation}deg)` : undefined,
+            transformOrigin: "top left",
+          }}
+        />
+      ) : null}
       {nodes.length === 0 && connectionState === "online" ? (
         <div className="canvas-empty-hint">Choose a tool and click the canvas to create your first node.</div>
       ) : null}

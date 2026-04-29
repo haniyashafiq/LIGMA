@@ -50,6 +50,26 @@
   white-space: nowrap;
 }
 
+.canvas-text-edit {
+  position: absolute;
+  z-index: 40;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  resize: none;
+  outline: 1px solid rgba(129, 140, 248, 0.6);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.canvas-text-edit--note {
+  color: #1f2937;
+  outline: 1px solid rgba(202, 138, 4, 0.75);
+}
+
 .canvas-empty-hint {
   position: absolute;
   left: 50%;

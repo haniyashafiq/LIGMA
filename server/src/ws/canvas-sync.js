@@ -2,7 +2,7 @@ const Y = require("yjs");
 const eventService = require("../services/event.service");
 const taskService = require("../services/task.service");
 const { getUserWorkspaceRole } = require("../middleware/rbac");
-const { classifyIntent } = require("../services/intent.service");
+const { classifyIntentForNode } = require("../services/intent.service");
 const {
   applySemanticEvent,
   getMeta,
@@ -259,7 +259,7 @@ function applyOperationToDoc(doc, op, socket, role) {
 async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
   if (!isTextBearingNode(node)) return;
 
-  const classification = classifyIntent(node.text);
+  const classification = classifyIntentForNode(node.text, node.type);
   const metadata = { ...getMeta(node), intent: classification.intent };
   const classifiedNode = { ...node, metadata };
 
@@ -310,14 +310,16 @@ async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
       sourceAuthorName: metadata.authorName || null,
     });
 
-    io.to(`room:${workspaceId}`).emit("task:sync", {
+    const payload = {
       id: task.id,
       title: task.title,
       status: task.status,
       sourceNodeId: task.source_node_id,
       source_node_id: task.source_node_id,
       authorName: task.authorName || task.source_author_name || null,
-    });
+    };
+
+    io.to(`room:${workspaceId}`).emit("task:sync", payload);
   }
 }
 
@@ -372,6 +374,16 @@ async function sendRecovery(socket, room, sinceSequence = 0) {
   }
 
   const missed = await eventService.getEventsSince(room.workspaceId, since);
+  if (missed.length === 0) {
+    socket.emit("canvas:delta", {
+      sequenceNum: room.lastSequenceNum,
+      eventType: "canvas:snapshot",
+      update: Buffer.from(Y.encodeStateAsUpdate(room.doc)),
+      snapshot: true,
+    });
+    return;
+  }
+
   for (const event of missed) {
     if (!event.yjsUpdate) continue;
     socket.emit("canvas:delta", {
@@ -453,15 +465,17 @@ function createCanvasSyncManager(io) {
         });
 
         if (type === "node:create" || type === "node:update") {
-          maybeClassifyNode({
-            room,
-            io,
-            workspaceId: socket.workspaceId,
-            userId: socket.user?.id || null,
-            node: result.changedNode,
-          }).catch((error) => {
+          try {
+            await maybeClassifyNode({
+              room,
+              io,
+              workspaceId: socket.workspaceId,
+              userId: socket.user?.id || null,
+              node: result.changedNode,
+            });
+          } catch (error) {
             console.error("[canvas-sync] Intent extraction failed", error);
-          });
+          }
         }
 
         if (room.lastSequenceNum > 0 && room.lastSequenceNum % SNAPSHOT_EVERY_EVENTS === 0) {

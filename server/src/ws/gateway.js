@@ -93,6 +93,10 @@ function attachGateway(server) {
     const workspaceId = socket.workspaceId;
     const room = `room:${workspaceId}`;
 
+    // Join immediately so io.to(room) events (e.g. task:sync) are never missed while
+    // handleWorkspaceJoin / DB work is still in flight.
+    socket.join(room);
+
     // Attach the canvas sync handlers before presence so early client messages
     // cannot arrive before the room listener is ready.
     await canvasSyncManager.handleWorkspaceJoin(socket);
@@ -109,7 +113,6 @@ function attachGateway(server) {
     };
 
     connections.set(socket.id, presence);
-    socket.join(room);
 
     socket.emit("server:ready", {
       socketId: socket.id,

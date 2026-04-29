@@ -232,14 +232,35 @@ export function WorkspacePage() {
     return actions[event?.eventType] || "modified the workspace";
   }, []);
 
+  const getIntentLabel = useCallback((intent) => {
+    if (!intent) return null;
+    const normalized = String(intent).toLowerCase();
+    if (normalized === "action_item") return "Action item";
+    if (normalized === "open_question") return "Open question";
+    if (normalized === "decision") return "Decision";
+    if (normalized === "reference") return "Reference";
+    return normalized.replace(/_/g, " ");
+  }, []);
+
   useEffect(() => {
     loadTasks();
     loadEvents();
   }, [loadTasks, loadEvents]);
 
   useEffect(() => {
+    if (activeTab === "workspace" || activeTab === "board") {
+      loadTasks();
+    }
+  }, [activeTab, loadTasks]);
+
+  useEffect(() => {
     window.addEventListener("ligma:tasks-sync", loadTasks);
     return () => window.removeEventListener("ligma:tasks-sync", loadTasks);
+  }, [loadTasks]);
+
+  useEffect(() => {
+    const interval = window.setInterval(loadTasks, 5000);
+    return () => window.clearInterval(interval);
   }, [loadTasks]);
 
   // Poll events every 5 seconds
@@ -560,6 +581,11 @@ export function WorkspacePage() {
                                 {task.priority}
                               </span>
                             )}
+                            {task.intent ? (
+                              <span className={`ws-task-intent-badge ${String(task.intent).toLowerCase()}`}>
+                                {getIntentLabel(task.intent)}
+                              </span>
+                            ) : null}
                             {task.authorName ? (
                               <span className="ws-task-added-by">by {task.authorName}</span>
                             ) : null}
@@ -867,8 +893,7 @@ export function WorkspacePage() {
                       fontSize: "var(--text-xs)",
                     }}
                   >
-                    No tasks yet. Create sticky notes with [TASK] to generate
-                    tasks.
+                    No tasks yet. Add text to a sticky note on the canvas; matching items sync here after a moment.
                   </div>
                 )}
 
@@ -898,6 +923,11 @@ export function WorkspacePage() {
                             {task.priority}
                           </span>
                         )}
+                        {task.intent ? (
+                          <span className={`ws-task-intent-badge ${String(task.intent).toLowerCase()}`}>
+                            {getIntentLabel(task.intent)}
+                          </span>
+                        ) : null}
                         {task.authorName ? (
                           <span className="ws-task-added-by">{task.authorName}</span>
                         ) : null}
@@ -1068,3 +1098,9 @@ export function WorkspacePage() {
     </div>
   );
 }
+
+
+
+
+
+
