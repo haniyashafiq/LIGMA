@@ -5,10 +5,12 @@ const DECISION_WORDS = /\b(decision|decided|agreed|approved|rejected|we will|we 
 // Avoid standalone "note" — it false-positive matches sticky-note body text.
 const REFERENCE_WORDS =
   /\b(ref|reference|link|doc|docs|notebook|context|fyi|for your information|background|source|see also)\b/i;
+const GENERAL_WORDS =
+  /\b(i like|i love|i prefer|i think|i feel|nice|cool|great job|thanks|thank you)\b/i;
 
 /** Starts with a common task-style imperative ("Fix bug", "Call Dana", "Please review"). */
 const IMPERATIVE_START =
-  /^(please\s+)?(fix|add|remove|update|implement|ship|send|write|review|refactor|buy|call|meet|email|finish|complete|draft|book|schedule|deploy|create|build|investigate|document|merge|release)\b/i;
+  /^(please\s+)?(fix|add|remove|update|implement|ship|send|write|review|refactor|buy|call|meet|email|finish|complete|draft|book|schedule|deploy|create|build|investigate|document|merge|release|do|get|go|make|find)\b/i;
 
 function normalizeText(text) {
   return typeof text === "string" ? text.trim() : "";
@@ -65,6 +67,14 @@ function classifyIntent(text) {
     };
   }
 
+  if (GENERAL_WORDS.test(normalized)) {
+    return {
+      intent: "general",
+      confidence: 0.72,
+      reason: "Preference or conversational wording detected.",
+    };
+  }
+
   return {
     intent: "reference",
     confidence: 0.58,
@@ -73,33 +83,12 @@ function classifyIntent(text) {
 }
 
 /**
- * Canvas-aware classification: sticky notes default to actionable work items unless the text is
- * clearly a question, decision, link, or lightweight reference (FYI / docs-only style).
+ * Canvas-aware classification: sticky notes should only create tasks when the text has
+ * an explicit action signal. Neutral notes remain reference/general material.
  */
 function classifyIntentForNode(text, nodeType) {
   const base = classifyIntent(text);
-  if (nodeType !== "note") {
-    return base;
-  }
-  if (base.intent === "open_question" || base.intent === "decision" || base.intent === "action_item") {
-    return base;
-  }
-  const normalized = normalizeText(text);
-  if (/^https?:\/\//i.test(normalized)) {
-    return base;
-  }
-  if (
-    /\b(fyi|for your information|see also|background)\b/i.test(normalized) &&
-    !/\b(must|need to|should|please|deadline|urgent|asap|blocker)\b/i.test(normalized)
-  ) {
-    return base;
-  }
-  // Sticky notes default to tasks unless the text is clearly non-actionable (above branches).
-  return {
-    intent: "action_item",
-    confidence: base.confidence,
-    reason: "Sticky note with no strong non-task signal; treating as actionable.",
-  };
+  return base;
 }
 
 module.exports = {

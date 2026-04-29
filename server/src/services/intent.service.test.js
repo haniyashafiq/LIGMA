@@ -18,11 +18,15 @@ test("falls back to reference for neutral context", () => {
 test("imperative openings are action items", () => {
   assert.equal(classifyIntent("Call Alice about pricing").intent, "action_item");
   assert.equal(classifyIntent("Please review the Q3 deck").intent, "action_item");
+  assert.equal(classifyIntent("Do your research").intent, "action_item");
+  assert.equal(classifyIntent("Go get it").intent, "action_item");
 });
 
-test("sticky notes promote weak reference text to action items", () => {
+test("sticky notes do not promote neutral text to action items", () => {
   assert.equal(classifyIntent("Team lunch Friday").intent, "reference");
-  assert.equal(classifyIntentForNode("Team lunch Friday", "note").intent, "action_item");
+  assert.equal(classifyIntentForNode("Team lunch Friday", "note").intent, "reference");
+  assert.equal(classifyIntentForNode("I like icecream", "note").intent, "general");
+  assert.equal(classifyIntentForNode("I like it", "note").intent, "general");
 });
 
 test("sticky notes keep questions and explicit FYI references", () => {

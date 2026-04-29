@@ -1,8 +1,8 @@
 const Y = require("yjs");
+const aiClassifier = require("../services/ai-classifier.service");
 const eventService = require("../services/event.service");
 const taskService = require("../services/task.service");
 const { getUserWorkspaceRole } = require("../middleware/rbac");
-const { classifyIntentForNode } = require("../services/intent.service");
 const {
   applySemanticEvent,
   applyTextDelta,
@@ -17,6 +17,7 @@ const {
 const rooms = new Map();
 const roomPromises = new Map();
 const SNAPSHOT_EVERY_EVENTS = 50;
+const CLASSIFICATION_DEBOUNCE_MS = 700;
 
 function createHttpError(message, statusCode = 400) {
   const error = new Error(message);
@@ -220,6 +221,10 @@ function eventTypeForOp(type) {
   }
 }
 
+function shouldClassifyAfterOp(type) {
+  return type === "node:create" || type === "node:update" || type === "node:text:delta";
+}
+
 function applyOperationToDoc(doc, op, socket, role) {
   const nodes = getNodesMap(doc);
   const type = typeof op?.type === "string" ? op.type : "";
@@ -296,9 +301,17 @@ function applyOperationToDoc(doc, op, socket, role) {
 async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
   if (!isTextBearingNode(node)) return;
 
-  const classification = classifyIntentForNode(node.text, node.type);
-  const metadata = { ...getMeta(node), intent: classification.intent };
-  const classifiedNode = { ...node, metadata };
+  const classification = await aiClassifier.classifyIntent(node.text, {
+    nodeType: node.type,
+    logPrefix: "[canvas-sync]",
+  });
+  const latestNode = getNodeWithText(room.doc, node.id);
+  if (!latestNode || latestNode.text !== node.text || latestNode.type !== node.type) {
+    return;
+  }
+
+  const metadata = { ...getMeta(latestNode), intent: classification.intent };
+  const classifiedNode = { ...latestNode, metadata };
 
   let update = null;
   const onUpdate = (nextUpdate) => {
@@ -337,8 +350,8 @@ async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
 
   if (classification.intent === "action_item") {
     const task = await taskService.upsertTaskByNodeId(workspaceId, node.id, {
-      title: node.text.trim(),
-      status: "todo",
+      title: latestNode.text.trim(),
+      status: classification.status || "todo",
       priority: "medium",
       assigneeId: null,
       source: "ai",
@@ -357,7 +370,51 @@ async function maybeClassifyNode({ room, io, workspaceId, userId, node }) {
     };
 
     io.to(`room:${workspaceId}`).emit("task:sync", payload);
+  } else {
+    const deletedRows = await taskService.deleteTaskByNodeId(workspaceId, node.id);
+    if (deletedRows.length > 0) {
+      io.to(`room:${workspaceId}`).emit("task:sync", {
+        deleted: true,
+        sourceNodeId: node.id,
+        preserveNode: true,
+      });
+    }
   }
+}
+
+function scheduleNodeClassification({ room, io, workspaceId, userId, nodeId }) {
+  if (!nodeId) return;
+
+  const existingTimer = room.classificationTimers.get(nodeId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  const timer = setTimeout(() => {
+    room.classificationTimers.delete(nodeId);
+    room.opQueue = room.opQueue
+      .catch((error) => {
+        console.error("[canvas-sync] Previous canvas operation failed", error);
+      })
+      .then(async () => {
+        const latestNode = getNodeWithText(room.doc, nodeId);
+        if (!latestNode) return;
+
+        try {
+          await maybeClassifyNode({
+            room,
+            io,
+            workspaceId,
+            userId,
+            node: latestNode,
+          });
+        } catch (error) {
+          console.error("[canvas-sync] Intent extraction failed", error);
+        }
+      });
+  }, CLASSIFICATION_DEBOUNCE_MS);
+
+  room.classificationTimers.set(nodeId, timer);
 }
 
 async function getRoom(workspaceId) {
@@ -388,7 +445,13 @@ async function getRoom(workspaceId) {
       lastSequenceNum = Number(event.sequenceNum) || lastSequenceNum;
     }
 
-    const room = { doc, workspaceId, lastSequenceNum };
+    const room = {
+      doc,
+      workspaceId,
+      lastSequenceNum,
+      opQueue: Promise.resolve(),
+      classificationTimers: new Map(),
+    };
     rooms.set(workspaceId, room);
     roomPromises.delete(workspaceId);
     return room;
@@ -454,7 +517,12 @@ function createCanvasSyncManager(io) {
       await sendRecovery(socket, room, payload.lastSequenceNum);
     });
 
-    socket.on("canvas:op", async (op = {}) => {
+    socket.on("canvas:op", (op = {}) => {
+      room.opQueue = room.opQueue
+        .catch((error) => {
+          console.error("[canvas-sync] Previous canvas operation failed", error);
+        })
+        .then(async () => {
       let update = null;
       const type = typeof op?.type === "string" ? op.type : "";
       const nodes = getNodesMap(room.doc);
@@ -523,21 +591,15 @@ function createCanvasSyncManager(io) {
           }
         }
 
-        /*
-        if (type === "node:create" || type === "node:update") {
-          try {
-            await maybeClassifyNode({
-              room,
-              io,
-              workspaceId: socket.workspaceId,
-              userId: socket.user?.id || null,
-              node: result.changedNode,
-            });
-          } catch (error) {
-            console.error("[canvas-sync] Intent extraction failed", error);
-          }
+        if (shouldClassifyAfterOp(type)) {
+          scheduleNodeClassification({
+            room,
+            io,
+            workspaceId: socket.workspaceId,
+            userId: socket.user?.id || null,
+            nodeId: result.changedNode?.id || result.nodeId,
+          });
         }
-        */
 
         if (room.lastSequenceNum > 0 && room.lastSequenceNum % SNAPSHOT_EVERY_EVENTS === 0) {
           eventService
@@ -554,6 +616,7 @@ function createCanvasSyncManager(io) {
           message: error.message || "Canvas operation rejected.",
         });
       }
+        });
     });
   }
 
@@ -561,6 +624,13 @@ function createCanvasSyncManager(io) {
     const roomName = `room:${workspaceId}`;
     const sockets = await io.in(roomName).fetchSockets().catch(() => []);
     if (sockets.length === 0) {
+      const room = rooms.get(workspaceId);
+      if (room?.classificationTimers) {
+        for (const timer of room.classificationTimers.values()) {
+          clearTimeout(timer);
+        }
+        room.classificationTimers.clear();
+      }
       rooms.delete(workspaceId);
     }
   }
