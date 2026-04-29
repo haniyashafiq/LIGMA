@@ -306,6 +306,7 @@ export default function CanvasView({
   const [textEditor, setTextEditor] = useState(null);
   const [textEditLayout, setTextEditLayout] = useState(null);
   const [isDrawingState, setIsDrawingState] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState(null);
 
   useEffect(() => {
     textEditorRef.current = textEditor;
@@ -416,7 +417,11 @@ export default function CanvasView({
     // Only update if something actually changed to prevent render loops
     const currentNodes = nodesRef.current;
     const hasChanged = nextNodes.length !== currentNodes.length || 
-                      nextNodes.some((n, i) => n.id !== currentNodes[i]?.id || n.text !== currentNodes[i]?.text);
+                      nextNodes.some((n, i) => {
+                        const c = currentNodes[i];
+                        const pChanged = n.points?.length !== c.points?.length || (n.points && c.points && n.points[n.points.length - 1] !== c.points[c.points.length - 1]);
+                        return !c || n.id !== c.id || n.text !== c.text || n.x !== c.x || n.y !== c.y || n.width !== c.width || n.height !== c.height || pChanged;
+                      });
     
     if (hasChanged) {
       setNodes(nextNodes);
@@ -571,13 +576,17 @@ export default function CanvasView({
       lastPlacedTextRef.current = null;
       const ta = textAreaRef.current;
       const value = ta && typeof ta.value === "string" ? ta.value : (current.value ?? "");
-      if (value === current.baseline) {
-        return null;
+      
+      if (value !== lastValueRef.current) {
+        emitTextChange(current.nodeId, value);
       }
-      handleAITrigger(current.nodeId, value);
+      
+      if (value !== current.baseline) {
+        handleAITrigger(current.nodeId, value);
+      }
       return null;
     });
-  }, [handleAITrigger]);
+  }, [emitTextChange, handleAITrigger]);
 
   /** Saves textarea content and closes the editor. Mousedown on the stage runs before blur; call this first so we do not lose edits (e.g. text tool spawning a new node would reset editor state). Returns whether an editor was open. */
   const flushActiveTextEditor = useCallback(() => {
@@ -590,6 +599,15 @@ export default function CanvasView({
     if (value !== lastValueRef.current) {
       emitTextChange(editing.nodeId, value);
     }
+    
+    // Optimistic local update to prevent "disappearing" text flicker
+    const node = nodesMapRef.current?.get(editing.nodeId);
+    if (node) {
+      const liveTextNode = nodeTextsMapRef.current?.get(editing.nodeId);
+      // We don't want to conflict with Yjs, but for visual continuity:
+      setNodes(prev => prev.map(n => n.id === editing.nodeId ? { ...n, text: value } : n));
+    }
+
     // Final force sync to nodes state for instant visual
     updateNodesFromDoc();
     if (value !== editing.baseline) {
@@ -1016,9 +1034,36 @@ export default function CanvasView({
       setSelectedId(null);
     }
 
+    function handleEnterKey(event) {
+      if (event.target?.closest?.(".canvas-text-edit")) return;
+      if (event.key === "Enter" && selectedId && !readOnly) {
+        const node = nodesRef.current.find(n => n.id === selectedId);
+        if (node && node.type === "note") {
+          const ownerId = node.metadata?.ownerId || node.metadata?.authorId;
+          const canEdit = currentUserRole === "lead" || (ownerId && String(ownerId) === String(currentUserId));
+          
+          if (!canEdit) {
+            window.dispatchEvent(
+              new CustomEvent("ligma:rbac-toast", {
+                detail: { message: "Only the owner or a Lead can edit this note." },
+              }),
+            );
+            return;
+          }
+
+          event.preventDefault();
+          beginTextEdit(node);
+        }
+      }
+    }
+
     window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [currentUserId, currentUserRole, emitOp, readOnly, selectedId]);
+    window.addEventListener("keydown", handleEnterKey);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keydown", handleEnterKey);
+    };
+  }, [currentUserId, currentUserRole, emitOp, readOnly, selectedId, beginTextEdit]);
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -1199,8 +1244,20 @@ export default function CanvasView({
       draggable: !readOnly && activeToolRef.current === "select",
       onClick: () => setSelectedId(node.id),
       onTap: () => setSelectedId(node.id),
-      onDragEnd: (event) => updateNode(node.id, { x: event.target.x(), y: event.target.y() }),
+      onMouseEnter: () => !readOnly && node.type === "note" && setHoveredNodeId(node.id),
+      onMouseLeave: () => setHoveredNodeId(null),
+      onDragStart: (e) => {
+        e.cancelBubble = true;
+      },
+      onDragMove: (e) => {
+        e.cancelBubble = true;
+      },
+      onDragEnd: (event) => {
+        event.cancelBubble = true;
+        updateNode(node.id, { x: event.target.x(), y: event.target.y() });
+      },
       onTransformEnd: (event) => {
+        event.cancelBubble = true;
         const target = event.target;
         const scaleX = target.scaleX();
         const scaleY = target.scaleY();
@@ -1219,24 +1276,24 @@ export default function CanvasView({
     if (node.type === "text") {
       const editingThis = textEditor?.nodeId === node.id;
       return (
-        <Text
-          key={key}
-          {...konvaProps}
-          text={node.text || "\u00a0"}
-          width={node.width}
-          height={node.height}
-          fill="#f8fafc"
-          fontSize={node.style?.fontSize || 18}
-          visible={!editingThis}
-          onDblClick={(e) => {
-            e.evt?.stopPropagation?.();
-            beginTextEdit(node);
-          }}
-          onDblTap={(e) => {
-            e.evt?.stopPropagation?.();
-            beginTextEdit(node);
-          }}
-        />
+        <Group key={key} {...konvaProps}>
+          <Text
+            text={node.text || "\u00a0"}
+            width={node.width}
+            height={node.height}
+            fill="#f8fafc"
+            fontSize={node.style?.fontSize || 20}
+            visible={!editingThis}
+            onDblClick={(e) => {
+              e.evt?.stopPropagation?.();
+              beginTextEdit(node);
+            }}
+            onDblTap={(e) => {
+              e.evt?.stopPropagation?.();
+              beginTextEdit(node);
+            }}
+          />
+        </Group>
       );
     }
 
@@ -1245,9 +1302,8 @@ export default function CanvasView({
       const intentBadge = getIntentBadge(node.metadata?.intent);
       const badgeWidth = intentBadge ? Math.min(Math.max(intentBadge.label.length * 7 + 18, 86), Math.max(86, node.width - 24)) : 0;
       return (
-        <React.Fragment key={key}>
+        <Group key={key} {...konvaProps}>
           <Rect
-            {...konvaProps}
             width={node.width}
             height={node.height}
             fill={node.style?.fill || "#facc15"}
@@ -1266,8 +1322,8 @@ export default function CanvasView({
             }}
           />
           <Text
-            x={node.x + 12}
-            y={node.y + 12}
+            x={12}
+            y={12}
             width={Math.max(20, node.width - 24)}
             height={Math.max(20, node.height - (intentBadge ? 48 : 24))}
             text={node.text || "\u00a0"}
@@ -1279,8 +1335,8 @@ export default function CanvasView({
           {intentBadge ? (
             <>
               <Rect
-                x={node.x + 12}
-                y={node.y + Math.max(12, node.height - 28)}
+                x={12}
+                y={Math.max(12, node.height - 28)}
                 width={badgeWidth}
                 height={18}
                 fill={intentBadge.fill}
@@ -1290,8 +1346,8 @@ export default function CanvasView({
                 listening={false}
               />
               <Text
-                x={node.x + 21}
-                y={node.y + Math.max(15, node.height - 25)}
+                x={21}
+                y={Math.max(15, node.height - 25)}
                 width={Math.max(20, badgeWidth - 18)}
                 height={12}
                 text={intentBadge.label}
@@ -1302,84 +1358,84 @@ export default function CanvasView({
               />
             </>
           ) : null}
-        </React.Fragment>
+        </Group>
       );
     }
 
     if (node.type === "arrow") {
       return (
-        <Arrow
-          key={key}
-          {...konvaProps}
-          points={node.points?.length ? node.points : [0, 0, node.width || 120, 0]}
-          stroke={node.style?.stroke || "#e2e8f0"}
-          fill={node.style?.stroke || "#e2e8f0"}
-          strokeWidth={node.style?.strokeWidth || 2}
-          pointerLength={12}
-          pointerWidth={12}
-        />
+        <Group key={key} {...konvaProps}>
+          <Arrow
+            points={node.points?.length ? node.points : [0, 0, node.width || 120, 0]}
+            stroke={node.style?.stroke || "#e2e8f0"}
+            fill={node.style?.stroke || "#e2e8f0"}
+            strokeWidth={node.style?.strokeWidth || 2}
+            pointerLength={12}
+            pointerWidth={12}
+          />
+        </Group>
       );
     }
 
     if (node.type === "draw") {
       return (
-        <Line
-          key={key}
-          {...konvaProps}
-          points={node.points || []}
-          stroke={node.style?.stroke || "#e2e8f0"}
-          strokeWidth={node.style?.strokeWidth || 2}
-          tension={0.35}
-          lineCap="round"
-          lineJoin="round"
-        />
+        <Group key={key} {...konvaProps}>
+          <Line
+            points={node.points || []}
+            stroke={node.style?.stroke || "#e2e8f0"}
+            strokeWidth={node.style?.strokeWidth || 2}
+            tension={0.35}
+            lineCap="round"
+            lineJoin="round"
+          />
+        </Group>
       );
     }
 
     if (node.type === "circle") {
       return (
-        <Circle
-          key={key}
-          {...konvaProps}
-          x={node.x + node.width / 2}
-          y={node.y + node.height / 2}
-          radius={Math.abs(node.width) / 2}
-          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
-          stroke={node.style?.stroke || "#818cf8"}
-          strokeWidth={node.style?.strokeWidth || 2}
-        />
+        <Group key={key} {...konvaProps}>
+          <Circle
+            x={node.width / 2}
+            y={node.height / 2}
+            radius={Math.abs(node.width) / 2}
+            fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+            stroke={node.style?.stroke || "#818cf8"}
+            strokeWidth={node.style?.strokeWidth || 2}
+          />
+        </Group>
       );
     }
 
     if (node.type === "triangle") {
       return (
-        <Line
-          key={key}
-          {...konvaProps}
-          points={[
-            node.width / 2, 0,
-            node.width, node.height,
-            0, node.height
-          ]}
-          closed
-          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
-          stroke={node.style?.stroke || "#818cf8"}
-          strokeWidth={node.style?.strokeWidth || 2}
-        />
+        <Group key={key} {...konvaProps}>
+          <Line
+            points={[
+              node.width / 2, 0,
+              node.width, node.height,
+              0, node.height
+            ]}
+            closed
+            fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+            stroke={node.style?.stroke || "#818cf8"}
+            strokeWidth={node.style?.strokeWidth || 2}
+          />
+        </Group>
       );
     }
 
     return (
-      <Rect
-        key={key}
-        {...konvaProps}
-        width={node.width}
-        height={node.height}
-        fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
-        stroke={node.metadata?.lockedBy ? "#f97316" : node.style?.stroke || "#818cf8"}
-        strokeWidth={node.style?.strokeWidth || 2}
-        cornerRadius={8}
-      />
+      <Group key={key} {...konvaProps}>
+        <Rect
+          width={node.width}
+          height={node.height}
+          fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}
+          stroke={node.metadata?.lockedBy ? "#f97316" : node.style?.stroke || "#818cf8"}
+          strokeWidth={node.style?.strokeWidth || 2}
+          cornerRadius={8}
+        />
+      </Group>
     );
   }
 
@@ -1538,12 +1594,37 @@ export default function CanvasView({
             lineHeight: 1.25,
             transform: textEditLayout.rotation ? `rotate(${textEditLayout.rotation}deg)` : undefined,
             transformOrigin: "top left",
+            zIndex: 10000,
+            display: "block",
+            visibility: "visible",
+            opacity: 1,
+            background: textEditor.surface === "note" ? "transparent" : "transparent",
+            border: "none",
+            outline: "none",
+            padding: 0,
+            margin: 0,
+            color: textEditor.surface === "note" ? "#0f172a" : "#f8fafc",
           }}
         />
       ) : null}
       {nodes.length === 0 && connectionState === "online" ? (
         <div className="canvas-empty-hint">Choose a tool and click the canvas to create your first node.</div>
       ) : null}
+      {hoveredNodeId && !textEditor && !readOnly && !isDrawingState && (
+        <div 
+          className="canvas-hover-hint"
+          style={{
+            position: "absolute",
+            left: (nodes.find(n => n.id === hoveredNodeId)?.x || 0) * viewport.scale + viewport.x,
+            top: (nodes.find(n => n.id === hoveredNodeId)?.y || 0) * viewport.scale + viewport.y - 30,
+            transform: "translateX(-50%)",
+            pointerEvents: "none",
+            zIndex: 50,
+          }}
+        >
+          Press Enter to edit
+        </div>
+      )}
     </div>
   );
 }
