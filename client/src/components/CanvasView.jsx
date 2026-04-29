@@ -884,6 +884,7 @@ export default function CanvasView({
           if (tool === "arrow") node.points = [0, 0, 0, 0];
         }
         
+        lastDrawEmitRef.current = Date.now() + 50;
         emitOp({ type: "node:create", node });
       }
       
@@ -1234,8 +1235,12 @@ export default function CanvasView({
           {selectedId && !textEditor && !isDrawingState ? (
             <Transformer
               ref={transformerRef}
-              rotateEnabled
-              enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
+              rotateEnabled={nodes.find(n => n.id === selectedId)?.type !== "draw"}
+              enabledAnchors={
+                nodes.find(n => n.id === selectedId)?.type === "draw"
+                  ? []
+                  : ["top-left", "top-right", "bottom-left", "bottom-right"]
+              }
             />
           ) : null}
           {nodes
