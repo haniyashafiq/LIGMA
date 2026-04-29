@@ -343,7 +343,7 @@ export function WorkspacePage() {
 
   const handleUpdateMemberRole = async ({ userId, role }) => {
     try {
-      await apiFetch(`/api/workspaces/${workspaceId}/members/${userId}`, {
+      await apiFetch(`/api/workspaces/${workspaceId}/roles/${userId}`, {
         method: "PATCH",
         body: JSON.stringify({ role }),
       });
@@ -358,7 +358,7 @@ export function WorkspacePage() {
 
   const handleInviteMember = async ({ username, role }) => {
     try {
-      await apiFetch(`/api/workspaces/${workspaceId}/members`, {
+      await apiFetch(`/api/workspaces/${workspaceId}/invite`, {
         method: "POST",
         body: JSON.stringify({ username, role }),
       });
@@ -373,7 +373,7 @@ export function WorkspacePage() {
 
   const handleCreateInviteLink = async ({ role }) => {
     try {
-      return await apiFetch(`/api/workspaces/${workspaceId}/invite-links`, {
+      return await apiFetch(`/api/workspaces/${workspaceId}/invite-link`, {
         method: "POST",
         body: JSON.stringify({ role }),
       });

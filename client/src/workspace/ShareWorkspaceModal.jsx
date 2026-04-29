@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FiCopy, FiLink2, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
 
 const INVITE_ROLES = ["lead", "contributor", "viewer"];
@@ -24,8 +24,19 @@ export default function ShareWorkspaceModal({
   const [copyMessage, setCopyMessage] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState("");
 
   const workspaceLink = useMemo(() => buildWorkspaceLink(), []);
+
+  useEffect(() => {
+    if (!open) return;
+    setGeneratedInviteUrl("");
+    setCopyMessage("");
+    setActionMessage("");
+    setErrorMessage("");
+  }, [open]);
+
+  const shareLinkDisplay = canManageMembers ? generatedInviteUrl : workspaceLink;
 
   async function handleInviteSubmit(event) {
     event.preventDefault();
@@ -65,7 +76,9 @@ export default function ShareWorkspaceModal({
     try {
       setBusyLink(true);
       const payload = await onCreateInviteLink({ role: linkRole });
-      await navigator.clipboard.writeText(payload?.inviteUrl || workspaceLink);
+      const url = payload?.inviteUrl || "";
+      if (url) setGeneratedInviteUrl(url);
+      await navigator.clipboard.writeText(url || workspaceLink);
       setCopyMessage(`Link copied with ${linkRole} role.`);
     } catch (error) {
       setErrorMessage(error?.message || "Copy failed. Please try again.");
@@ -107,7 +120,10 @@ export default function ShareWorkspaceModal({
               <select
                 id="workspace-link-role"
                 value={linkRole}
-                onChange={(event) => setLinkRole(event.target.value)}
+                onChange={(event) => {
+                  setLinkRole(event.target.value);
+                  setGeneratedInviteUrl("");
+                }}
               >
                 {INVITE_ROLES.map((role) => (
                   <option key={role} value={role}>
@@ -118,7 +134,18 @@ export default function ShareWorkspaceModal({
             </>
           )}
           <div className="ws-share-link-row">
-            <input id="workspace-share-link" type="text" value={workspaceLink} readOnly />
+            <input
+              id="workspace-share-link"
+              type="text"
+              value={shareLinkDisplay}
+              readOnly
+              placeholder={
+                canManageMembers
+                  ? "Click “Copy Link” to generate a signed invite URL"
+                  : ""
+              }
+              aria-label="Invite link to share"
+            />
             <button type="button" onClick={handleCopyLink} disabled={busyLink}>
               <FiCopy size={13} />
               {busyLink ? "Creating..." : "Copy Link"}

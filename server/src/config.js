@@ -13,6 +13,12 @@ if (missingVars.length > 0) {
   );
 }
 
+/** No trailing slash — invite links are built as `${CLIENT_URL}/workspace/...`. */
+function normalizeBaseUrl(url) {
+  if (typeof url !== "string") return url;
+  return url.trim().replace(/\/+$/, "");
+}
+
 const parsedPort = Number(process.env.PORT || 3000);
 
 if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
@@ -28,8 +34,12 @@ function splitOrigins(value) {
 }
 
 function buildClientOrigins() {
-  const origins = new Set([process.env.CLIENT_URL, ...splitOrigins(process.env.CLIENT_URLS)]);
-  const baseUrl = process.env.CLIENT_URL;
+  const clientUrl = normalizeBaseUrl(process.env.CLIENT_URL);
+  const origins = new Set([
+    clientUrl,
+    ...splitOrigins(process.env.CLIENT_URLS).map(normalizeBaseUrl),
+  ]);
+  const baseUrl = clientUrl;
 
   // In local dev, Vite may auto-shift from 5173 to 5174 when ports are busy.
   if (typeof baseUrl === "string" && /^https?:\/\/localhost(:\d+)?$/i.test(baseUrl.trim())) {
@@ -47,7 +57,7 @@ module.exports = {
   PORT: parsedPort,
   DATABASE_URL: process.env.DATABASE_URL,
   JWT_SECRET: process.env.JWT_SECRET,
-  CLIENT_URL: process.env.CLIENT_URL,
+  CLIENT_URL: normalizeBaseUrl(process.env.CLIENT_URL),
   CLIENT_ORIGINS,
   // Optional Gemini-backed intent API (FastAPI in /ai). CHATBOT_URL is deprecated alias.
   AI_SERVICE_URL:
