@@ -1,5 +1,12 @@
 import React from "react";
-import { FiActivity, FiFilter, FiMoreHorizontal } from "react-icons/fi";
+import { 
+  FiActivity, 
+  FiFilter, 
+  FiMoreHorizontal, 
+  FiPlus, 
+  FiLink, 
+  FiList 
+} from "react-icons/fi";
 
 export function ExecutionPanel({ 
   events, 
@@ -9,7 +16,21 @@ export function ExecutionPanel({
   setShowActivityFilter, 
   currentUser, 
   getEventAction, 
-  getUsername 
+  getUsername,
+  tasks,
+  taskFilter,
+  setTaskFilter,
+  showTaskFilter,
+  setShowTaskFilter,
+  handleUpdateTask,
+  setShowAddTask,
+  jumpToNode,
+  activeTab,
+  setActiveTab,
+  navigate,
+  workspaceId,
+  isReadOnlyMode,
+  getIntentLabel
 }) {
   return (
     <aside className="ws-exec-panel">
@@ -86,6 +107,120 @@ export function ExecutionPanel({
             </li>
           )}
         </ul>
+
+        {/* Tasks Section */}
+        <div className="ws-section-toggle" style={{ marginTop: '4px', position: 'relative' }}>
+          <h3>
+            <FiList size={12} />
+            Workspace Tasks
+          </h3>
+          <button 
+            className="ws-section-add-btn" 
+            onClick={() => setShowTaskFilter(!showTaskFilter)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              width: 'auto', height: 'auto',
+              background: taskFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent',
+              padding: taskFilter !== 'all' ? '4px 8px' : '4px',
+              borderRadius: '4px'
+            }}
+          >
+            {taskFilter !== 'all' && (
+              <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{taskFilter}</span>
+            )}
+            <FiMoreHorizontal size={12} color={taskFilter !== 'all' ? 'var(--color-primary)' : 'inherit'} />
+          </button>
+          {showTaskFilter && (
+            <div className="ws-dropdown-menu">
+              {['all', 'todo', 'doing', 'done'].map(filter => (
+                <button 
+                  key={filter} 
+                  className={`ws-dropdown-item ${taskFilter === filter ? 'active' : ''}`}
+                  onClick={() => { setTaskFilter(filter); setShowTaskFilter(false); }}
+                >
+                  {filter === 'doing' ? 'In Progress' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="ws-task-list">
+          {tasks.filter(t => {
+            if (taskFilter === 'all') return true;
+            return t.status === taskFilter;
+          }).map((task) => (
+            <div key={task.id} className="ws-task-card">
+              <div className="ws-task-card-header">
+                <div className="ws-task-header-left">
+                  {task.priority && (
+                    <span className={`ws-task-priority-badge ${task.priority}`}>
+                      {task.priority}
+                    </span>
+                  )}
+                  {task.intent && (
+                    <span className={`ws-task-intent-badge ${String(task.intent).toLowerCase()}`}>
+                      {getIntentLabel(task.intent)}
+                    </span>
+                  )}
+                </div>
+                <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
+                  {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
+                </span>
+              </div>
+              <p className="ws-task-title">{task.title}</p>
+              <div className="ws-task-footer">
+                <span 
+                  className={`ws-task-status ${task.status}`}
+                  onClick={() => {
+                    if (isReadOnlyMode) return;
+                    const states = ['todo', 'doing', 'done'];
+                    const current = task.status === 'in_progress' ? 'doing' : task.status;
+                    const idx = states.indexOf(current);
+                    const next = states[(idx + 1) % states.length];
+                    handleUpdateTask(task.id, { status: next });
+                  }}
+                >
+                  {task.status === 'in_progress' ? 'Doing' : task.status}
+                </span>
+                <div className="ws-task-footer-actions">
+                  {task.source_node_id && (
+                    <button 
+                      className="ws-task-link-btn" 
+                      title="Go to Canvas node"
+                      onClick={() => {
+                        if (activeTab !== 'workspace') {
+                          setActiveTab('workspace');
+                          navigate(`/workspace/${workspaceId}/workspace`);
+                          setTimeout(() => jumpToNode(task.source_node_id), 100);
+                        } else {
+                          jumpToNode(task.source_node_id);
+                        }
+                      }}
+                    >
+                      <FiLink size={10} />
+                    </button>
+                  )}
+                  <div className="ws-task-user-pip" title={getUsername(task.assignee_id)}>
+                    {getUsername(task.assignee_id).charAt(0).toUpperCase()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="ws-exec-footer">
+        <button 
+          className="ws-add-task-btn" 
+          onClick={() => setShowAddTask(true)}
+          disabled={isReadOnlyMode}
+        >
+          <FiPlus size={14} />
+          Add Task
+        </button>
       </div>
     </aside>
   );

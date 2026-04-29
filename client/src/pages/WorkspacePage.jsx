@@ -109,6 +109,8 @@ export function WorkspacePage() {
   }, [currentUser, workspaceMembers]);
 
   const [events, setEvents] = useState([]);
+  const [taskFilter, setTaskFilter] = useState("all");
+  const [showTaskFilter, setShowTaskFilter] = useState(false);
   const [activityFilter, setActivityFilter] = useState("all");
   const [showActivityFilter, setShowActivityFilter] = useState(false);
 
@@ -419,7 +421,21 @@ export function WorkspacePage() {
                 setShowActivityFilter={setShowActivityFilter} 
                 currentUser={currentUser} 
                 getEventAction={getEventAction} 
-                getUsername={getUsername} 
+                getUsername={getUsername}
+                tasks={tasks}
+                taskFilter={taskFilter}
+                setTaskFilter={setTaskFilter}
+                showTaskFilter={showTaskFilter}
+                setShowTaskFilter={setShowTaskFilter}
+                handleUpdateTask={handleUpdateTask}
+                setShowAddTask={setShowAddTask}
+                jumpToNode={jumpToNode}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                navigate={navigate}
+                workspaceId={workspaceId}
+                isReadOnlyMode={isReadOnlyMode}
+                getIntentLabel={getIntentLabel}
               />
             )}
           </>
