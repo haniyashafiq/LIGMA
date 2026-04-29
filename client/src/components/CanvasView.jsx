@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, us
 import { io } from "socket.io-client";
 import * as Y from "yjs";
 import { Arrow, Circle, Group, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
+import { apiFetch } from "../net/api";
 import { AppContext } from "../utils/AppContext";
 import { getAccessToken, refreshAccessToken } from "../net/api";
 import "../styles/canvas.css";
@@ -173,6 +174,23 @@ function makeNode(type, pointer, currentUser, zIndex) {
   return node;
 }
 
+function classifyIntent(text) {
+  return fetch("http://localhost:8000/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text }),
+  })
+    .then((res) => res.json())
+    .then((data) => ({
+      intent: data.intent || "general",
+      status: data.status || "todo",
+    }))
+    .catch((err) => {
+      console.error("AI classification failed:", err);
+      return { intent: "general", status: "todo" };
+    });
+}
+
 export default function CanvasView({
   workspaceId,
   onMount,
@@ -183,7 +201,7 @@ export default function CanvasView({
   currentUserRole = "viewer",
   collabUser = null,
 }) {
-  const { token, exposeJump, setConnectionStatus } = useContext(AppContext);
+  const { token, exposeJump, setConnectionStatus, user } = useContext(AppContext);
   const canvasShellRef = useRef(null);
   const stageRef = useRef(null);
   const transformerRef = useRef(null);
@@ -378,6 +396,51 @@ export default function CanvasView({
     };
   }, [resolveTextNode]);
 
+  const handleAITrigger = useCallback(async (nodeId, text) => {
+    if (!text || text.length < 2) return;
+    
+    // Check if it's a note or text node
+    const node = resolveTextNode(nodeId);
+    if (!node || (node.type !== 'note' && node.type !== 'text')) return;
+
+    const cleanText = text.replace(/^\[.*?\]\s*/, '').trim();
+    const result = await classifyIntent(cleanText);
+    const { intent, status } = result;
+
+    // Normalize intent for display (e.g. "action item" -> "Action Item")
+    const displayIntent = intent.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const tag = `[${displayIntent}]`;
+    
+    // Normalize intent for database (e.g. "action item" -> "action_item")
+    const dbIntent = intent.toLowerCase().replace(/\s+/g, '_');
+    
+    // Update node with intent tag if changed
+    if (!text.startsWith(tag)) {
+      emitOp({ type: "node:update", nodeId, patch: { text: `${tag}\n${cleanText}` } });
+    }
+
+    if (dbIntent === 'action_item') {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/node/${nodeId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: cleanText,
+          status: status || 'todo',
+          intent: 'action_item',
+          source: 'ai',
+          sourceAuthorId: user?.id,
+          sourceAuthorName: user?.displayName || user?.username
+        })
+      });
+      window.dispatchEvent(new CustomEvent('ligma:tasks-sync'));
+    } else {
+      // If it was a task but now it's something else, remove it
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks/node/${nodeId}`, {
+        method: 'DELETE'
+      });
+      window.dispatchEvent(new CustomEvent('ligma:tasks-sync'));
+    }
+  }, [emitOp, resolveTextNode, workspaceId, user]);
+
   const commitTextEditor = useCallback(() => {
     setTextEditor((current) => {
       if (!current) return null;
@@ -388,9 +451,10 @@ export default function CanvasView({
         return null;
       }
       emitOp({ type: "node:update", nodeId: current.nodeId, patch: { text: value } });
+      handleAITrigger(current.nodeId, value);
       return null;
     });
-  }, [emitOp]);
+  }, [emitOp, handleAITrigger]);
 
   /** Saves textarea content and closes the editor. Mousedown on the stage runs before blur; call this first so we do not lose edits (e.g. text tool spawning a new node would reset editor state). Returns whether an editor was open. */
   const flushActiveTextEditor = useCallback(() => {
@@ -402,11 +466,12 @@ export default function CanvasView({
     skipNextTextBlurCommitRef.current = true;
     if (value !== editing.baseline) {
       emitOp({ type: "node:update", nodeId: editing.nodeId, patch: { text: value } });
+      handleAITrigger(editing.nodeId, value);
     }
     setTextEditor(null);
     textEditorRef.current = null;
     return true;
-  }, [emitOp]);
+  }, [emitOp, handleAITrigger]);
 
   const cancelTextEditor = useCallback(() => {
     setTextEditor((current) => {
@@ -679,8 +744,12 @@ export default function CanvasView({
     socket.on("workspace:role_updated", (payload) => {
       window.dispatchEvent(new CustomEvent("ligma:role-updated", { detail: payload || {} }));
     });
-    socket.on("task:sync", () => {
+    socket.on("task:sync", (payload) => {
       window.dispatchEvent(new CustomEvent("ligma:tasks-sync"));
+      if (payload?.deleted && payload.sourceNodeId) {
+        // If a task linked to a canvas node was deleted, remove the note too
+        emitOp({ type: "node:delete", nodeId: payload.sourceNodeId });
+      }
     });
 
     return () => {

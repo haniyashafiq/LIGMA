@@ -6,3 +6,4 @@ langchain-mcp-adapters
 python-dotenv
 fastapi
 uvicorn[standard]
+fastmcp

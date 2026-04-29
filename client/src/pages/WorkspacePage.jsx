@@ -213,6 +213,18 @@ export function WorkspacePage() {
     return actions[event?.eventType] || "modified the workspace";
   }, []);
 
+  const handleDeleteAllTasks = useCallback(async () => {
+    if (!window.confirm("Are you sure you want to delete ALL tasks in this workspace? This cannot be undone.")) return;
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/tasks`, {
+        method: "DELETE",
+      });
+      loadTasks();
+    } catch (err) {
+      console.error("Failed to delete all tasks:", err);
+    }
+  }, [workspaceId, loadTasks]);
+
   const getIntentLabel = useCallback((intent) => {
     if (!intent) return null;
     const normalized = String(intent).toLowerCase();
@@ -311,6 +323,11 @@ export function WorkspacePage() {
     }, 5000);
     return () => clearInterval(interval);
   }, [loadTasks, loadEvents]);
+
+  useEffect(() => {
+    window.addEventListener("ligma:tasks-sync", loadTasks);
+    return () => window.removeEventListener("ligma:tasks-sync", loadTasks);
+  }, [loadTasks]);
 
   const isReadOnlyMode = workspaceRole === "viewer";
   const connectionDot = connectionStatus === "online" ? "online" : connectionStatus === "error" ? "error" : "offline";
@@ -494,6 +511,7 @@ export function WorkspacePage() {
                 isReadOnlyMode={isReadOnlyMode}
                 getIntentLabel={getIntentLabel}
                 handleDeleteTask={handleDeleteTask}
+                handleDeleteAllTasks={handleDeleteAllTasks}
               />
             )}
           </>

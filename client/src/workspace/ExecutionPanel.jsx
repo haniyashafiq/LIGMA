@@ -32,7 +32,8 @@ export function ExecutionPanel({
   workspaceId,
   isReadOnlyMode,
   getIntentLabel,
-  handleDeleteTask
+  handleDeleteTask,
+  handleDeleteAllTasks
 }) {
   return (
     <aside className="ws-exec-panel">
@@ -116,22 +117,34 @@ export function ExecutionPanel({
             <FiList size={12} />
             Workspace Tasks
           </h3>
-          <button 
-            className="ws-section-add-btn" 
-            onClick={() => setShowTaskFilter(!showTaskFilter)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '4px',
-              width: 'auto', height: 'auto',
-              background: taskFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent',
-              padding: taskFilter !== 'all' ? '4px 8px' : '4px',
-              borderRadius: '4px'
-            }}
-          >
-            {taskFilter !== 'all' && (
-              <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{taskFilter}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {!isReadOnlyMode && handleDeleteAllTasks && (
+              <button 
+                className="ws-section-add-btn"
+                onClick={(e) => { e.stopPropagation(); handleDeleteAllTasks(); }}
+                style={{ color: 'var(--color-error, #ff4d4f)', padding: '4px' }}
+                title="Delete all tasks"
+              >
+                <FiTrash2 size={12} />
+              </button>
             )}
-            <FiMoreHorizontal size={12} color={taskFilter !== 'all' ? 'var(--color-primary)' : 'inherit'} />
-          </button>
+            <button 
+              className="ws-section-add-btn" 
+              onClick={() => setShowTaskFilter(!showTaskFilter)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                width: 'auto', height: 'auto',
+                background: taskFilter !== 'all' ? 'rgba(13, 153, 255, 0.1)' : 'transparent',
+                padding: taskFilter !== 'all' ? '4px 8px' : '4px',
+                borderRadius: '4px'
+              }}
+            >
+              {taskFilter !== 'all' && (
+                <span style={{ fontSize: '10px', color: 'var(--color-primary)', textTransform: 'capitalize', fontWeight: 600 }}>{taskFilter}</span>
+              )}
+              <FiMoreHorizontal size={12} color={taskFilter !== 'all' ? 'var(--color-primary)' : 'inherit'} />
+            </button>
+          </div>
           {showTaskFilter && (
             <div className="ws-dropdown-menu">
               {['all', 'todo', 'in_progress', 'done'].map(filter => (

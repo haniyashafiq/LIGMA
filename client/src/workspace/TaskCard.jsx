@@ -39,7 +39,7 @@ export function TaskCard({
     >
       <div className="ws-task-top-row">
         <div className="ws-task-main-info">
-          <h4 className="ws-task-display-title">{task.title}</h4>
+          <h4 className="ws-task-display-title">{task.title?.replace(/^\[.*?\]\s*/, '')}</h4>
           <span className="ws-task-author-sub">by {task.authorName || 'unknown'}</span>
         </div>
         <div className="ws-task-top-badges">
