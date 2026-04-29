@@ -61,6 +61,7 @@ export function WorkspacePage() {
     connectionStatus,
     membersOpen,
     setMembersOpen,
+    members: presenceMembers,
   } = useContext(AppContext);
 
   const [editor, setEditor] = useState(null);
@@ -314,6 +315,48 @@ export function WorkspacePage() {
   const isReadOnlyMode = workspaceRole === "viewer";
   const connectionDot = connectionStatus === "online" ? "online" : connectionStatus === "error" ? "error" : "offline";
 
+  const handleUpdateMemberRole = async ({ userId, role }) => {
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/members/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      });
+      // Refresh members
+      const res = await apiFetch(`/api/workspaces/${workspaceId}`);
+      setWorkspaceMembers(res?.members || []);
+    } catch (err) {
+      console.error("Failed to update role:", err);
+      throw err;
+    }
+  };
+
+  const handleInviteMember = async ({ username, role }) => {
+    try {
+      await apiFetch(`/api/workspaces/${workspaceId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ username, role }),
+      });
+      // Refresh members
+      const res = await apiFetch(`/api/workspaces/${workspaceId}`);
+      setWorkspaceMembers(res?.members || []);
+    } catch (err) {
+      console.error("Failed to invite member:", err);
+      throw err;
+    }
+  };
+
+  const handleCreateInviteLink = async ({ role }) => {
+    try {
+      return await apiFetch(`/api/workspaces/${workspaceId}/invite-links`, {
+        method: "POST",
+        body: JSON.stringify({ role }),
+      });
+    } catch (err) {
+      console.error("Failed to create invite link:", err);
+      throw err;
+    }
+  };
+
   return (
     <div className="ws-main-shell glassmorphism">
       <WorkspaceTopbar
@@ -456,8 +499,30 @@ export function WorkspacePage() {
         isSubmittingTask={isSubmittingTask} 
       />
 
-      {membersOpen && <MembersSidebar workspaceId={workspaceId} onClose={() => setMembersOpen(false)} />}
-      {shareOpen && <ShareWorkspaceModal workspaceId={workspaceId} onClose={() => setShareOpen(false)} />}
+      {membersOpen && (
+        <MembersSidebar 
+          open={true}
+          workspaceId={workspaceId} 
+          onClose={() => setMembersOpen(false)} 
+          members={workspaceMembers}
+          onlineUserIds={presenceMembers.map(m => m.id)}
+          onlineUsernames={presenceMembers.map(m => m.name)}
+          currentUserId={currentUser?.id}
+          currentRole={workspaceRole}
+          onChangeRole={handleUpdateMemberRole}
+        />
+      )}
+      {shareOpen && (
+        <ShareWorkspaceModal 
+          open={true}
+          workspaceId={workspaceId} 
+          onClose={() => setShareOpen(false)} 
+          onInvite={handleInviteMember}
+          onCreateInviteLink={handleCreateInviteLink}
+          canManageMembers={workspaceRole === 'lead'}
+          onOpenMembers={() => { setShareOpen(false); setMembersOpen(true); }}
+        />
+      )}
     </div>
   );
 }
