@@ -98,11 +98,6 @@ export function TaskCard({
           )}
         </div>
 
-        <div className="ws-task-assignee-wrap">
-          <div className="ws-task-avatar-circle" title={getUsername(task.assignee_id)}>
-            {getUsername(task.assignee_id).charAt(0).toUpperCase()}
-          </div>
-        </div>
       </div>
     </div>
   );
