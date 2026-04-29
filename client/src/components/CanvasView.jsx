@@ -243,6 +243,28 @@ export default function CanvasView({
     return () => window.clearTimeout(id);
   }, [rbacToast]);
 
+  const applyOpLocally = useCallback((op) => {
+    const doc = docRef.current;
+    const map = nodesMapRef.current;
+    if (!doc || !map) return;
+
+    doc.transact(() => {
+      const type = op.type;
+      const nodeId = op.nodeId || op.node?.id;
+
+      if (type === "node:create" && op.node) {
+        map.set(op.node.id, op.node);
+      } else if (type === "node:update" && nodeId) {
+        const current = map.get(nodeId);
+        if (current) {
+          map.set(nodeId, { ...current, ...op.patch });
+        }
+      } else if (type === "node:delete" && nodeId) {
+        map.delete(nodeId);
+      }
+    }, "local");
+  }, []);
+
   const updateNodesFromDoc = useCallback(() => {
     const map = nodesMapRef.current;
     if (!map) return;
@@ -252,6 +274,10 @@ export default function CanvasView({
   const emitOp = useCallback(
     (op) => {
       if (readOnly || !socketRef.current?.connected) return;
+      
+      // Apply locally for instant feedback
+      applyOpLocally(op);
+
       socketRef.current.emit("canvas:op", {
         ...op,
         opId:
@@ -260,7 +286,7 @@ export default function CanvasView({
             : `${Date.now()}:${Math.random()}`,
       });
     },
-    [readOnly],
+    [readOnly, applyOpLocally],
   );
 
   const getStagePointer = useCallback(() => {
@@ -747,7 +773,7 @@ export default function CanvasView({
   }
 
   function renderNode(node) {
-    const commonProps = {
+    const { key, ...konvaProps } = {
       key: node.id,
       ref: (ref) => {
         if (ref) nodeRefs.current.set(node.id, ref);
@@ -781,7 +807,8 @@ export default function CanvasView({
       const editingThis = textEditor?.nodeId === node.id;
       return (
         <Text
-          {...commonProps}
+          key={key}
+          {...konvaProps}
           text={node.text || "\u00a0"}
           width={node.width}
           height={node.height}
@@ -803,9 +830,9 @@ export default function CanvasView({
     if (node.type === "note") {
       const editingThis = textEditor?.nodeId === node.id;
       return (
-        <React.Fragment key={node.id}>
+        <React.Fragment key={key}>
           <Rect
-            {...commonProps}
+            {...konvaProps}
             width={node.width}
             height={node.height}
             fill={node.style?.fill || "#facc15"}
@@ -841,7 +868,8 @@ export default function CanvasView({
     if (node.type === "arrow") {
       return (
         <Arrow
-          {...commonProps}
+          key={key}
+          {...konvaProps}
           points={node.points?.length ? node.points : [0, 0, node.width || 120, 0]}
           stroke={node.style?.stroke || "#e2e8f0"}
           fill={node.style?.stroke || "#e2e8f0"}
@@ -855,7 +883,8 @@ export default function CanvasView({
     if (node.type === "draw") {
       return (
         <Line
-          {...commonProps}
+          key={key}
+          {...konvaProps}
           x={0}
           y={0}
           points={node.points || []}
@@ -870,7 +899,8 @@ export default function CanvasView({
 
     return (
       <Rect
-        {...commonProps}
+        key={key}
+        {...konvaProps}
         width={node.width}
         height={node.height}
         fill={node.style?.fill || "rgba(99, 102, 241, 0.18)"}

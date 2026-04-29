@@ -101,17 +101,31 @@ async function request(path, options = {}, retryOnUnauthorized = true) {
   return payload;
 }
 
-export async function refreshAccessToken() {
-  const payload = await request(
-    "/api/auth/refresh",
-    {
-      method: "POST",
-    },
-    false,
-  );
+let refreshPromise = null;
 
-  setAccessToken(payload.accessToken);
-  return payload;
+export async function refreshAccessToken() {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const payload = await request(
+        "/api/auth/refresh",
+        {
+          method: "POST",
+        },
+        false,
+      );
+
+      setAccessToken(payload.accessToken);
+      return payload;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 export async function register({ username, password, displayName }) {
