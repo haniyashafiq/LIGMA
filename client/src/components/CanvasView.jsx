@@ -417,7 +417,11 @@ export default function CanvasView({
     // Only update if something actually changed to prevent render loops
     const currentNodes = nodesRef.current;
     const hasChanged = nextNodes.length !== currentNodes.length || 
-                      nextNodes.some((n, i) => n.id !== currentNodes[i]?.id || n.text !== currentNodes[i]?.text);
+                      nextNodes.some((n, i) => {
+                        const c = currentNodes[i];
+                        const pChanged = n.points?.length !== c.points?.length || (n.points && c.points && n.points[n.points.length - 1] !== c.points[c.points.length - 1]);
+                        return !c || n.id !== c.id || n.text !== c.text || n.x !== c.x || n.y !== c.y || n.width !== c.width || n.height !== c.height || pChanged;
+                      });
     
     if (hasChanged) {
       setNodes(nextNodes);
@@ -1034,7 +1038,19 @@ export default function CanvasView({
       if (event.target?.closest?.(".canvas-text-edit")) return;
       if (event.key === "Enter" && selectedId && !readOnly) {
         const node = nodesRef.current.find(n => n.id === selectedId);
-        if (node && (node.type === "text" || node.type === "note")) {
+        if (node && node.type === "note") {
+          const ownerId = node.metadata?.ownerId || node.metadata?.authorId;
+          const canEdit = currentUserRole === "lead" || (ownerId && String(ownerId) === String(currentUserId));
+          
+          if (!canEdit) {
+            window.dispatchEvent(
+              new CustomEvent("ligma:rbac-toast", {
+                detail: { message: "Only the owner or a Lead can edit this note." },
+              }),
+            );
+            return;
+          }
+
           event.preventDefault();
           beginTextEdit(node);
         }
@@ -1228,7 +1244,7 @@ export default function CanvasView({
       draggable: !readOnly && activeToolRef.current === "select",
       onClick: () => setSelectedId(node.id),
       onTap: () => setSelectedId(node.id),
-      onMouseEnter: () => !readOnly && setHoveredNodeId(node.id),
+      onMouseEnter: () => !readOnly && node.type === "note" && setHoveredNodeId(node.id),
       onMouseLeave: () => setHoveredNodeId(null),
       onDragStart: (e) => {
         e.cancelBubble = true;
@@ -1374,10 +1390,11 @@ export default function CanvasView({
     }
 
     if (node.type === "circle") {
+      const { x, y, ...restProps } = konvaProps;
       return (
         <Circle
           key={key}
-          {...konvaProps}
+          {...restProps}
           x={node.x + node.width / 2}
           y={node.y + node.height / 2}
           radius={Math.abs(node.width) / 2}
@@ -1389,10 +1406,13 @@ export default function CanvasView({
     }
 
     if (node.type === "triangle") {
+      const { x, y, ...restProps } = konvaProps;
       return (
         <Line
           key={key}
-          {...konvaProps}
+          {...restProps}
+          x={node.x}
+          y={node.y}
           points={[
             node.width / 2, 0,
             node.width, node.height,
