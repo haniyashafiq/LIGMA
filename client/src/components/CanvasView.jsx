@@ -243,6 +243,28 @@ export default function CanvasView({
     return () => window.clearTimeout(id);
   }, [rbacToast]);
 
+  const applyOpLocally = useCallback((op) => {
+    const doc = docRef.current;
+    const map = nodesMapRef.current;
+    if (!doc || !map) return;
+
+    doc.transact(() => {
+      const type = op.type;
+      const nodeId = op.nodeId || op.node?.id;
+
+      if (type === "node:create" && op.node) {
+        map.set(op.node.id, op.node);
+      } else if (type === "node:update" && nodeId) {
+        const current = map.get(nodeId);
+        if (current) {
+          map.set(nodeId, { ...current, ...op.patch });
+        }
+      } else if (type === "node:delete" && nodeId) {
+        map.delete(nodeId);
+      }
+    }, "local");
+  }, []);
+
   const updateNodesFromDoc = useCallback(() => {
     const map = nodesMapRef.current;
     if (!map) return;
@@ -252,6 +274,10 @@ export default function CanvasView({
   const emitOp = useCallback(
     (op) => {
       if (readOnly || !socketRef.current?.connected) return;
+      
+      // Apply locally for instant feedback
+      applyOpLocally(op);
+
       socketRef.current.emit("canvas:op", {
         ...op,
         opId:
@@ -260,7 +286,7 @@ export default function CanvasView({
             : `${Date.now()}:${Math.random()}`,
       });
     },
-    [readOnly],
+    [readOnly, applyOpLocally],
   );
 
   const getStagePointer = useCallback(() => {
