@@ -401,6 +401,7 @@ export function WorkspacePage() {
         workspaceRole={workspaceRole}
         connectionDot={connectionDot}
         connectionStatus={connectionStatus}
+        presenceMembers={presenceMembers}
         setExecOpen={setExecOpen}
         handleLogout={handleLogout}
       />

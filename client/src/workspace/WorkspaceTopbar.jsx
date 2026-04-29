@@ -23,8 +23,22 @@ export function WorkspaceTopbar({
   connectionDot, 
   connectionStatus, 
   setExecOpen, 
-  handleLogout 
+  handleLogout,
+  presenceMembers = []
 }) {
+  const getInitials = (name) => {
+    if (!name) return "?";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const MAX_VISIBLE_AVATARS = 5;
+  const visibleMembers = presenceMembers.slice(0, MAX_VISIBLE_AVATARS);
+  const remainingCount = presenceMembers.length - MAX_VISIBLE_AVATARS;
+
   return (
     <header className="workspace-topbar">
       <div className="workspace-topbar-left">
@@ -79,6 +93,24 @@ export function WorkspaceTopbar({
         >
           <FiHelpCircle size={15} />
         </button>
+        
+        <div className="ws-presence-stack">
+          {visibleMembers.map((member) => (
+            <div 
+              key={member.id} 
+              className="ws-presence-avatar" 
+              style={{ backgroundColor: member.color || "var(--color-primary)" }}
+              title={member.name}
+            >
+              {getInitials(member.name)}
+            </div>
+          ))}
+          {remainingCount > 0 && (
+            <div className="ws-presence-avatar more" title={`${remainingCount} more users`}>
+              +{remainingCount}
+            </div>
+          )}
+        </div>
 
         <button className="ws-share-btn" onClick={() => setShareOpen(true)}>
           <FiShare2 size={12} style={{ marginRight: 4 }} />
