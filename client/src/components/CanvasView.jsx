@@ -157,7 +157,7 @@ function makeNode(type, pointer, currentUser, zIndex) {
   if (type === "draw") {
     node.width = 0;
     node.height = 0;
-    node.points = [pointer.x, pointer.y];
+    node.points = [0, 0];
     node.style.stroke = "#e2e8f0";
   }
 
@@ -219,6 +219,7 @@ export default function CanvasView({
   const lastPointerRef = useRef(null);
   const viewportRef = useRef({ x: 0, y: 0, scale: 1 });
   const lastCursorEmitRef = useRef(0);
+  const lastDrawEmitRef = useRef(0);
   const localSocketIdRef = useRef(null);
   const lastPlacedTextRef = useRef(null);
   const textAreaRef = useRef(null);
@@ -236,6 +237,7 @@ export default function CanvasView({
   const [remoteCursors, setRemoteCursors] = useState({});
   const [textEditor, setTextEditor] = useState(null);
   const [textEditLayout, setTextEditLayout] = useState(null);
+  const [isDrawingState, setIsDrawingState] = useState(false);
 
   useEffect(() => {
     textEditorRef.current = textEditor;
@@ -864,6 +866,7 @@ export default function CanvasView({
       } else {
         // Drag-to-create tools
         isDrawingRef.current = true;
+        setIsDrawingState(true);
         drawingNodeRef.current = node;
         drawingStartPosRef.current = pointer;
         
@@ -915,8 +918,23 @@ export default function CanvasView({
     const start = drawingStartPosRef.current;
 
     if (node.type === "draw") {
-      node.points = [...node.points, pointer.x, pointer.y];
-      emitOp({ type: "node:update", nodeId: node.id, patch: { points: node.points } });
+      const relX = pointer.x - node.x;
+      const relY = pointer.y - node.y;
+      const newPoints = [...node.points, relX, relY];
+      node.points = newPoints;
+
+      // 1. Direct Konva update for zero-lag local feedback
+      const konvaNode = nodeRefs.current.get(node.id);
+      if (konvaNode) {
+        konvaNode.points(newPoints);
+      }
+
+      // 2. Throttled emit for collaboration sync (approx 30fps)
+      const now = Date.now();
+      if (now - lastDrawEmitRef.current > 32) {
+        lastDrawEmitRef.current = now;
+        emitOp({ type: "node:update", nodeId: node.id, patch: { points: newPoints } });
+      }
     } else if (node.type === "arrow") {
       const dx = pointer.x - node.x;
       const dy = pointer.y - node.y;
@@ -933,7 +951,16 @@ export default function CanvasView({
   }
 
   function handleStageMouseUp() {
+    if (isDrawingRef.current && drawingNodeRef.current?.type === "draw") {
+      // Final sync on release to ensure all points are sent
+      emitOp({ 
+        type: "node:update", 
+        nodeId: drawingNodeRef.current.id, 
+        patch: { points: drawingNodeRef.current.points } 
+      });
+    }
     isDrawingRef.current = false;
+    setIsDrawingState(false);
     isErasingRef.current = false;
     drawingNodeRef.current = null;
   }
@@ -1074,8 +1101,6 @@ export default function CanvasView({
         <Line
           key={key}
           {...konvaProps}
-          x={0}
-          y={0}
           points={node.points || []}
           stroke={node.style?.stroke || "#e2e8f0"}
           strokeWidth={node.style?.strokeWidth || 2}
@@ -1139,7 +1164,11 @@ export default function CanvasView({
       className="canvas-container"
       onPointerMove={capturePointerForToast}
       onPointerDown={capturePointerForToast}
-      style={{ cursor: activeTool === "eraser" ? "cell" : "default" }}
+      style={{ 
+        cursor: activeTool === "eraser" ? "cell" : 
+                activeTool === "draw" ? "crosshair" : 
+                "default" 
+      }}
     >
       {rbacToast ? (
         <div
@@ -1194,7 +1223,7 @@ export default function CanvasView({
         </Layer>
         <Layer>
           {nodes.map(renderNode)}
-          {selectedId && !textEditor ? (
+          {selectedId && !textEditor && !isDrawingState ? (
             <Transformer
               ref={transformerRef}
               rotateEnabled
