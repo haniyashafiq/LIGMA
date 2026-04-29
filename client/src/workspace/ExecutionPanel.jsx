@@ -5,7 +5,8 @@ import {
   FiMoreHorizontal, 
   FiPlus, 
   FiLink, 
-  FiList 
+  FiList,
+  FiTrash2
 } from "react-icons/fi";
 import { TaskCard } from "./TaskCard";
 
