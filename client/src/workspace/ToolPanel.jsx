@@ -10,7 +10,9 @@ export function ToolPanel({
   setGeoSubTool, 
   isReadOnlyMode,
   layersOpen,
-  setLayersOpen
+  setLayersOpen,
+  workspaceRole,
+  editor
 }) {
   return (
     <div className="ws-tool-panel">
@@ -52,21 +54,31 @@ export function ToolPanel({
 
       <div className="ws-tool-divider" />
 
-      {extras.map(({ id, Icon, label }) => (
-        <button
-          key={id}
-          className={`ws-tool-btn${id === "layers" && layersOpen ? " active" : ""}`}
-          title={label}
-          aria-label={label}
-          onClick={() => {
-            if (id === "layers") setLayersOpen(!layersOpen);
-          }}
-          disabled={isReadOnlyMode}
-        >
-          <Icon size={16} />
-          <span>{label}</span>
-        </button>
-      ))}
+      {extras.map(({ id, Icon, label }) => {
+        // Only lead can clear all
+        if (id === "clear_all" && workspaceRole !== "lead") return null;
+
+        return (
+          <button
+            key={id}
+            className={`ws-tool-btn${id === "layers" && layersOpen ? " active" : ""}`}
+            title={label}
+            aria-label={label}
+            onClick={() => {
+              if (id === "layers") setLayersOpen(!layersOpen);
+              if (id === "clear_all") {
+                if (window.confirm("Are you sure you want to clear the entire canvas? This cannot be undone.")) {
+                  editor?.clearAll?.();
+                }
+              }
+            }}
+            disabled={isReadOnlyMode}
+          >
+            <Icon size={16} />
+            <span>{label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

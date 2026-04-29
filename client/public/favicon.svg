@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#0e0e0e"/>
+  <rect x="4" y="4" width="56" height="56" rx="11" fill="#141313" stroke="#26292E" stroke-width="1"/>
+  <line x1="32" y1="13" x2="47" y2="32" stroke="#A1A1AA" stroke-width="2"   opacity="0.35"/>
+  <line x1="32" y1="13" x2="17" y2="32" stroke="#A1A1AA" stroke-width="2"   opacity="0.35"/>
+  <line x1="47" y1="32" x2="32" y2="51" stroke="#F5C542" stroke-width="2"   opacity="0.5"/>
+  <line x1="17" y1="32" x2="32" y2="51" stroke="#F5C542" stroke-width="2"   opacity="0.5"/>
+  <line x1="17" y1="32" x2="47" y2="32" stroke="#A1A1AA" stroke-width="1.5" opacity="0.3"/>
+  <circle cx="32" cy="13" r="10" fill="#F5C542"/>
+  <text x="32" y="17.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="#0e0e0e">L</text>
+  <circle cx="47" cy="32" r="7" fill="#3a3939" stroke="#26292E" stroke-width="1"/>
+  <circle cx="17" cy="32" r="7" fill="#3a3939" stroke="#26292E" stroke-width="1"/>
+  <circle cx="32" cy="51" r="10" fill="#1c1b1b" stroke="#A1A1AA" stroke-width="1.5"/>
+  <text x="32" y="55.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">M</text>
+</svg>

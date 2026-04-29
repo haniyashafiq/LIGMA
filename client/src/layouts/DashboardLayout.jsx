@@ -46,7 +46,7 @@ export function DashboardLayout({ user, children }) {
       {/* ── Sidebar ────────────────────────── */}
       <aside className="sidebar glass-panel">
         <Link to="/workspaces" className="sidebar-logo">
-          <div className="sidebar-logo-mark">LG</div>
+          <img src="/favicon.svg" alt="LIGMA Logo" className="sidebar-logo-img" />
           <div className="sidebar-logo-text">
             <span className="sidebar-logo-name">LIGMA</span>
             <span className="sidebar-logo-tagline">collaborative</span>
