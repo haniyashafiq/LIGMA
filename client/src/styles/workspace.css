@@ -2120,3 +2120,192 @@
   color: var(--color-primary);
   background: rgba(13, 153, 255, 0.1);
 }
+
+/* ── New Task Card UI ────────────────────────────────── */
+.ws-new-task-card {
+  background: rgba(25, 25, 25, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  margin-bottom: 12px;
+}
+
+.ws-new-task-card:hover {
+  background: rgba(30, 30, 30, 0.9);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.ws-task-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.ws-task-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ws-task-display-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ws-task-author-sub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ws-task-top-badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ws-task-type-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+}
+
+.ws-task-type-badge.auto {
+  background: rgba(13, 153, 255, 0.2);
+  color: #72b9ff;
+  border: 1px solid rgba(13, 153, 255, 0.4);
+}
+
+.ws-task-type-badge.manual {
+  background: rgba(162, 89, 255, 0.2);
+  color: #c08fff;
+  border: 1px solid rgba(162, 89, 255, 0.4);
+}
+
+.ws-task-delete-action {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.ws-task-delete-action:hover {
+  color: #ff4d4d;
+}
+
+.ws-task-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  width: 100%;
+}
+
+.ws-task-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ws-task-status-badges {
+  display: flex;
+  gap: 10px;
+}
+
+.ws-pill-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.ws-pill-badge.status-todo {
+  background: rgba(100, 150, 140, 0.15);
+  color: #7ab8aa;
+  border-color: rgba(100, 150, 140, 0.3);
+  cursor: pointer;
+}
+
+.ws-pill-badge.status-in_progress {
+  background: rgba(13, 153, 255, 0.15);
+  color: #72b9ff;
+  border-color: rgba(13, 153, 255, 0.3);
+  cursor: pointer;
+}
+
+.ws-pill-badge.status-done {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.3);
+  cursor: pointer;
+}
+
+.ws-pill-badge.priority-high {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.ws-pill-badge.priority-medium {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.ws-pill-badge.priority-low {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.pill-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ws-task-assignee-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ws-task-avatar-circle {
+  width: 28px;
+  height: 28px;
+  background: #7c3aed;
+  color: #fff;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ws-task-sparkle {
+  position: absolute;
+  bottom: -4px;
+  right: -6px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+}

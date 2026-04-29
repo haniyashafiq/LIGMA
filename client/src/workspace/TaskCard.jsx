@@ -10,38 +10,45 @@ export function TaskCard({
   getUsername, 
   getIntentLabel 
 }) {
+  const getPriorityIcon = (priority) => {
+    switch (priority?.toLowerCase()) {
+      case 'high': return '☰';
+      case 'medium': return '☲';
+      case 'low': return '☱';
+      default: return '☲';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'done': return '●';
+      case 'in_progress': return '◐';
+      case 'todo': return '○';
+      default: return '○';
+    }
+  };
+
   return (
     <div 
-      className="ws-task-card kanban-card"
+      className="ws-new-task-card"
       onClick={() => {
         if (task.source_node_id) {
           onJumpToNode(task.source_node_id);
         }
       }}
-      style={{ 
-        cursor: task.source_node_id ? 'pointer' : 'default',
-      }}
     >
-      <div className="ws-task-card-header">
-        <div className="ws-task-header-left">
-          {task.priority && (
-            <span className={`ws-task-priority-badge ${task.priority}`}>
-              {task.priority}
-            </span>
-          )}
-          {task.intent ? (
-            <span className={`ws-task-intent-badge ${String(task.intent).toLowerCase()}`}>
-              {getIntentLabel(task.intent)}
-            </span>
-          ) : null}
+      <div className="ws-task-top-row">
+        <div className="ws-task-main-info">
+          <h4 className="ws-task-display-title">{task.title}</h4>
+          <span className="ws-task-author-sub">by {task.authorName || 'unknown'}</span>
         </div>
-        <div className="ws-task-header-right">
-          <span className={`ws-task-badge ${!task.source_node_id ? "manual" : "auto"}`}>
-            {!task.source_node_id ? "✦ Manual" : "✦ Canvas"}
+        <div className="ws-task-top-badges">
+          <span className={`ws-task-type-badge ${!task.source_node_id ? "manual" : "auto"}`}>
+            {!task.source_node_id ? "✦ MANUAL" : "✦ CANVAS"}
           </span>
           {!isReadOnlyMode && onDeleteTask && (
             <button 
-              className="ws-task-delete-btn"
+              className="ws-task-delete-action"
               onClick={(e) => {
                 e.stopPropagation();
                 onDeleteTask(task.id);
@@ -53,46 +60,43 @@ export function TaskCard({
           )}
         </div>
       </div>
-      
-      <p className="ws-task-title">{task.title}</p>
-      
-      {task.authorName && (
-        <span className="ws-task-added-by">Added by {task.authorName}</span>
-      )}
 
-      <div className="ws-task-footer">
-        <span 
-          className={`ws-task-status ${task.status}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isReadOnlyMode) return;
-            const states = ['todo', 'in_progress', 'done'];
-            const idx = states.indexOf(task.status);
-            const next = states[(idx + 1) % states.length];
-            onUpdateTask(task.id, { status: next });
-          }}
-          style={{ cursor: isReadOnlyMode ? 'not-allowed' : 'pointer' }}
-          title={isReadOnlyMode ? "Read-only mode" : "Click to cycle status"}
-        >
-          {task.status === 'in_progress' ? 'In Progress' : (task.status.charAt(0).toUpperCase() + task.status.slice(1))}
-        </span>
-        
-        <div className="ws-task-footer-actions">
-          {task.source_node_id && (
-            <button 
-              className="ws-task-link-btn"
-              title="Jump to Node"
-              onClick={(e) => {
-                e.stopPropagation();
-                onJumpToNode(task.source_node_id);
-              }}
-            >
-              <FiLink size={10} />
-            </button>
+      <div className="ws-task-divider" />
+
+      <div className="ws-task-bottom-row">
+        <div className="ws-task-status-badges">
+          <button 
+            className={`ws-pill-badge status-${task.status}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isReadOnlyMode) return;
+              const states = ['todo', 'in_progress', 'done'];
+              const idx = states.indexOf(task.status);
+              const next = states[(idx + 1) % states.length];
+              onUpdateTask(task.id, { status: next });
+            }}
+          >
+            <span className="pill-icon">{getStatusIcon(task.status)}</span>
+            {task.status === 'in_progress' ? 'DOING' : task.status?.toUpperCase()}
+          </button>
+
+          <span className={`ws-pill-badge priority-${task.priority}`}>
+            <span className="pill-icon">{getPriorityIcon(task.priority)}</span>
+            {task.priority?.toUpperCase()}
+          </span>
+
+          {task.intent && (
+            <span className={`ws-pill-badge intent-${String(task.intent).toLowerCase()}`}>
+              {getIntentLabel(task.intent).toUpperCase()}
+            </span>
           )}
-          <div className="ws-task-user-pip" title={getUsername(task.assignee_id)}>
+        </div>
+
+        <div className="ws-task-assignee-wrap">
+          <div className="ws-task-avatar-circle" title={getUsername(task.assignee_id)}>
             {getUsername(task.assignee_id).charAt(0).toUpperCase()}
           </div>
+          <span className="ws-task-sparkle">✦</span>
         </div>
       </div>
     </div>
