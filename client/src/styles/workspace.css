@@ -1090,8 +1090,8 @@
 }
 
 .ws-add-task-form {
-  background: #1e1e1e;
-  border: 1px solid #333;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   width: 100%;
   max-width: 380px;
@@ -1104,7 +1104,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .ws-modal-header h3 {
@@ -1112,7 +1112,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #888;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -1127,7 +1127,7 @@
 }
 
 .ws-close-btn:hover {
-  color: #fff;
+  color: var(--color-text);
 }
 
 .ws-form-content {
@@ -1138,7 +1138,7 @@
   width: 100%;
   background: none;
   border: none;
-  color: #fff;
+  color: var(--color-text);
   font-family: inherit;
   font-size: 15px;
   line-height: 1.6;

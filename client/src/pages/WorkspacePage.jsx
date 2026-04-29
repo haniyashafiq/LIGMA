@@ -556,7 +556,7 @@ export function WorkspacePage() {
 
       <div className="workspace-body">
         {activeTab === 'timeline' ? (
-          <div className="ws-full-timeline" style={{ flex: 1, padding: 'var(--space-8)', overflowY: 'auto', background: 'var(--color-bg-base)' }}>
+          <div className="ws-full-timeline" style={{ flex: 1, padding: 'var(--space-8)', overflowY: 'auto', background: 'var(--color-bg)' }}>
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
               <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Workspace Timeline</h2>
               <p style={{ color: 'var(--color-text-subtle)', marginBottom: '32px' }}>A complete, append-only history of all events in this workspace.</p>
@@ -567,7 +567,7 @@ export function WorkspacePage() {
 
                   return (
                     <div key={event.id} className="ws-timeline-item" style={{ position: 'relative', marginBottom: '32px' }}>
-                      <div style={{ position: 'absolute', left: '-39px', top: '4px', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid var(--color-bg-base)' }} />
+                      <div style={{ position: 'absolute', left: '-39px', top: '4px', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid var(--color-bg)' }} />
                       <div style={{ fontSize: '12px', color: 'var(--color-text-subtle)', marginBottom: '4px' }}>
                         Seq: {event.sequenceNum} • {new Date(event.createdAt).toLocaleString()}
                       </div>
