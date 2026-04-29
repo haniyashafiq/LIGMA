@@ -27,6 +27,11 @@ function decodeYjsUpdate(update) {
 function createCanvasSocket({ workspaceId, token }) {
   const socket = io(getSocketBaseUrl(), {
     auth: (cb) => cb({ token: getAccessToken() || token, workspaceId }),
+    reconnection: true,
+    reconnectionAttempts: 30,
+    reconnectionDelay: 500,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
   });
 
   const presenceMembers = new Map();
@@ -100,6 +105,13 @@ function nextNodeId() {
 
 const CURSOR_EMIT_MS = 32;
 const CURSOR_STALE_MS = 5000;
+const CONNECTION_MESSAGES = {
+  waking: "Waking up server...",
+  reconnecting: "Reconnecting to workspace...",
+  error: "Connection interrupted. Retrying...",
+  offline: "Workspace offline. Retrying...",
+  disconnected: "Connecting to workspace...",
+};
 
 // Remote pointer: tip at (0,0) in local coords (classic triangular arrow, down-right).
 const REMOTE_CURSOR_ARROW = [0, 0, 0, 20, 5, 15, 9, 24, 12, 22, 8, 13, 15, 13];
@@ -182,10 +194,12 @@ export default function CanvasView({
   const textAreaRef = useRef(null);
   const skipNextTextBlurCommitRef = useRef(false);
   const textEditorRef = useRef(null);
+  const reconnectAttemptRef = useRef(0);
 
   const [nodes, setNodes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [connectionState, setConnectionState] = useState("disconnected");
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [rbacToast, setRbacToast] = useState(null);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
@@ -547,10 +561,35 @@ export default function CanvasView({
       return undefined;
     }
 
+    setConnectionState("waking");
+    reconnectAttemptRef.current = 0;
+    setReconnectAttempt(0);
     const socket = createCanvasSocket({ workspaceId, token });
     socketRef.current = socket;
 
+    const handleReconnectAttempt = (attempt) => {
+      reconnectAttemptRef.current = attempt;
+      setReconnectAttempt(attempt);
+      setConnectionState(attempt <= 2 ? "waking" : "reconnecting");
+    };
+
+    const handleReconnect = () => {
+      reconnectAttemptRef.current = 0;
+      setReconnectAttempt(0);
+      setConnectionState("online");
+    };
+
+    const handleReconnectFailed = () => {
+      setConnectionState("error");
+    };
+
+    socket.io.on("reconnect_attempt", handleReconnectAttempt);
+    socket.io.on("reconnect", handleReconnect);
+    socket.io.on("reconnect_failed", handleReconnectFailed);
+
     socket.on("connect", () => {
+      reconnectAttemptRef.current = 0;
+      setReconnectAttempt(0);
       setConnectionState("online");
       // Always request a full Yjs merge from the server. We do not persist the Y.Doc locally;
       // sessionStorage may hold a "caught up" sequence after a prior tab session. Sending that
@@ -587,12 +626,14 @@ export default function CanvasView({
         return next;
       });
     });
-    socket.on("disconnect", () => {
-      setConnectionState("offline");
+    socket.on("disconnect", (_reason) => {
+      setConnectionState(socket.active ? "reconnecting" : "offline");
       localSocketIdRef.current = null;
       setRemoteCursors({});
     });
-    socket.on("connect_error", () => setConnectionState("error"));
+    socket.on("connect_error", () => {
+      setConnectionState(reconnectAttemptRef.current <= 2 ? "waking" : "error");
+    });
     socket.on("canvas:delta", (payload) => {
       const update = decodeYjsUpdate(payload?.update);
       if (!update || !docRef.current) return;
@@ -616,6 +657,9 @@ export default function CanvasView({
     });
 
     return () => {
+      socket.io.off("reconnect_attempt", handleReconnectAttempt);
+      socket.io.off("reconnect", handleReconnect);
+      socket.io.off("reconnect_failed", handleReconnectFailed);
       socket.disconnect();
       socketRef.current = null;
     };
@@ -932,7 +976,13 @@ export default function CanvasView({
       {connectionState !== "online" ? (
         <div className="ws-loading">
           <div className="ws-loading-spinner" />
-          Connecting to workspace...
+          <div className="ws-loading-copy">
+            <strong>{CONNECTION_MESSAGES[connectionState] || CONNECTION_MESSAGES.disconnected}</strong>
+            <span>
+              Free hosting can take 30-60 seconds to wake. Your canvas will resync automatically.
+              {reconnectAttempt > 0 ? ` Attempt ${reconnectAttempt}/30.` : ""}
+            </span>
+          </div>
         </div>
       ) : null}
       <Stage
