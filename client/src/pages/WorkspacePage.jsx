@@ -401,6 +401,9 @@ export function WorkspacePage() {
         workspaceRole={workspaceRole}
         connectionDot={connectionDot}
         connectionStatus={connectionStatus}
+        presenceMembers={presenceMembers}
+        currentUserId={currentUser?.id}
+        canvasController={editor}
         setExecOpen={setExecOpen}
         handleLogout={handleLogout}
       />
