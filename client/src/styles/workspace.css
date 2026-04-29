@@ -371,7 +371,7 @@
   inset: 0;
 }
 
-/* Hide tldraw's default toolbar — we use our own */
+/* Hide legacy canvas toolbar wrappers — we use the workspace shell. */
 .ws-canvas-area .canvas-toolbar-wrap {
   display: none;
 }
@@ -713,6 +713,87 @@
   border: 1px solid rgba(139, 92, 246, 0.2);
 }
 
+.ws-task-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ws-task-intent-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.ws-task-intent-badge.action_item {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+}
+
+.ws-task-intent-badge.open_question {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+.ws-task-intent-badge.decision {
+  background: rgba(168, 85, 247, 0.14);
+  border-color: rgba(168, 85, 247, 0.3);
+  color: #c4b5fd;
+}
+
+.ws-task-intent-badge.reference {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+}
+
+.ws-task-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ws-task-intent-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.ws-task-intent-badge.action_item {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+}
+
+.ws-task-intent-badge.open_question {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+.ws-task-intent-badge.decision {
+  background: rgba(168, 85, 247, 0.14);
+  border-color: rgba(168, 85, 247, 0.3);
+  color: #c4b5fd;
+}
+
+.ws-task-intent-badge.reference {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+}
 .ws-task-added-by {
   font-size: 9px;
   color: var(--color-text-subtle);
@@ -1367,6 +1448,12 @@
   padding: 2px 6px;
 }
 
+.ws-member-role-note {
+  color: var(--color-text-muted);
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
 .ws-member-invite-form {
   padding: var(--space-4);
   display: flex;
@@ -1526,16 +1613,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-/* ── tldraw token overrides (Figma Dark) ─────────────── */
-.ws-canvas-area :root,
-.ws-canvas-area {
-  --tl-background: var(--color-bg);
-  --tl-color-primary: var(--color-primary);
-  --tl-color-on-primary: #ffffff;
-  --tl-panel-bg: var(--color-bg-raised);
-  --tl-accent: var(--color-role-lead);
 }
 
 /* ── Responsive ──────────────────────────────────────── */

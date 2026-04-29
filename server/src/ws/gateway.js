@@ -3,7 +3,7 @@ const config = require("../config");
 const { pool } = require("../db/pool");
 const { authenticateSocket } = require("../middleware/auth");
 const { getUserWorkspaceRole } = require("../middleware/rbac");
-const { createTldrawSyncManager } = require("./tldraw-sync");
+const { createCanvasSyncManager } = require("./canvas-sync");
 
 const connections = new Map();
 
@@ -38,7 +38,7 @@ function attachGateway(server) {
       credentials: true,
     },
   });
-  const tldrawSyncManager = createTldrawSyncManager(io);
+  const canvasSyncManager = createCanvasSyncManager(io);
 
   io.use(authenticateSocket);
 
@@ -93,9 +93,13 @@ function attachGateway(server) {
     const workspaceId = socket.workspaceId;
     const room = `room:${workspaceId}`;
 
-    // Attach the tldraw sync room immediately so the client's initial connect
-    // message cannot arrive before the room listener is ready.
-    await tldrawSyncManager.handleWorkspaceJoin(socket);
+    // Join immediately so io.to(room) events (e.g. task:sync) are never missed while
+    // handleWorkspaceJoin / DB work is still in flight.
+    socket.join(room);
+
+    // Attach the canvas sync handlers before presence so early client messages
+    // cannot arrive before the room listener is ready.
+    await canvasSyncManager.handleWorkspaceJoin(socket);
 
     const profile = await getUserPresenceProfile(socket.user.id).catch(
       () => null,
@@ -109,7 +113,6 @@ function attachGateway(server) {
     };
 
     connections.set(socket.id, presence);
-    socket.join(room);
 
     socket.emit("server:ready", {
       socketId: socket.id,
@@ -122,6 +125,23 @@ function attachGateway(server) {
       user: presence,
     });
 
+    socket.on("canvas:cursor:move", (payload) => {
+      const x = Number(payload?.x);
+      const y = Number(payload?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return;
+      }
+      const entry = connections.get(socket.id) || {};
+      socket.to(room).emit("canvas:cursor", {
+        socketId: socket.id,
+        userId: socket.user.id,
+        username: entry.username || socket.user.username,
+        color: entry.color || "#6366f1",
+        x,
+        y,
+      });
+    });
+
     socket.on("disconnect", async () => {
       const disconnectedPresence = connections.get(socket.id);
       connections.delete(socket.id);
@@ -131,7 +151,9 @@ function attachGateway(server) {
         user: disconnectedPresence || presence,
       });
 
-      await tldrawSyncManager.cleanupWorkspaceIfUnused(workspaceId);
+      socket.to(room).emit("canvas:cursor:leave", { socketId: socket.id });
+
+      await canvasSyncManager.cleanupWorkspaceIfUnused(workspaceId);
     });
   });
 

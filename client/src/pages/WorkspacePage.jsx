@@ -35,6 +35,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
+import CanvasReplay from "../components/CanvasReplay";
 import { AppContext } from "../utils/AppContext";
 import {
   apiFetch,
@@ -100,6 +101,7 @@ export function WorkspacePage() {
   const [gridEnabled, setGridEnabled] = useState(true);
   const [layersVersion, setLayersVersion] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [replayActive, setReplayActive] = useState(false);
 
   const [showAddTask, setShowAddTask] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -187,7 +189,11 @@ export function WorkspacePage() {
   useEffect(() => {
     if (editor && activeTool) {
       try {
-        editor.setCurrentTool(activeTool);
+        if (typeof editor.setTool === "function") {
+          editor.setTool(activeTool);
+        } else if (typeof editor.setCurrentTool === "function") {
+          editor.setCurrentTool(activeTool);
+        }
       } catch (err) {
         console.warn("[Workspace] Failed to set tool:", activeTool, err);
       }
@@ -218,10 +224,50 @@ export function WorkspacePage() {
     return member?.user?.username || member?.username || `User ${userId.substring(0, 4)}`;
   }, [currentUser, workspaceMembers]);
 
+  const getEventAction = useCallback((event) => {
+    const actions = {
+      "canvas:node:create": "created a canvas node",
+      "canvas:node:update": "updated a canvas node",
+      "canvas:node:delete": "deleted a canvas node",
+      "canvas:node:lock": "locked a canvas node",
+      "canvas:node:unlock": "unlocked a canvas node",
+      "canvas:node:permission:update": "changed node permissions",
+      "canvas:intent:classified": `classified a node as ${event?.payload?.intent || "reference"}`,
+    };
+
+    return actions[event?.eventType] || "modified the workspace";
+  }, []);
+
+  const getIntentLabel = useCallback((intent) => {
+    if (!intent) return null;
+    const normalized = String(intent).toLowerCase();
+    if (normalized === "action_item") return "Action item";
+    if (normalized === "open_question") return "Open question";
+    if (normalized === "decision") return "Decision";
+    if (normalized === "reference") return "Reference";
+    return normalized.replace(/_/g, " ");
+  }, []);
+
   useEffect(() => {
     loadTasks();
     loadEvents();
   }, [loadTasks, loadEvents]);
+
+  useEffect(() => {
+    if (activeTab === "workspace" || activeTab === "board") {
+      loadTasks();
+    }
+  }, [activeTab, loadTasks]);
+
+  useEffect(() => {
+    window.addEventListener("ligma:tasks-sync", loadTasks);
+    return () => window.removeEventListener("ligma:tasks-sync", loadTasks);
+  }, [loadTasks]);
+
+  useEffect(() => {
+    const interval = window.setInterval(loadTasks, 5000);
+    return () => window.clearInterval(interval);
+  }, [loadTasks]);
 
   // Poll events every 5 seconds
   useEffect(() => {
@@ -233,6 +279,18 @@ export function WorkspacePage() {
     if (res?.workspace?.role) setWorkspaceRole(res.workspace.role);
     setWorkspaceMembers(res?.members || []);
   }, [workspaceId]);
+
+  useEffect(() => {
+    function handleRoleUpdated(event) {
+      if (event?.detail?.workspaceId && String(event.detail.workspaceId) !== String(workspaceId)) {
+        return;
+      }
+      reloadWorkspaceMembers().catch(() => {});
+    }
+
+    window.addEventListener("ligma:role-updated", handleRoleUpdated);
+    return () => window.removeEventListener("ligma:role-updated", handleRoleUpdated);
+  }, [reloadWorkspaceMembers, workspaceId]);
 
   const handleInviteMember = useCallback(
     async ({ username, role }) => {
@@ -267,6 +325,7 @@ export function WorkspacePage() {
   );
 
   const isViewer = workspaceRole === "viewer";
+  const isReadOnlyMode = isViewer || replayActive;
   const canManageMembers = workspaceRole === "lead";
 
   const onlineUsers = Array.isArray(presenceMembers) ? presenceMembers : [];
@@ -278,12 +337,13 @@ export function WorkspacePage() {
     .filter(Boolean);
 
   const handleToolSelect = useCallback((toolId) => {
-    if (isViewer) return;
+    if (isReadOnlyMode) return;
     setActiveTool(toolId);
-  }, [isViewer]);
+  }, [isReadOnlyMode]);
 
   const handleAddTask = async (e) => {
     e.preventDefault();
+    if (isReadOnlyMode) return;
     if (!newTaskTitle.trim()) return;
 
     setIsSubmittingTask(true);
@@ -309,6 +369,7 @@ export function WorkspacePage() {
   };
 
   const handleUpdateTask = async (taskId, data) => {
+    if (isReadOnlyMode) return;
     try {
       await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
         method: "PATCH",
@@ -335,6 +396,10 @@ export function WorkspacePage() {
   const jumpToNode = useCallback((nodeId) => {
     if (!editor || !nodeId) return;
     try {
+      if (typeof editor.jumpToNode === "function") {
+        editor.jumpToNode(nodeId);
+        return;
+      }
       const shape = editor.getShape(nodeId);
       if (!shape) return;
       const bounds = editor.getShapePageBounds(shape);
@@ -486,18 +551,8 @@ export function WorkspacePage() {
               
               <div className="ws-timeline-track" style={{ position: 'relative', borderLeft: '2px solid var(--color-border)', marginLeft: '14px', paddingLeft: '32px' }}>
                 {events.map((event) => {
-                  let action = "modified the canvas";
-                  if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
-                    const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
-                    if (payloadStr.includes('camera') || payloadStr.includes('pointer') || payloadStr.includes('presence')) {
-                      action = "moved around the canvas";
-                    } else if (payloadStr.includes('added')) {
-                      action = "added elements";
-                    } else if (payloadStr.includes('removed')) {
-                      action = "removed elements";
-                    }
-                  }
-                  
+                  const action = getEventAction(event);
+
                   return (
                     <div key={event.id} className="ws-timeline-item" style={{ position: 'relative', marginBottom: '32px' }}>
                       <div style={{ position: 'absolute', left: '-39px', top: '4px', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid var(--color-bg-base)' }} />
@@ -551,6 +606,11 @@ export function WorkspacePage() {
                                 {task.priority}
                               </span>
                             )}
+                            {task.intent ? (
+                              <span className={`ws-task-intent-badge ${String(task.intent).toLowerCase()}`}>
+                                {getIntentLabel(task.intent)}
+                              </span>
+                            ) : null}
                             {task.authorName ? (
                               <span className="ws-task-added-by">by {task.authorName}</span>
                             ) : null}
@@ -565,13 +625,15 @@ export function WorkspacePage() {
                             className={`ws-task-status ${task.status}`}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (isReadOnlyMode) return;
                               const states = ['todo', 'doing', 'done'];
                               const current = task.status === 'in_progress' ? 'doing' : task.status;
                               const idx = states.indexOf(current);
                               const next = states[(idx + 1) % states.length];
                               handleUpdateTask(task.id, { status: next });
                             }}
-                            style={{ cursor: 'pointer' }}
+                            style={{ cursor: isReadOnlyMode ? 'not-allowed' : 'pointer' }}
+                            title={isReadOnlyMode ? "Read-only mode" : "Click to cycle status"}
                           >
                             {task.status === 'in_progress' ? 'Doing' : task.status}
                           </span>
@@ -603,7 +665,7 @@ export function WorkspacePage() {
                   onClick={() => handleToolSelect(id)}
                   title={label}
                   aria-label={label}
-                    disabled={isViewer}
+                  disabled={isReadOnlyMode}
                 >
                   <Icon size={16} />
                   <span>{label}</span>
@@ -621,7 +683,7 @@ export function WorkspacePage() {
                   onClick={() => {
                     if (id === "layers") setLayersOpen(!layersOpen);
                   }}
-                  disabled={isViewer}
+                  disabled={isReadOnlyMode}
                 >
                   <Icon size={16} />
                   <span>{label}</span>
@@ -634,13 +696,20 @@ export function WorkspacePage() {
               <CanvasView
                 workspaceId={workspaceId}
                 onMount={onCanvasMount}
+                activeTool={activeTool}
                 gridMode={gridEnabled}
-                readOnly={isViewer}
+                readOnly={isReadOnlyMode}
                 currentUserId={currentUser?.id || null}
                 currentUserRole={workspaceRole}
+                collabUser={collabUser}
+              />
+              <CanvasReplay
+                workspaceId={workspaceId}
+                gridMode={gridEnabled}
+                onReplayActiveChange={setReplayActive}
               />
 
-              {layersOpen && (
+              {layersOpen && !replayActive && (
                 <div className="ws-layers-panel">
                   <div className="ws-layers-header">
                     <span>Layers</span>
@@ -652,7 +721,7 @@ export function WorkspacePage() {
                       <div className="ws-layers-empty">No layers yet</div>
                     )}
                     {editor && [...editor.getCurrentPageShapes()]
-                      .sort((a, b) => (a.index < b.index ? 1 : -1))
+                      .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
                       .map(shape => (
                       <div 
                         key={shape.id} 
@@ -663,7 +732,7 @@ export function WorkspacePage() {
                         }}
                       >
                         <FiSquare size={12} />
-                        <span>{shape.type} - {shape.id.split(':')[1].substring(0, 4)}</span>
+                        <span>{shape.type} - {(shape.id.split(':')[1] || shape.id).substring(0, 4)}</span>
                       </div>
                     ))}
                   </div>
@@ -781,12 +850,7 @@ export function WorkspacePage() {
                       if (activityFilter === 'others') return e.userId !== currentUser?.id;
                       return true;
                     }).slice(0, 3).map((event) => {
-                      let action = "modified the canvas";
-                      if (event.eventType === "tldraw_update" || event.eventType === "tldraw_message") {
-                        const payloadStr = typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload);
-                        if (payloadStr.includes('added')) action = "added elements";
-                        else if (payloadStr.includes('removed')) action = "removed elements";
-                      }
+                      const action = getEventAction(event);
                       return (
                         <li key={event.id} className="ws-activity-item">
                           <div
@@ -861,8 +925,7 @@ export function WorkspacePage() {
                       fontSize: "var(--text-xs)",
                     }}
                   >
-                    No tasks yet. Create sticky notes with [TASK] to generate
-                    tasks.
+                    No tasks yet. Add text to a sticky note on the canvas; matching items sync here after a moment.
                   </div>
                 )}
 
@@ -892,6 +955,11 @@ export function WorkspacePage() {
                             {task.priority}
                           </span>
                         )}
+                        {task.intent ? (
+                          <span className={`ws-task-intent-badge ${String(task.intent).toLowerCase()}`}>
+                            {getIntentLabel(task.intent)}
+                          </span>
+                        ) : null}
                         {task.authorName ? (
                           <span className="ws-task-added-by">{task.authorName}</span>
                         ) : null}
@@ -906,14 +974,15 @@ export function WorkspacePage() {
                         className={`ws-task-status ${task.status}`}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (isReadOnlyMode) return;
                           const states = ['todo', 'doing', 'done'];
                           const current = task.status === 'in_progress' ? 'doing' : task.status;
                           const idx = states.indexOf(current);
                           const next = states[(idx + 1) % states.length];
                           handleUpdateTask(task.id, { status: next });
                         }}
-                        style={{ cursor: 'pointer' }}
-                        title="Click to cycle status"
+                        style={{ cursor: isReadOnlyMode ? 'not-allowed' : 'pointer' }}
+                        title={isReadOnlyMode ? "Read-only mode" : "Click to cycle status"}
                       >
                         {task.status === 'in_progress' ? 'Doing' : task.status}
                       </span>
@@ -964,6 +1033,7 @@ export function WorkspacePage() {
                         placeholder="Task description..."
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
+                        disabled={isReadOnlyMode}
                         required
                       />
                     </div>
@@ -978,6 +1048,7 @@ export function WorkspacePage() {
                               type="button"
                               className={newTaskStatus === s ? 'active' : ''}
                               onClick={() => setNewTaskStatus(s)}
+                              disabled={isReadOnlyMode}
                             >
                               {s === 'doing' ? 'Doing' : s.charAt(0).toUpperCase() + s.slice(1)}
                             </button>
@@ -996,6 +1067,7 @@ export function WorkspacePage() {
                               type="button"
                               className={`${newTaskPriority === p ? 'active' : ''} ${p}`}
                               onClick={() => setNewTaskPriority(p)}
+                              disabled={isReadOnlyMode}
                             >
                               {p.charAt(0).toUpperCase() + p.slice(1)}
                             </button>
@@ -1009,7 +1081,7 @@ export function WorkspacePage() {
                     <button
                       type="submit"
                       className="ws-submit-btn creative-glow"
-                      disabled={isSubmittingTask || !newTaskTitle.trim()}
+                      disabled={isReadOnlyMode || isSubmittingTask || !newTaskTitle.trim()}
                     >
                       {isSubmittingTask ? "Creating..." : "Create Task"}
                     </button>
@@ -1023,11 +1095,13 @@ export function WorkspacePage() {
               <button
                 className="ws-add-task-btn"
                 onClick={() => setShowAddTask(true)}
+                disabled={isReadOnlyMode}
+                title={isReadOnlyMode ? "Read-only mode" : "Add Task"}
               >
                 <FiPlus size={14} />
                 Add Task
               </button>
-              <button className="ws-sprint-btn creative-glow">
+              <button className="ws-sprint-btn creative-glow" disabled={isReadOnlyMode}>
                 <FiZap size={13} />
                 Execute Sprint
               </button>
@@ -1062,3 +1136,9 @@ export function WorkspacePage() {
     </div>
   );
 }
+
+
+
+
+
+

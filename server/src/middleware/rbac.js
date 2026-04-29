@@ -100,6 +100,41 @@ async function getNodeCreatorId(workspaceId, nodeId) {
   return result.rows[0]?.user_id || null;
 }
 
+async function getLatestCanvasNode(workspaceId, nodeId) {
+  const result = await pool.query(
+    `
+      SELECT event_type, payload
+      FROM canvas_events
+      WHERE workspace_id = $1
+        AND node_id = $2
+        AND event_type IN (
+          'canvas:node:create',
+          'canvas:node:update',
+          'canvas:node:delete',
+          'canvas:node:lock',
+          'canvas:node:unlock',
+          'canvas:node:permission:update',
+          'canvas:intent:classified'
+        )
+      ORDER BY sequence_num DESC
+      LIMIT 1
+    `,
+    [workspaceId, nodeId]
+  );
+
+  const row = result.rows[0];
+  if (!row || row.event_type === 'canvas:node:delete') {
+    return null;
+  }
+
+  return row.payload?.node || null;
+}
+
+function getCanvasNodeOwnerId(node) {
+  const metadata = node?.metadata && typeof node.metadata === 'object' ? node.metadata : {};
+  return metadata.authorId || metadata.ownerId || metadata.createdBy || null;
+}
+
 async function checkNodePermission(action, nodeId, userId, workspaceId) {
   const normalizedAction = typeof action === 'string' ? action.toLowerCase() : '';
 
@@ -126,19 +161,25 @@ async function checkNodePermission(action, nodeId, userId, workspaceId) {
     return false;
   }
 
-  if (normalizedAction === 'delete') {
-    if (!nodeId) {
+  if (nodeId && ['edit', 'move', 'delete'].includes(normalizedAction)) {
+    const latestNode = await getLatestCanvasNode(workspaceId, nodeId);
+    const metadata = latestNode?.metadata && typeof latestNode.metadata === 'object'
+      ? latestNode.metadata
+      : {};
+
+    if (metadata.lockedBy) {
       return false;
     }
 
-    const nodeCreatorId = await getNodeCreatorId(workspaceId, nodeId);
-    if (!nodeCreatorId) {
-      // Some transports (e.g. tldraw sync) maintain owner ACL directly in the
-      // document record. Callers should apply that stricter node ownership check.
-      return true;
+    const ownerId = getCanvasNodeOwnerId(latestNode);
+    if (ownerId) {
+      return String(ownerId) === String(userId);
     }
 
-    return nodeCreatorId === userId;
+    if (normalizedAction === 'delete') {
+      const nodeCreatorId = await getNodeCreatorId(workspaceId, nodeId);
+      return nodeCreatorId ? String(nodeCreatorId) === String(userId) : true;
+    }
   }
 
   return true;
@@ -150,4 +191,5 @@ module.exports = {
   getUserWorkspaceRole,
   requireRole,
   checkNodePermission,
+  getLatestCanvasNode,
 };
