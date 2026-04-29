@@ -70,6 +70,14 @@ function diffTextChange(previous = "", next = "") {
   };
 }
 
+function stripIntentPrefix(text = "") {
+  return String(text).replace(/^\[(?:action[_\s-]?item|open[_\s-]?question|decision|reference|general)\]\s*/i, "").trim();
+}
+
+function normalizeIntent(intent = "general") {
+  return String(intent || "general").trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
 function createCanvasSocket({ workspaceId, token }) {
   const socket = io(getSocketBaseUrl(), {
     auth: (cb) => cb({ token: getAccessToken() || token, workspaceId }),
@@ -374,15 +382,6 @@ export default function CanvasView({
         if (current) {
           map.set(nodeId, { ...current, ...op.patch });
         }
-      } else if (type === "node:text:delta" && nodeId) {
-        const text = ensureNodeText(textMap, nodeId);
-        if (text) {
-          const index = Math.max(0, Math.min(Number(op.delta?.index) || 0, text.length));
-          const deleteCount = Math.max(0, Math.min(Number(op.delta?.delete) || 0, text.length - index));
-          const insert = typeof op.delta?.insert === "string" ? op.delta.insert : "";
-          if (deleteCount > 0) text.delete(index, deleteCount);
-          if (insert) text.insert(index, insert);
-        }
       } else if (type === "node:delete" && nodeId) {
         map.delete(nodeId);
         textMap?.delete(nodeId);
@@ -405,7 +404,8 @@ export default function CanvasView({
       if (!current) return current;
       const live = nextNodes.find((node) => node.id === current.nodeId);
       if (!live || live.text === current.value) return current;
-      return { ...current, value: live.text };
+      if (current.value !== current.baseline) return current;
+      return { ...current, value: live.text, baseline: live.text };
     });
   }, []);
 
@@ -413,8 +413,12 @@ export default function CanvasView({
     (op) => {
       if (readOnly || !socketRef.current?.connected) return;
       
-      // Apply locally for instant feedback
-      applyOpLocally(op);
+      // Text uses the textarea state for instant feedback. Let the server's
+      // Yjs update be the single source written into this Y.Doc, otherwise the
+      // echo becomes a second CRDT author and inserts duplicate characters.
+      if (op.type !== "node:text:delta") {
+        applyOpLocally(op);
+      }
 
       socketRef.current.emit("canvas:op", {
         ...op,
@@ -505,21 +509,12 @@ export default function CanvasView({
     const node = resolveTextNode(nodeId);
     if (!node || (node.type !== 'note' && node.type !== 'text')) return;
 
-    const cleanText = text.replace(/^\[.*?\]\s*/, '').trim();
+    const cleanText = stripIntentPrefix(text);
+    if (cleanText.length < 2) return;
+
     const result = await classifyIntent(cleanText, node.type);
     const { intent, status } = result;
-
-    // Normalize intent for display (e.g. "action item" -> "Action Item")
-    const displayIntent = intent.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    const tag = `[${displayIntent}]`;
-    
-    // Normalize intent for database (e.g. "action item" -> "action_item")
-    const dbIntent = intent.toLowerCase().replace(/\s+/g, '_');
-    
-    // Update node with intent tag if changed
-    if (!text.startsWith(tag)) {
-      emitTextChange(nodeId, text, `${tag}\n${cleanText}`);
-    }
+    const dbIntent = normalizeIntent(intent);
 
     if (dbIntent === 'action_item') {
       await apiFetch(`/api/workspaces/${workspaceId}/tasks/node/${nodeId}`, {
@@ -541,7 +536,7 @@ export default function CanvasView({
       });
       window.dispatchEvent(new CustomEvent('ligma:tasks-sync'));
     }
-  }, [emitTextChange, resolveTextNode, workspaceId, user]);
+  }, [resolveTextNode, workspaceId, user]);
 
   const commitTextEditor = useCallback(() => {
     setTextEditor((current) => {

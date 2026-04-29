@@ -388,7 +388,7 @@ async function getRoom(workspaceId) {
       lastSequenceNum = Number(event.sequenceNum) || lastSequenceNum;
     }
 
-    const room = { doc, workspaceId, lastSequenceNum };
+    const room = { doc, workspaceId, lastSequenceNum, opQueue: Promise.resolve() };
     rooms.set(workspaceId, room);
     roomPromises.delete(workspaceId);
     return room;
@@ -454,7 +454,12 @@ function createCanvasSyncManager(io) {
       await sendRecovery(socket, room, payload.lastSequenceNum);
     });
 
-    socket.on("canvas:op", async (op = {}) => {
+    socket.on("canvas:op", (op = {}) => {
+      room.opQueue = room.opQueue
+        .catch((error) => {
+          console.error("[canvas-sync] Previous canvas operation failed", error);
+        })
+        .then(async () => {
       let update = null;
       const type = typeof op?.type === "string" ? op.type : "";
       const nodes = getNodesMap(room.doc);
@@ -554,6 +559,7 @@ function createCanvasSyncManager(io) {
           message: error.message || "Canvas operation rejected.",
         });
       }
+        });
     });
   }
 
