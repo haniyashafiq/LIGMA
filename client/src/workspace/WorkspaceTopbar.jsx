@@ -104,11 +104,11 @@ export function WorkspaceTopbar({
         </button>
         
         <div className="ws-presence-stack">
-          {visibleMembers.map((member) => {
+          {visibleMembers.map((member, idx) => {
             const isMe = String(member.userId) === String(currentUserId);
             return (
               <div 
-                key={member.id || member.socketId} 
+                key={member.userId || member.socketId || member.id || idx} 
                 className={`ws-presence-avatar${isMe ? " is-me" : ""}`} 
                 style={{ 
                   backgroundColor: member.color || "var(--color-primary)",
