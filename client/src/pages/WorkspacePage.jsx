@@ -35,7 +35,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import CanvasView from "../components/CanvasView";
-import CanvasReplay from "../components/CanvasReplay";
+import CanvasReplay, { useCanvasReplay, ReplayControls, ReplayOverlay } from "../components/CanvasReplay";
 import { AppContext } from "../utils/AppContext";
 import {
   apiFetch,
@@ -102,6 +102,10 @@ export function WorkspacePage() {
   const [layersVersion, setLayersVersion] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [replayActive, setReplayActive] = useState(false);
+  const replayState = useCanvasReplay({ 
+    workspaceId, 
+    onReplayActiveChange: setReplayActive 
+  });
 
   const [showAddTask, setShowAddTask] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -703,11 +707,7 @@ export function WorkspacePage() {
                 currentUserRole={workspaceRole}
                 collabUser={collabUser}
               />
-              <CanvasReplay
-                workspaceId={workspaceId}
-                gridMode={gridEnabled}
-                onReplayActiveChange={setReplayActive}
-              />
+              <ReplayOverlay state={replayState} gridMode={gridEnabled} />
 
               {layersOpen && !replayActive && (
                 <div className="ws-layers-panel">
@@ -739,8 +739,10 @@ export function WorkspacePage() {
                 </div>
               )}
 
-              {/* Bottom Toolbar */}
-              <div className="ws-bottom-bar">
+              {/* Bottom Toolbar Area */}
+              <div className="ws-bottom-wrapper">
+                <ReplayControls state={replayState} />
+                <div className="ws-bottom-bar">
                 <button className="ws-bottom-btn" title="Undo">
                   <FiRotateCcw size={14} />
                 </button>
@@ -799,6 +801,7 @@ export function WorkspacePage() {
                 </button>
               </div>
             </div>
+          </div>
 
             {/* Execution Panel (Right Sidebar) */}
         {execOpen && (

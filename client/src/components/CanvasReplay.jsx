@@ -195,24 +195,24 @@ function renderReplayNode(node) {
   );
 }
 
-export default function CanvasReplay({ workspaceId, gridMode = true, onReplayActiveChange }) {
-  const shellRef = useRef(null);
+export function useCanvasReplay({ workspaceId, onReplayActiveChange }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [sequenceNum, setSequenceNum] = useState(0);
-  const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
 
   const minSequence = history.length ? Number(history[0].sequenceNum) : 0;
   const maxSequence = history.length ? Number(history[history.length - 1].sequenceNum) : 0;
   const activeSequence = sequenceNum || maxSequence;
+
   const activeEvent = useMemo(
     () => history.find((event) => Number(event.sequenceNum) === Number(activeSequence)) || null,
     [activeSequence, history],
   );
+
   const nodes = useMemo(() => projectNodes(history, activeSequence), [history, activeSequence]);
 
   const loadHistory = useCallback(async () => {
@@ -240,16 +240,6 @@ export default function CanvasReplay({ workspaceId, gridMode = true, onReplayAct
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
-
-  useEffect(() => {
-    function resize() {
-      const rect = shellRef.current?.getBoundingClientRect();
-      if (rect) setStageSize({ width: rect.width, height: rect.height });
-    }
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, [enabled]);
 
   useEffect(() => {
     if (!playing || !enabled || !history.length) return undefined;
@@ -283,6 +273,109 @@ export default function CanvasReplay({ workspaceId, gridMode = true, onReplayAct
     setSequenceNum((current) => Math.min(maxSequence, Math.max(minSequence, Number(current || minSequence) + delta)));
   }
 
+  return {
+    history,
+    loading,
+    error,
+    enabled,
+    setEnabled,
+    playing,
+    setPlaying,
+    sequenceNum,
+    setSequenceNum,
+    viewport,
+    setViewport,
+    minSequence,
+    maxSequence,
+    activeSequence,
+    activeEvent,
+    nodes,
+    loadHistory,
+    toggleEnabled,
+    step,
+  };
+}
+
+export function ReplayControls({ state }) {
+  const {
+    loading,
+    enabled,
+    playing,
+    setPlaying,
+    sequenceNum,
+    setSequenceNum,
+    minSequence,
+    maxSequence,
+    activeSequence,
+    history,
+    loadHistory,
+    toggleEnabled,
+    step,
+  } = state;
+
+  return (
+    <div className="canvas-replay-controls" aria-label="Time travel controls">
+      <button type="button" className={enabled ? "active" : ""} onClick={toggleEnabled}>
+        Time Travel
+      </button>
+      <button type="button" onClick={loadHistory} disabled={loading} title="Reload history">
+        <FiRefreshCw size={13} />
+      </button>
+      <button type="button" onClick={() => step(-1)} disabled={!enabled || activeSequence <= minSequence}>
+        <FiSkipBack size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => setPlaying((value) => !value)}
+        disabled={!enabled || !history.length}
+        title={playing ? "Pause replay" : "Play replay"}
+      >
+        {playing ? <FiPause size={13} /> : <FiPlay size={13} />}
+      </button>
+      <button type="button" onClick={() => step(1)} disabled={!enabled || activeSequence >= maxSequence}>
+        <FiSkipForward size={13} />
+      </button>
+      <input
+        type="range"
+        min={minSequence || 0}
+        max={maxSequence || 0}
+        value={activeSequence || 0}
+        disabled={!enabled || !history.length}
+        onChange={(event) => {
+          setPlaying(false);
+          setSequenceNum(Number(event.target.value));
+        }}
+      />
+      <span className="canvas-replay-meta">
+        {history.length ? `Seq ${activeSequence}/${maxSequence}` : loading ? "Loading history..." : "No history"}
+      </span>
+    </div>
+  );
+}
+
+export function ReplayOverlay({ state, gridMode = true }) {
+  const {
+    enabled,
+    error,
+    activeEvent,
+    nodes,
+    viewport,
+    setViewport,
+  } = state;
+
+  const shellRef = useRef(null);
+  const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
+
+  useEffect(() => {
+    function resize() {
+      const rect = shellRef.current?.getBoundingClientRect();
+      if (rect) setStageSize({ width: rect.width, height: rect.height });
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [enabled]);
+
   function handleWheel(event) {
     event.evt.preventDefault();
     const stage = event.target?.getStage?.();
@@ -302,86 +395,57 @@ export default function CanvasReplay({ workspaceId, gridMode = true, onReplayAct
     });
   }
 
+  if (!enabled) return null;
+
   return (
-    <>
-      <div className="canvas-replay-controls" aria-label="Time travel controls">
-        <button type="button" className={enabled ? "active" : ""} onClick={toggleEnabled}>
-          Time Travel
-        </button>
-        <button type="button" onClick={loadHistory} disabled={loading} title="Reload history">
-          <FiRefreshCw size={13} />
-        </button>
-        <button type="button" onClick={() => step(-1)} disabled={!enabled || activeSequence <= minSequence}>
-          <FiSkipBack size={13} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setPlaying((value) => !value)}
-          disabled={!enabled || !history.length}
-          title={playing ? "Pause replay" : "Play replay"}
-        >
-          {playing ? <FiPause size={13} /> : <FiPlay size={13} />}
-        </button>
-        <button type="button" onClick={() => step(1)} disabled={!enabled || activeSequence >= maxSequence}>
-          <FiSkipForward size={13} />
-        </button>
-        <input
-          type="range"
-          min={minSequence || 0}
-          max={maxSequence || 0}
-          value={activeSequence || 0}
-          disabled={!enabled || !history.length}
-          onChange={(event) => {
-            setPlaying(false);
-            setSequenceNum(Number(event.target.value));
-          }}
-        />
-        <span className="canvas-replay-meta">
-          {history.length ? `Seq ${activeSequence}/${maxSequence}` : loading ? "Loading history..." : "No history"}
+    <div className="canvas-replay-overlay" ref={shellRef}>
+      <div className="canvas-replay-banner">
+        <strong>Replay mode</strong>
+        <span>
+          {activeEvent
+            ? `${eventLabel(activeEvent)} at ${new Date(activeEvent.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}`
+            : "Scrubbing canvas history"}
         </span>
       </div>
-
       {error ? <div className="canvas-replay-error">{error}</div> : null}
+      <Stage
+        width={stageSize.width}
+        height={stageSize.height}
+        x={viewport.x}
+        y={viewport.y}
+        scaleX={viewport.scale}
+        scaleY={viewport.scale}
+        draggable
+        onDragEnd={(event) => setViewport((current) => ({ ...current, x: event.target.x(), y: event.target.y() }))}
+        onWheel={handleWheel}
+      >
+        <Layer listening={false}>
+          {gridMode
+            ? Array.from({ length: 80 }).map((_, index) => (
+                <React.Fragment key={index}>
+                  <Line points={[index * 80 - 3200, -3200, index * 80 - 3200, 3200]} stroke="rgba(148,163,184,0.12)" strokeWidth={1} />
+                  <Line points={[-3200, index * 80 - 3200, 3200, index * 80 - 3200]} stroke="rgba(148,163,184,0.12)" strokeWidth={1} />
+                </React.Fragment>
+              ))
+            : null}
+        </Layer>
+        <Layer>{nodes.map(renderReplayNode)}</Layer>
+      </Stage>
+      {nodes.length === 0 ? <div className="canvas-empty-hint">No canvas nodes at this point in history.</div> : null}
+    </div>
+  );
+}
 
-      {enabled ? (
-        <div className="canvas-replay-overlay" ref={shellRef}>
-          <div className="canvas-replay-banner">
-            <strong>Replay mode</strong>
-            <span>
-              {activeEvent
-                ? `${eventLabel(activeEvent)} at ${new Date(activeEvent.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`
-                : "Scrubbing canvas history"}
-            </span>
-          </div>
-          <Stage
-            width={stageSize.width}
-            height={stageSize.height}
-            x={viewport.x}
-            y={viewport.y}
-            scaleX={viewport.scale}
-            scaleY={viewport.scale}
-            draggable
-            onDragEnd={(event) => setViewport((current) => ({ ...current, x: event.target.x(), y: event.target.y() }))}
-            onWheel={handleWheel}
-          >
-            <Layer listening={false}>
-              {gridMode
-                ? Array.from({ length: 80 }).map((_, index) => (
-                    <React.Fragment key={index}>
-                      <Line points={[index * 80 - 3200, -3200, index * 80 - 3200, 3200]} stroke="rgba(148,163,184,0.12)" strokeWidth={1} />
-                      <Line points={[-3200, index * 80 - 3200, 3200, index * 80 - 3200]} stroke="rgba(148,163,184,0.12)" strokeWidth={1} />
-                    </React.Fragment>
-                  ))
-                : null}
-            </Layer>
-            <Layer>{nodes.map(renderReplayNode)}</Layer>
-          </Stage>
-          {nodes.length === 0 ? <div className="canvas-empty-hint">No canvas nodes at this point in history.</div> : null}
-        </div>
-      ) : null}
+export default function CanvasReplay({ workspaceId, gridMode = true, onReplayActiveChange }) {
+  const state = useCanvasReplay({ workspaceId, onReplayActiveChange });
+  
+  return (
+    <>
+      <ReplayControls state={state} />
+      <ReplayOverlay state={state} gridMode={gridMode} />
     </>
   );
 }
