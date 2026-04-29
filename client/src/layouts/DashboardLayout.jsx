@@ -100,20 +100,6 @@ export function DashboardLayout({ user, children }) {
       <div className="dashboard-content">
         {/* Topbar */}
         <header className="dashboard-topbar">
-          <button className="topbar-icon-btn" aria-label="Notifications" title="Notifications">
-            <FiBell size={16} />
-          </button>
-          <button className="topbar-icon-btn" aria-label="Help" title="Help">
-            <FiHelpCircle size={16} />
-          </button>
-          <button
-            className="btn-ghost"
-            onClick={() => navigate("/settings")}
-            style={{ fontSize: "var(--text-xs)" }}
-          >
-            <FiSettings size={14} />
-            Settings
-          </button>
           <button
             className="topbar-avatar"
             onClick={handleLogout}

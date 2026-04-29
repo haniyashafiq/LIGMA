@@ -85,6 +85,7 @@ export function WorkspacesPage() {
   const [joinBusy, setJoinBusy] = useState(false);
   const [joinError, setJoinError] = useState("");
   const [joinSuccess, setJoinSuccess] = useState("");
+  const [showJoinPanel, setShowJoinPanel] = useState(false);
 
   useEffect(() => {
     const handleGlobalClick = () => setOpenMenuId(null);
@@ -203,60 +204,57 @@ export function WorkspacesPage() {
         </div>
 
         <div className="page-actions">
-          <button className="btn-ghost" aria-label="Filter canvases">
-            <FiFilter size={14} />
-            Filter
-          </button>
           <button
             className="btn-primary creative-glow"
-            onClick={() => setShowCreate(true)}
-            id="new-canvas-btn"
+            onClick={() => setShowJoinPanel(!showJoinPanel)}
           >
-            <FiPlus size={15} />
-            New Canvas
+            <FiLink2 size={15} />
+            Join via Link
           </button>
         </div>
       </div>
 
-      <section className="dashboard-invite-panel" aria-label="Join workspace with invite link">
-        <div className="dashboard-invite-panel-header">
-          <FiLink2 size={16} className="dashboard-invite-panel-icon" aria-hidden />
-          <div>
-            <h3 className="dashboard-invite-panel-title">Join with invite link</h3>
-            <p className="dashboard-invite-panel-hint">
-              Paste the full link from your teammate or the invite token only.
-            </p>
+      {showJoinPanel && (
+        <section className="dashboard-invite-panel" aria-label="Join workspace with invite link" style={{ marginBottom: '24px' }}>
+          <div className="dashboard-invite-panel-header">
+            <FiLink2 size={16} className="dashboard-invite-panel-icon" aria-hidden />
+            <div>
+              <h3 className="dashboard-invite-panel-title">Join with invite link</h3>
+              <p className="dashboard-invite-panel-hint">
+                Paste the full link from your teammate or the invite token only.
+              </p>
+            </div>
           </div>
-        </div>
-        <form className="dashboard-invite-form" onSubmit={handleJoinWithInvite}>
-          <input
-            type="text"
-            className="dashboard-invite-input"
-            value={joinInviteInput}
-            onChange={(e) => {
-              setJoinInviteInput(e.target.value);
-              setJoinError("");
-              setJoinSuccess("");
-            }}
-            placeholder="https://…/workspace/…?invite=…"
-            disabled={joinBusy}
-            aria-label="Invite link or token"
-            autoComplete="off"
-          />
-          <button type="submit" className="btn-primary" disabled={joinBusy || !joinInviteInput.trim()}>
-            {joinBusy ? (
-              <>
-                <FiLoader size={15} className="dashboard-invite-spinner" />
-                Joining…
-              </>
-            ) : (
-              "Join workspace"
-            )}
-          </button>
-        </form>
-        {joinError ? <p className="dashboard-invite-feedback error">{joinError}</p> : null}
-        {joinSuccess ? <p className="dashboard-invite-feedback success">{joinSuccess}</p> : null}
-      </section>
+          <form className="dashboard-invite-form" onSubmit={handleJoinWithInvite}>
+            <input
+              type="text"
+              className="dashboard-invite-input"
+              value={joinInviteInput}
+              onChange={(e) => {
+                setJoinInviteInput(e.target.value);
+                setJoinError("");
+                setJoinSuccess("");
+              }}
+              placeholder="https://…/workspace/…?invite=…"
+              disabled={joinBusy}
+              aria-label="Invite link or token"
+              autoComplete="off"
+            />
+            <button type="submit" className="btn-primary" disabled={joinBusy || !joinInviteInput.trim()}>
+              {joinBusy ? (
+                <>
+                  <FiLoader size={15} className="dashboard-invite-spinner" />
+                  Joining…
+                </>
+              ) : (
+                "Join workspace"
+              )}
+            </button>
+          </form>
+          {joinError ? <p className="dashboard-invite-feedback error">{joinError}</p> : null}
+          {joinSuccess ? <p className="dashboard-invite-feedback success">{joinSuccess}</p> : null}
+        </section>
+      )}
 
        {/* ── Your Canvases ─────────────────────── */}
       <div className="section-header">
