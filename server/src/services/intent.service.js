@@ -95,9 +95,9 @@ function classifyIntentForNode(text, nodeType) {
     return base;
   }
   return {
-    intent: "action_item",
-    confidence: Math.max(0.74, base.confidence),
-    reason: "Sticky note: treated as action item unless question, decision, or explicit reference/link.",
+    intent: "general",
+    confidence: base.confidence,
+    reason: "No strong signal detected; defaulting to general.",
   };
 }
 
