@@ -280,14 +280,22 @@ export function WorkspacePage() {
 
   const handleUpdateTask = async (taskId, data) => {
     if (workspaceRole === "viewer") return;
+    
+    // Optimistic Update
+    const oldTasks = [...tasks];
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...data } : t));
+
     try {
       await apiFetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       });
-      loadTasks();
+      // Optionally reload to ensure perfect sync
+      // loadTasks(); 
     } catch (err) {
       console.error("Failed to update task:", err);
+      setTasks(oldTasks); // Rollback on failure
+      alert("Failed to update task. Please check your connection.");
     }
   };
 

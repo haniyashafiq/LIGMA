@@ -8,7 +8,8 @@ export function TaskCard({
   onJumpToNode, 
   isReadOnlyMode, 
   getUsername, 
-  getIntentLabel 
+  getIntentLabel,
+  onDragStart
 }) {
   const getPriorityIcon = (priority) => {
     switch (priority?.toLowerCase()) {
@@ -31,6 +32,11 @@ export function TaskCard({
   return (
     <div 
       className="ws-new-task-card"
+      draggable={!isReadOnlyMode}
+      onDragStart={(e) => {
+        if (isReadOnlyMode) return;
+        if (onDragStart) onDragStart(task);
+      }}
       onClick={() => {
         if (task.source_node_id) {
           onJumpToNode(task.source_node_id);
@@ -92,11 +98,6 @@ export function TaskCard({
           )}
         </div>
 
-        <div className="ws-task-assignee-wrap">
-          <div className="ws-task-avatar-circle" title={getUsername(task.assignee_id)}>
-            {getUsername(task.assignee_id).charAt(0).toUpperCase()}
-          </div>
-        </div>
       </div>
     </div>
   );
